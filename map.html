@@ -36,36 +36,8 @@
             document.getElementById('loading').style.display = 'none';
         }
 
-        // Supabase kliens inicializálása
-        const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
-        let supabase;
-        try {
-            if (typeof Supabase === 'undefined') {
-                throw new Error('A Supabase JS könyvtár nem töltődött be. Ellenőrizd a CDN URL-t: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
-            }
-            supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log('Supabase kliens sikeresen inicializálva');
-        } catch (error) {
-            showError('Hiba a Supabase kliens inicializálásakor: ' + error.message);
-            return;
-        }
-
-        // Térkép inicializálása
-        let map;
-        try {
-            map = L.map('map').setView([47.4979, 19.0402], 10); // Budapest
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-            console.log('Leaflet térkép sikeresen inicializálva');
-        } catch (error) {
-            showError('Hiba a térkép inicializálásakor: ' + error.message);
-            return;
-        }
-
         // Kezdeti adatok lekérése
-        async function fetchInitialData() {
+        async function fetchInitialData(supabase) {
             const url = `${SUPABASE_URL}/rest/v1/air_quality?select=id,timestamp,latitude:st_y(location:geometry),longitude:st_x(location:geometry),pm1_0,pm2_5,pm4_0,pm10_0,humidity,temperature,voc,nox,co2`;
             try {
                 console.log('Kezdeti adatok lekérése:', url);
@@ -90,7 +62,7 @@
         }
 
         // Marker hozzáadása a térképhez
-        function addMarker(point) {
+        function addMarker(map, point) {
             if (!point.latitude || !point.longitude) {
                 console.warn('Érvénytelen koordináták:', point);
                 return;
@@ -116,73 +88,102 @@
             }
         }
 
-        // Kezdeti adatok megjelenítése
-        async function displayInitialData() {
-            const airQualityData = await fetchInitialData();
-            airQualityData.forEach(addMarker);
+        // Fő inicializáló függvény
+        async function init() {
+            // Supabase kliens inicializálása
+            const SUPABASE_URL = 'https://yuamroqhxflusxerwp.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzE1MDYwMzM2LCJleHAiOjIwMzAzMjYzMzZ9.XVcJ9._eyjPc3m0jJdxBhYmFzZIsInJ';
+            let supabase;
+            try {
+                if (typeof Supabase === 'undefined') {
+                    throw new Error('A Supabase JS könyvtár nem töltődött be. Ellenőrizd a CDN URL-t: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
+                }
+                supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('Supabase kliens sikeresen inicializálva');
+            } catch (error) {
+                showError('Hiba a Supabase kliens inicializálásakor: ' + error.message);
+                return;
+            }
+
+            // Térkép inicializálása
+            let map;
+            try {
+                map = L.map('map').setView([47.4979, 19.0402], 10); // Budapest
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                console.log('Leaflet térkép sikeresen inicializálva');
+            } catch (error) {
+                showError('Hiba a térkép inicializálásakor: ' + error.message);
+                return;
+            }
+
+            // Kezdeti adatok megjelenítése
+            const airQualityData = await fetchInitialData(supabase);
+            airQualityData.forEach(point => addMarker(map, point));
             if (airQualityData.length === 0) {
                 showError('Nincsenek elérhető adatok az air_quality táblában. Ellenőrizd, hogy a tábla tartalmaz-e adatokat, és hogy a SELECT jogosultság engedélyezve van-e.');
             }
             hideLoading();
-        }
 
-        // Valós idejű frissítések
-        let channel;
-        try {
-            channel = supabase
-                .channel('air-quality-changes')
-                .on('postgres_changes', 
-                    { event: 'INSERT', schema: 'public', table: 'air_quality' }, 
-                    payload => {
-                        console.log('Új adat érkezett a Realtime csatornán:', payload);
-                        const point = payload.new;
-                        // Külön REST hívás az ST_X/ST_Y miatt
-                        fetch(`${SUPABASE_URL}/rest/v1/air_quality?id=eq.${point.id}&select=id,timestamp,latitude:st_y(location:geometry),longitude:st_x(location:geometry),pm1_0,pm2_5,pm4_0,pm10_0,humidity,temperature,voc,nox,co2`, {
-                            headers: {
-                                'Authorization': `Bearer ${SUPABASE_KEY}`,
-                                'apikey': SUPABASE_KEY,
-                                'Content-Type': 'application/json'
-                            }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP hiba: ${response.status} ${response.statusText}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.length > 0) {
-                                addMarker(data[0]);
-                                console.log('Új marker hozzáadva Realtime esemény alapján:', data[0]);
-                            } else {
-                                console.warn('Nincs új adat a REST hívásban:', point.id);
-                            }
-                        })
-                        .catch(error => console.error('Hiba az új adat lekérésekor:', error));
-                    }
-                )
-                .subscribe((status) => {
-                    console.log('Realtime csatorna állapota:', status);
-                    if (status === 'SUBSCRIBED') {
-                        console.log('Sikeresen feliratkozva a Realtime csatornára');
-                    } else if (status === 'CLOSED' || status === 'TIMED_OUT') {
-                        showError('Realtime kapcsolat megszakadt. Kérjük, frissítse az oldalt.');
-                    }
-                });
-        } catch (error) {
-            showError('Hiba a Realtime csatorna inicializálásakor: ' + error.message + '. Ellenőrizd, hogy a Realtime replikáció engedélyezve van-e az air_quality táblára.');
+            // Valós idejű frissítések
+            let channel;
+            try {
+                channel = supabase
+                    .channel('air-quality-changes')
+                    .on('postgres_changes', 
+                        { event: 'INSERT', schema: 'public', table: 'air_quality' }, 
+                        payload => {
+                            console.log('Új adat érkezett a Realtime csatornán:', payload);
+                            const point = payload.new;
+                            // Külön REST hívás az ST_X/ST_Y miatt
+                            fetch(`${SUPABASE_URL}/rest/v1/air_quality?id=eq.${point.id}&select=id,timestamp,latitude:st_y(location:geometry),longitude:st_x(location:geometry),pm1_0,pm2_5,pm4_0,pm10_0,humidity,temperature,voc,nox,co2`, {
+                                headers: {
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                                    'apikey': SUPABASE_KEY,
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP hiba: ${response.status} ${response.statusText}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.length > 0) {
+                                    addMarker(map, data[0]);
+                                    console.log('Új marker hozzáadva Realtime esemény alapján:', data[0]);
+                                } else {
+                                    console.warn('Nincs új adat a REST hívásban:', point.id);
+                                }
+                            })
+                            .catch(error => console.error('Hiba az új adat lekérésekor:', error));
+                        }
+                    )
+                    .subscribe((status) => {
+                        console.log('Realtime csatorna állapota:', status);
+                        if (status === 'SUBSCRIBED') {
+                            console.log('Sikeresen feliratkozva a Realtime csatornára');
+                        } else if (status === 'CLOSED' || status === 'TIMED_OUT') {
+                            showError('Realtime kapcsolat megszakadt. Kérjük, frissítse az oldalt.');
+                        }
+                    });
+            } catch (error) {
+                showError('Hiba a Realtime csatorna inicializálásakor: ' + error.message + '. Ellenőrizd, hogy a Realtime replikáció engedélyezve van-e az air_quality táblára.');
+            }
+
+            // Tisztítás az oldal elhagyásakor
+            window.addEventListener('unload', () => {
+                if (channel) {
+                    supabase.removeChannel(channel);
+                    console.log('Realtime csatorna leállítva');
+                }
+            });
         }
 
         // Indítás
-        displayInitialData();
-
-        // Tisztítás az oldal elhagyásakor
-        window.addEventListener('unload', () => {
-            if (channel) {
-                supabase.removeChannel(channel);
-                console.log('Realtime csatorna leállítva');
-            }
-        });
+        init();
     </script>
 </body>
 </html>
