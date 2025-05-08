@@ -9,7 +9,7 @@
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Supabase JavaScript kliens -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js" integrity="sha384-+BleyMtUK+3Jf3+pFGjquxaZd8ZziJZHRgDmQDb4xG5nDx7A3Pma4J0g5qR4Xr3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.min.js" integrity="sha384-5Y+2gq3tWvK9pN5mB0jXzYkQ9wL2mTjE8=" defer crossorigin="anonymous"></script>
     <style>
         body { margin: 0; font-family: Arial, sans-serif; }
         #map { height: 100vh; width: 100%; }
@@ -36,7 +36,7 @@
         }
 
         // Adatlekérdezés
-        async function fetchInitialData() {
+        async function fetchInitialData(supabase) {
             try {
                 const { data, error } = await supabase
                     .from('air_quality')
@@ -83,13 +83,16 @@
         async function init() {
             try {
                 // Supabase kapcsolat
-                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                if (typeof Supabase === 'undefined') {
+                    throw new Error('A Supabase JS könyvtár nem töltődött be.');
+                }
+                const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 
                 // Térkép betöltése
                 const map = await initMap();
                 
                 // Kezdeti adatok
-                const data = await fetchInitialData();
+                const data = await fetchInitialData(supabase);
                 data.forEach(point => createMarker(map, point));
                 
                 // Valós idejű frissítések
@@ -119,7 +122,7 @@
 
         // Indítás
         document.addEventListener('DOMContentLoaded', () => {
-            if (!window.supabase) {
+            if (typeof Supabase === 'undefined') {
                 showError('Supabase könyvtár nem töltődött be!');
                 return;
             }
