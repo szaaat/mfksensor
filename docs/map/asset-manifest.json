@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/mfksensor/map/static/css/main.c6dea195.css",
-    "main.js": "/mfksensor/map/static/js/main.2c07e6d3.js",
+    "main.js": "/mfksensor/map/static/js/main.6ff2632f.js",
     "static/js/198.cf245a71.chunk.js": "/mfksensor/map/static/js/198.cf245a71.chunk.js",
     "index.html": "/mfksensor/map/index.html",
     "main.c6dea195.css.map": "/mfksensor/map/static/css/main.c6dea195.css.map",
-    "main.2c07e6d3.js.map": "/mfksensor/map/static/js/main.2c07e6d3.js.map",
+    "main.6ff2632f.js.map": "/mfksensor/map/static/js/main.6ff2632f.js.map",
     "198.cf245a71.chunk.js.map": "/mfksensor/map/static/js/198.cf245a71.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.c6dea195.css",
-    "static/js/main.2c07e6d3.js"
+    "static/js/main.6ff2632f.js"
   ]
 }
