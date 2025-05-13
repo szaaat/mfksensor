@@ -1,17 +1,15 @@
 {
   "files": {
-    "main.css": "/mfksensor/map/static/css/main.68d8def6.css",
-    "main.js": "/mfksensor/map/static/js/main.55c0da2c.js",
-    "static/js/952.8de0dd6b.chunk.js": "/mfksensor/map/static/js/952.8de0dd6b.chunk.js",
-    "static/js/453.2f3f8688.chunk.js": "/mfksensor/map/static/js/453.2f3f8688.chunk.js",
+    "main.css": "/mfksensor/map/static/css/main.c6dea195.css",
+    "main.js": "/mfksensor/map/static/js/main.f7938394.js",
+    "static/js/198.cf245a71.chunk.js": "/mfksensor/map/static/js/198.cf245a71.chunk.js",
     "index.html": "/mfksensor/map/index.html",
-    "main.68d8def6.css.map": "/mfksensor/map/static/css/main.68d8def6.css.map",
-    "main.55c0da2c.js.map": "/mfksensor/map/static/js/main.55c0da2c.js.map",
-    "952.8de0dd6b.chunk.js.map": "/mfksensor/map/static/js/952.8de0dd6b.chunk.js.map",
-    "453.2f3f8688.chunk.js.map": "/mfksensor/map/static/js/453.2f3f8688.chunk.js.map"
+    "main.c6dea195.css.map": "/mfksensor/map/static/css/main.c6dea195.css.map",
+    "main.f7938394.js.map": "/mfksensor/map/static/js/main.f7938394.js.map",
+    "198.cf245a71.chunk.js.map": "/mfksensor/map/static/js/198.cf245a71.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.68d8def6.css",
-    "static/js/main.55c0da2c.js"
+    "static/css/main.c6dea195.css",
+    "static/js/main.f7938394.js"
   ]
 }
