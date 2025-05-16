@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Levegőminőség Térkép</title>
-    <script src="[invalid url, do not cite]
-    <script src="[invalid url, do not cite]
-    <script src="[invalid url, do not cite]
-    <script src="[invalid url, do not cite]
-    <link href="[invalid url, do not cite] rel="stylesheet" />
-    <script src="[invalid url, do not cite]
-    <script src="[invalid url, do not cite]
-    <link href="[invalid url, do not cite] rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.25.6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 </head>
 <body class="bg-gray-100 font-sans min-h-screen flex flex-col">
     <header class="bg-green-700 text-white text-center py-8 shadow-lg">
@@ -39,76 +38,68 @@
         document.addEventListener('DOMContentLoaded', () => {
             const { useState, useEffect } = React;
 
+            const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
+            const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+            const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
             const App = () => {
                 const [map, setMap] = useState(null);
                 const [geojson, setGeojson] = useState(null);
-
-                // Supabase kliens inicializálása
-                const supabase = Supabase.createClient(
-                    '[invalid url, do not cite]
-                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-                );
 
                 // Adatok lekérése a Supabase-ből
                 useEffect(() => {
                     const fetchData = async () => {
                         console.log('Starting data fetch');
-                        const { data, error } = await supabase
-                            .from('air_quality')
-                            .select('id, timestamp, location, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2, created_at')
-                            .limit(10);
-                        if (error) {
-                            console.error('Error fetching data:', error);
-                        } else {
-                            console.log('Fetched data:', data);
-                            const features = data.map(item => {
-                                try {
-                                    if (typeof item.location !== 'string') {
-                                        console.error('location is not a string for item:', item.id);
+                        try {
+                            const { data, error } = await supabase
+                                .from('air_quality')
+                                .select('id, timestamp, ST_AsGeoJSON(location) AS location, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2, created_at')
+                                .limit(10);
+                            if (error) {
+                                console.error('Error fetching data:', error);
+                            } else {
+                                console.log('Fetched data:', data);
+                                const features = data.map(item => {
+                                    try {
+                                        if (typeof item.location !== 'string') {
+                                            console.error('location is not a string for item:', item.id);
+                                            return null;
+                                        }
+                                        console.log('Processing item:', item.id);
+                                        const geojsonGeometry = JSON.parse(item.location);
+                                        console.log('geojsonGeometry:', geojsonGeometry);
+                                        return {
+                                            type: 'Feature',
+                                            geometry: geojsonGeometry,
+                                            properties: {
+                                                id: item.id,
+                                                record_time: item.timestamp,
+                                                pm1_0: item.pm1_0,
+                                                pm2_5: item.pm2_5,
+                                                pm4_0: item.pm4_0,
+                                                pm10_0: item.pm10_0,
+                                                humidity: item.humidity,
+                                                temperature: item.temperature,
+                                                voc: item.voc,
+                                                nox: item.nox,
+                                                co2: item.co2,
+                                                created_at: item.created_at
+                                            }
+                                        };
+                                    } catch (e) {
+                                        console.error('Error parsing GeoJSON for item:', item.id, e);
                                         return null;
                                     }
-                                    console.log('Processing item:', item.id);
-                                    const wkbBase64 = item.location;
-                                    console.log('wkbBase64:', wkbBase64);
-                                    const wkbString = atob(wkbBase64);
-                                    console.log('wkbString:', wkbString);
-                                    const wkbBuffer = new Uint8Array(wkbString.length);
-                                    for (let i = 0; i < wkbString.length; i++) {
-                                        wkbBuffer[i] = wkbString.charCodeAt(i);
-                                    }
-                                    console.log('wkbBuffer:', wkbBuffer);
-                                    const geometry = wkx.Geometry.parse(wkbBuffer);
-                                    const geojsonGeometry = geometry.toGeoJSON();
-                                    console.log('geojsonGeometry:', geojsonGeometry);
-                                    return {
-                                        type: 'Feature',
-                                        geometry: geojsonGeometry,
-                                        properties: {
-                                            id: item.id,
-                                            record_time: item.timestamp,
-                                            pm1_0: item.pm1_0,
-                                            pm2_5: item.pm2_5,
-                                            pm4_0: item.pm4_0,
-                                            pm10_0: item.pm10_0,
-                                            humidity: item.humidity,
-                                            temperature: item.temperature,
-                                            voc: item.voc,
-                                            nox: item.nox,
-                                            co2: item.co2,
-                                            created_at: item.created_at
-                                        }
-                                    };
-                                } catch (e) {
-                                    console.error('Error parsing WKB for item:', item.id, e);
-                                    return null;
-                                }
-                            }).filter(feature => feature !== null);
-                            const geojsonData = {
-                                type: 'FeatureCollection',
-                                features: features
-                            };
-                            console.log('GeoJSON data:', geojsonData);
-                            setGeojson(geojsonData);
+                                }).filter(feature => feature !== null);
+                                const geojsonData = {
+                                    type: 'FeatureCollection',
+                                    features: features
+                                };
+                                console.log('GeoJSON data:', geojsonData);
+                                setGeojson(geojsonData);
+                            }
+                        } catch (e) {
+                            console.error('Unexpected error during data fetch:', e);
                         }
                     };
                     fetchData();
@@ -117,90 +108,102 @@
                 // Térkép inicializálása
                 useEffect(() => {
                     console.log('Starting map initialization');
-                    const mapInstance = new maplibregl.Map({
-                        container: 'map',
-                        style: 'https://api.maptiler.com/maps/streets-v2/style.json?key=YOUR_MAPTILER_KEY',
-                        center: [20.729, 48.097],
-                        zoom: 11
-                    });
-                    console.log('Map initialized');
-                    setMap(mapInstance);
+                    try {
+                        const mapInstance = new maplibregl.Map({
+                            container: 'map',
+                            style: 'https://api.maptiler.com/maps/streets-v2/style.json?key=ayQsuEXLCAK6AnJneYaR',
+                            center: [20.729, 48.097],
+                            zoom: 11
+                        });
+                        console.log('Map initialized');
+                        setMap(mapInstance);
 
-                    return () => {
-                        mapInstance.remove();
-                    };
+                        return () => {
+                            mapInstance.remove();
+                        };
+                    } catch (e) {
+                        console.error('Error initializing map:', e);
+                    }
                 }, []);
 
                 // Adatok hozzáadása a térképhez
                 useEffect(() => {
                     if (map && geojson) {
                         console.log('Adding source to map');
-                        map.addSource('air-quality', {
-                            type: 'geojson',
-                            data: geojson
-                        });
-                        console.log('Source added');
+                        try {
+                            map.addSource('air-quality', {
+                                type: 'geojson',
+                                data: geojson
+                            });
+                            console.log('Source added');
 
-                        console.log('Adding layer to map');
-                        map.addLayer({
-                            id: 'air-quality-points',
-                            type: 'circle',
-                            source: 'air-quality',
-                            paint: {
-                                'circle-radius': 15,
-                                'circle-color': '#FF0000',
-                                'circle-stroke-width': 1,
-                                'circle-stroke-color': '#FFFFFF'
-                            }
-                        });
-                        console.log('Layer added');
+                            console.log('Adding layer to map');
+                            map.addLayer({
+                                id: 'air-quality-points',
+                                type: 'circle',
+                                source: 'air-quality',
+                                paint: {
+                                    'circle-radius': 15,
+                                    'circle-color': '#FF0000',
+                                    'circle-stroke-width': 1,
+                                    'circle-stroke-color': '#FFFFFF'
+                                }
+                            });
+                            console.log('Layer added');
 
-                        // Popup hozzáadása
-                        map.on('click', 'air-quality-points', (e) => {
-                            if (e.features && e.features.length > 0) {
-                                console.log('Click event on air-quality-points:', e.features);
-                                const coordinates = e.features[0].geometry.coordinates.slice();
-                                const properties = e.features[0].properties;
+                            // Popup hozzáadása
+                            map.on('click', 'air-quality-points', (e) => {
+                                if (e.features && e.features.length > 0) {
+                                    console.log('Click event on air-quality-points:', e.features);
+                                    const coordinates = e.features[0].geometry.coordinates.slice();
+                                    const properties = e.features[0].properties;
 
-                                new maplibregl.Popup()
-                                    .setLngLat(coordinates)
-                                    .setHTML(`
-                                        <div class="p-2 bg-gray-100 rounded">
-                                            <table class="w-full text-sm">
-                                                <tr><td class="font-bold">Időpont:</td><td>${new Date(properties.record_time).toLocaleString('hu-HU')}</td></tr>
-                                                <tr><td class="font-bold">PM1.0:</td><td>${properties.pm1_0 || 'N/A'} µg/m³</td></tr>
-                                                <tr><td class="font-bold">PM2.5:</td><td>${properties.pm2_5 || 'N/A'} µg/m³</td></tr>
-                                                <tr><td class="font-bold">PM4.0:</td><td>${properties.pm4_0 || 'N/A'} µg/m³</td></tr>
-                                                <tr><td class="font-bold">PM10.0:</td><td>${properties.pm10_0 || 'N/A'} µg/m³</td></tr>
-                                                <tr><td class="font-bold">Hőmérséklet:</td><td>${properties.temperature || 'N/A'}°C</td></tr>
-                                                <tr><td class="font-bold">Páratartalom:</td><td>${properties.humidity || 'N/A'}%</td></tr>
-                                                <tr><td class="font-bold">VOC:</td><td>${properties.voc || 'N/A'} ppb</td></tr>
-                                                <tr><td class="font-bold">NOx:</td><td>${properties.nox || 'N/A'} ppb</td></tr>
-                                                <tr><td class="font-bold">CO₂:</td><td>${properties.co2 || 'N/A'} ppm</td></tr>
-                                                <tr><td class="font-bold">Létrehozva:</td><td>${new Date(properties.created_at).toLocaleString('hu-HU')}</td></tr>
-                                            </table>
-                                        </div>
-                                    `)
-                                    .addTo(map);
-                            } else {
-                                console.warn('No features found for click event');
-                            }
-                        });
+                                    new maplibregl.Popup()
+                                        .setLngLat(coordinates)
+                                        .setHTML(`
+                                            <div class="p-2 bg-gray-100 rounded">
+                                                <table class="w-full text-sm">
+                                                    <tr><td class="font-bold">Időpont:</td><td>${new Date(properties.record_time).toLocaleString('hu-HU')}</td></tr>
+                                                    <tr><td class="font-bold">PM1.0:</td><td>${properties.pm1_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td class="font-bold">PM2.5:</td><td>${properties.pm2_5 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td class="font-bold">PM4.0:</td><td>${properties.pm4_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td class="font-bold">PM10.0:</td><td>${properties.pm10_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td class="font-bold">Hőmérséklet:</td><td>${properties.temperature || 'N/A'}°C</td></tr>
+                                                    <tr><td class="font-bold">Páratartalom:</td><td>${properties.humidity || 'N/A'}%</td></tr>
+                                                    <tr><td class="font-bold">VOC:</td><td>${properties.voc || 'N/A'} ppb</td></tr>
+                                                    <tr><td class="font-bold">NOx:</td><td>${properties.nox || 'N/A'} ppb</td></tr>
+                                                    <tr><td class="font-bold">CO₂:</td><td>${properties.co2 || 'N/A'} ppm</td></tr>
+                                                    <tr><td class="font-bold">Létrehozva:</td><td>${new Date(properties.created_at).toLocaleString('hu-HU')}</td></tr>
+                                                </table>
+                                            </div>
+                                        `)
+                                        .addTo(map);
+                                } else {
+                                    console.warn('No features found for click event');
+                                }
+                            });
 
-                        // Kurzor stílusának változtatása
-                        map.on('mouseenter', 'air-quality-points', () => {
-                            map.getCanvas().style.cursor = 'pointer';
-                        });
-                        map.on('mouseleave', 'air-quality-points', () => {
-                            map.getCanvas().style.cursor = '';
-                        });
+                            // Kurzor stílusának változtatása
+                            map.on('mouseenter', 'air-quality-points', () => {
+                                map.getCanvas().style.cursor = 'pointer';
+                            });
+                            map.on('mouseleave', 'air-quality-points', () => {
+                                map.getCanvas().style.cursor = '';
+                            });
+                        } catch (e) {
+                            console.error('Error adding source or layer to map:', e);
+                        }
                     }
                 }, [map, geojson]);
 
                 return null;
             };
 
-            ReactDOM.render(<App />, document.getElementById('root'));
+            try {
+                ReactDOM.render(<App />, document.getElementById('root'));
+            } catch (e) {
+                console.error('Error rendering React app:', e);
+            }
         });
     </script>
 </body>
