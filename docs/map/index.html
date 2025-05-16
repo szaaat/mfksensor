@@ -105,13 +105,30 @@
                     fetchData();
                 }, []);
 
-                // Térkép inicializálása
+                // Térkép inicializálása OSM csempékkel
                 useEffect(() => {
                     console.log('Starting map initialization');
                     try {
                         const mapInstance = new maplibregl.Map({
                             container: 'map',
-                            style: 'https://api.maptiler.com/maps/streets-v2/style.json?key=ayQsuEXLCAK6AnJneYaR',
+                            style: {
+                                version: 8,
+                                sources: {
+                                    osm: {
+                                        type: 'raster',
+                                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                                        tileSize: 256,
+                                        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    }
+                                },
+                                layers: [{
+                                    id: 'osm-tiles',
+                                    type: 'raster',
+                                    source: 'osm',
+                                    minzoom: 0,
+                                    maxzoom: 19
+                                }]
+                            },
                             center: [20.729, 48.097],
                             zoom: 11
                         });
