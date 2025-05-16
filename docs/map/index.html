@@ -4,50 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Levegőminőség Térkép</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <script src="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onerror="console.error('Failed to load React:', this.src)"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" onerror="console.error('Failed to load ReactDOM:', this.src)"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" onerror="console.error('Failed to load Supabase:', this.src)"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.js" onerror="console.error('Failed to load MapLibre GL JS:', this.src)"></script>
     <link href="https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.25.6/babel.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background-color: #15803d;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        nav {
+            background-color: #16a34a;
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        nav .container {
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+        nav a {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        nav a:hover {
+            color: #dcfce7;
+        }
+        .container {
+            margin: 0 auto;
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+        #map {
+            width: 100%;
+            height: 80vh;
+        }
+        .text-center {
+            text-align: center;
+            margin-top: 1rem;
+            color: #dc2626;
+            font-weight: 600;
+        }
+        footer {
+            background-color: #15803d;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-top: auto;
+        }
+        footer p {
+            font-size: 0.875rem;
+        }
+        @media (min-width: 768px) {
+            header h1 {
+                font-size: 2.25rem;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans min-h-screen flex flex-col">
-    <header class="bg-green-700 text-white text-center py-8 shadow-lg">
-        <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">
+<body>
+    <header>
+        <h1>
             Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok
         </h1>
     </header>
-    <nav class="bg-green-600 text-white py-4 shadow-md">
-        <div class="container mx-auto px-6 flex justify-center space-x-8">
-            <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-            <a href="/mfksensor/map/" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+    <nav>
+        <div class="container">
+            <a href="/mfksensor/">Kezdőlap</a>
+            <a href="/mfksensor/map/">Térkép</a>
         </div>
     </nav>
-    <div class="container mx-auto p-6 flex-grow">
-        <div id="map" class="w-full h-[80vh]"></div>
-        <div class="text-center mt-4 text-red-600 font-semibold">
+    <div class="container">
+        <div id="map"></div>
+        <div class="text-center">
             A mérési adatok nem hitelesítettek.
         </div>
     </div>
     <div id="root" style="display: none;"></div>
-    <footer class="bg-green-700 text-white text-center py-4 mt-auto">
-        <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <footer>
+        <p>© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
     </footer>
-    <script type="text/babel">
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const { useState, useEffect } = React;
-
+            // Supabase kliens inicializálása
             const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+            
+            if (!window.Supabase || typeof window.Supabase.createClient !== 'function') {
+                console.error('Supabase client not available');
+                return;
+            }
+            
             const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            const App = () => {
-                const [map, setMap] = useState(null);
-                const [geojson, setGeojson] = useState(null);
+            function App() {
+                const [map, setMap] = React.useState(null);
+                const [geojson, setGeojson] = React.useState(null);
 
                 // Adatok lekérése a Supabase-ből
-                useEffect(() => {
+                React.useEffect(() => {
                     const fetchData = async () => {
                         console.log('Starting data fetch');
                         try {
@@ -106,9 +182,13 @@
                 }, []);
 
                 // Térkép inicializálása OSM csempékkel
-                useEffect(() => {
+                React.useEffect(() => {
                     console.log('Starting map initialization');
                     try {
+                        if (!window.maplibregl || typeof window.maplibregl.Map !== 'function') {
+                            console.error('maplibregl.Map is not available');
+                            return;
+                        }
                         const mapInstance = new maplibregl.Map({
                             container: 'map',
                             style: {
@@ -144,7 +224,7 @@
                 }, []);
 
                 // Adatok hozzáadása a térképhez
-                useEffect(() => {
+                React.useEffect(() => {
                     if (map && geojson) {
                         console.log('Adding source to map');
                         try {
@@ -178,19 +258,19 @@
                                     new maplibregl.Popup()
                                         .setLngLat(coordinates)
                                         .setHTML(`
-                                            <div class="p-2 bg-gray-100 rounded">
-                                                <table class="w-full text-sm">
-                                                    <tr><td class="font-bold">Időpont:</td><td>${new Date(properties.record_time).toLocaleString('hu-HU')}</td></tr>
-                                                    <tr><td class="font-bold">PM1.0:</td><td>${properties.pm1_0 || 'N/A'} µg/m³</td></tr>
-                                                    <tr><td class="font-bold">PM2.5:</td><td>${properties.pm2_5 || 'N/A'} µg/m³</td></tr>
-                                                    <tr><td class="font-bold">PM4.0:</td><td>${properties.pm4_0 || 'N/A'} µg/m³</td></tr>
-                                                    <tr><td class="font-bold">PM10.0:</td><td>${properties.pm10_0 || 'N/A'} µg/m³</td></tr>
-                                                    <tr><td class="font-bold">Hőmérséklet:</td><td>${properties.temperature || 'N/A'}°C</td></tr>
-                                                    <tr><td class="font-bold">Páratartalom:</td><td>${properties.humidity || 'N/A'}%</td></tr>
-                                                    <tr><td class="font-bold">VOC:</td><td>${properties.voc || 'N/A'} ppb</td></tr>
-                                                    <tr><td class="font-bold">NOx:</td><td>${properties.nox || 'N/A'} ppb</td></tr>
-                                                    <tr><td class="font-bold">CO₂:</td><td>${properties.co2 || 'N/A'} ppm</td></tr>
-                                                    <tr><td class="font-bold">Létrehozva:</td><td>${new Date(properties.created_at).toLocaleString('hu-HU')}</td></tr>
+                                            <div style="padding: 0.5rem; background-color: #f3f4f6; border-radius: 0.25rem;">
+                                                <table style="width: 100%; font-size: 0.875rem;">
+                                                    <tr><td style="font-weight: bold;">Időpont:</td><td>${new Date(properties.record_time).toLocaleString('hu-HU')}</td></tr>
+                                                    <tr><td style="font-weight: bold;">PM1.0:</td><td>${properties.pm1_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td style="font-weight: bold;">PM2.5:</td><td>${properties.pm2_5 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td style="font-weight: bold;">PM4.0:</td><td>${properties.pm4_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td style="font-weight: bold;">PM10.0:</td><td>${properties.pm10_0 || 'N/A'} µg/m³</td></tr>
+                                                    <tr><td style="font-weight: bold;">Hőmérséklet:</td><td>${properties.temperature || 'N/A'}°C</td></tr>
+                                                    <tr><td style="font-weight: bold;">Páratartalom:</td><td>${properties.humidity || 'N/A'}%</td></tr>
+                                                    <tr><td style="font-weight: bold;">VOC:</td><td>${properties.voc || 'N/A'} ppb</td></tr>
+                                                    <tr><td style="font-weight: bold;">NOx:</td><td>${properties.nox || 'N/A'} ppb</td></tr>
+                                                    <tr><td style="font-weight: bold;">CO₂:</td><td>${properties.co2 || 'N/A'} ppm</td></tr>
+                                                    <tr><td style="font-weight: bold;">Létrehozva:</td><td>${new Date(properties.created_at).toLocaleString('hu-HU')}</td></tr>
                                                 </table>
                                             </div>
                                         `)
@@ -212,12 +292,10 @@
                         }
                     }
                 }, [map, geojson]);
-
-                return null;
             };
 
             try {
-                ReactDOM.render(<App />, document.getElementById('root'));
+                ReactDOM.render(React.createElement(App), document.getElementById('root'));
             } catch (e) {
                 console.error('Error rendering React app:', e);
             }
