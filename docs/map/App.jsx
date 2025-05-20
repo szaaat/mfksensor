@@ -38,12 +38,12 @@ const App = () => {
     }
   }, []);
 
-  // Kezdeti adatok lekérése
+  // Kezdeti adatok lekérése a nézetből
   useEffect(() => {
     const fetchData = async () => {
       console.log('Fetching initial air quality data');
       const { data, error } = await supabase
-        .from('air_quality')
+        .from('air_quality_with_coords')
         .select(`
           id,
           timestamp,
@@ -56,10 +56,10 @@ const App = () => {
           voc,
           nox,
           co2,
-          st_x(location::geometry) as long,
-          st_y(location::geometry) as lat
+          long,
+          lat
         `)
-        .limit(100); // Nagyobb limit a több adat megjelenítéséhez
+        .limit(100);
 
       if (error) {
         console.error('Error fetching data:', error);
@@ -87,20 +87,39 @@ const App = () => {
           schema: 'public',
           table: 'air_quality',
         },
-        (payload) => {
+        async (payload) => {
           console.log('Received INSERT event:', payload);
-          const newMeasurement = {
-            ...payload.new,
-            long: payload.new.st_x,
-            lat: payload.new.st_y,
-          };
+          // Lekérdezzük az új rekord koordinátáit a nézetből
+          const { data, error } = await supabase
+            .from('air_quality_with_coords')
+            .select(`
+              id,
+              timestamp,
+              pm1_0,
+              pm2_5,
+              pm4_0,
+              pm10_0,
+              humidity,
+              temperature,
+              voc,
+              nox,
+              co2,
+              long,
+              lat
+            `)
+            .eq('id', payload.new.id)
+            .single();
 
-          if (newMeasurement.lat == null || newMeasurement.long == null) {
-            console.warn('Invalid coordinates in realtime update:', newMeasurement);
+          if (error) {
+            console.error('Error fetching coordinates for new record:', error);
             return;
           }
 
-          setMeasurements((prev) => [...prev, newMeasurement]);
+          if (data && data.lat != null && data.long != null) {
+            setMeasurements((prev) => [...prev, data]);
+          } else {
+            console.warn('Invalid coordinates in realtime update:', data);
+          }
         }
       )
       .subscribe((status) => {

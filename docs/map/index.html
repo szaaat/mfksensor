@@ -1,115 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hu">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Valós Idejű Térkép</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Leaflet CSS és JS betöltése CDN-ről -->
+    <title>Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt valós idejű helyadatok</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Supabase SDK betöltése -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Add hozzá ezt a scriptet a fájl végéhez -->
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        header {
-            background-color: #15803d;
-            color: white;
-            text-align: center;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        header h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-        }
-        nav {
-            background-color: #16a34a;
-            color: white;
-            padding: 1rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        nav .container {
-            margin: 0 auto;
-            padding: 0 1.5rem;
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-        }
-        nav a {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: white;
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        nav a:hover {
-            color: #dcfce7;
-        }
-        .container {
-            margin: 0 auto;
-            padding: 1.5rem;
-            flex-grow: 1;
-        }
-        #map {
-            width: 100%;
-            height: 600px; /* Magasság beállítása a térképhez */
-        }
-        .text-center {
-            text-align: center;
-            margin-top: 1rem;
-            color: #dc2626;
-            font-weight: 600;
-        }
-        footer {
-            background-color: #15803d;
-            color: white;
-            text-align: center;
-            padding: 1rem;
-            margin-top: auto;
-        }
-        footer p {
-            font-size: 0.875rem;
-        }
-        @media (min-width: 768px) {
-            header h1 {
-                font-size: 2.25rem;
-            }
-        }
+        #map { height: 600px; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>
-            Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt valós idejű helyadatok
-        </h1>
-    </header>
     <nav>
-        <div class="container">
-            <a href="/mfksensor/">Kezdőlap</a>
-            <a href="/mfksensor/map/">Térkép</a>
-        </div>
+        <ul>
+            <li><a href="#">Kezdőlap</a></li>
+            <li><a href="#">Térkép</a></li>
+        </ul>
     </nav>
-    <div class="container">
+    <main>
         <div id="map"></div>
-        <div class="text-center">
-            A mérési adatok nem hitelesítettek.
-        </div>
-    </div>
-    <div id="root"></div>
+        <div id="root"></div>
+        <p>A mérési adatok nem hitelesítettek.</p>
+    </main>
     <footer>
         <p>© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
     </footer>
-    <script src="App.js" type="text/babel"></script> <!-- type="text/babel" -->
+    <script type="module" src="/src/App.jsx"></script>
 </body>
 </html>
