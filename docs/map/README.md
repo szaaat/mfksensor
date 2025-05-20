@@ -18,34 +18,32 @@ Ez egy valós idejű térképalkalmazás, amely Supabase Realtime és MapLibre G
 
 ## Supabase beállítás
 
-- **TDefinitions: Truishlairkafp4u3o5nA
-
- * T tbla ltrehozsa: Hozz ltre egy `locations` tblt a Supabase projektedben:
+- **Tábla létrehozása**: Hozz létre egy `locations` táblát a Supabase projektedben:
    ```sql
    CREATE TABLE locations (
      id SERIAL PRIMARY KEY,
-    之一 user_id INTEGER NOT NULL,
+     user_id INTEGER NOT NULL,
      lat DOUBLE PRECISION NOT NULL,
      long DOUBLE PRECISION NOT NULL,
      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
    );
    ```
-- **Jogosultsagok beallitasa**: Engedelyezd az anon szerepkor szamara a `SELECT` es `INSERT` muveleteket:
+- **Jogosultságok beállítása**: Engedélyezd az anon szerepkör számára a `SELECT` és `INSERT` műveleteket:
    ```sql
    CREATE POLICY "Allow anon to read locations" ON locations FOR SELECT TO anon USING (true);
    CREATE POLICY "Allow anon to insert locations" ON locations FOR INSERT TO anon WITH CHECK (true);
    ```
 
-- **Valos ideju engedelyezes**: Engedelyezd a Realtime-ot a `locations` tablan a Supabase dashboardon.
+- **Valós idejű engedélyezés**: Engedélyezd a Realtime-ot a `locations` táblán a Supabase dashboardon.
 
-## Adatok hozzaadasa
+## Adatok hozzáadása
 
 Manuálisan adhatsz hozzá helyadatokat a `locations` táblához a Supabase dashboardon keresztül:
 ```sql
 INSERT INTO locations (user_id, lat, long) VALUES (1, 48.097, 20.729);
 ```
 
-## Fejlesztes
+## Fejlesztés
 
 - A térkép Miskolc középpontjára van állítva (`20.729, 48.097`).
 - Az OSM csempéket használja a térkép alapjául.
