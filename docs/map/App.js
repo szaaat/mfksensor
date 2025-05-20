@@ -27,19 +27,24 @@ function App() {
   // Adatok lekérése
   useEffect(() => {
     const fetchData = async () => {
-      const { data, error } = await supabase
-        .from('air_quality')
-        .select(`
-          id,
-          timestamp,
-          pm2_5,
-          temperature,
-          humidity,
-          co2,
-          st_x(location::geometry) as long,
-          st_y(location::geometry) as lat
-        `)
-        .limit(10);
+     const { data, error } = await supabase
+      .from('air_quality')
+      .select(`
+        id,
+        timestamp,
+        pm1_0,    // A CSV fájl szerint "pm1_0", nem "pm2_5"
+        pm2_5,
+        pm4_0,
+        pm10_0,
+        humidity,
+        temperature,
+        voc,
+        nox,
+        co2,
+        st_x(location::geometry) as long,
+        st_y(location::geometry) as lat
+      `)
+      .limit(10);
 
       if (!error && data) setMeasurements(data);
     };
