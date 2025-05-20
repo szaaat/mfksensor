@@ -60,12 +60,14 @@ function App() {
         schema: 'public',
         table: 'air_quality',
       }, (payload) => {
-        const location = payload.new.location;
-        const coordinates = location ? location.coordinates : null;
+        // Hibás adatok kiszűrése
+        if (!payload.new.location) return;
+        
+        const coordinates = payload.new.location.coordinates;
         const newMeasurement = {
           ...payload.new,
-          long: coordinates ? coordinates[0] : null,
-          lat: coordinates ? coordinates[1] : null
+           long: coordinates[0],
+           lat: coordinates[1]
         };
         setMeasurements(prev => [...prev, newMeasurement]);
       })
