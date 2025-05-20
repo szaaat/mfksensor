@@ -1,6 +1,6 @@
 # Valós Idejű Térképalkalmazás
 
-Ez egy valós idejű térképalkalmazás, amely Supabase Realtime és MapLibre GL JS használatával készült. Az alkalmazás az `air_quality` tábla adatait jeleníti meg egy interaktív térképen.
+Ez egy valós idejű térképalkalmazás, amely Supabase Realtime és Leaflet használatával készült. Az alkalmazás az `air_quality` tábla adatait jeleníti meg egy interaktív térképen.
 
 ## Telepítés és futtatás
 
@@ -9,7 +9,7 @@ Ez egy valós idejű térképalkalmazás, amely Supabase Realtime és MapLibre G
      ```bash
      npx http-server
      ```
-   - Nyisd meg a böngészőben a kapott URL-t (általában `http://localhost:8080`).
+   - Nyisd meg a böngészőben a kapott URL-t (általában `[invalid url, do not cite]).
 
 ## Supabase beállítás
 
@@ -22,7 +22,6 @@ Ez egy valós idejű térképalkalmazás, amely Supabase Realtime és MapLibre G
    CREATE POLICY "Allow anon to read air_quality" ON air_quality FOR SELECT TO anon USING (true);
    CREATE POLICY "Allow anon to insert air_quality" ON air_quality FOR INSERT TO anon WITH CHECK (true);
    ```
-
 - **Valós idejű engedélyezés**: Engedélyezd a Realtime-ot az `air_quality` táblán a Supabase dashboardon.
 
 ## Adatok hozzáadása
