@@ -1,6 +1,5 @@
 const { useState, useEffect, useRef } = React;
 
-// Supabase kliens inicializálása
 const supabase = window.supabase.createClient(
   'https://yuamroqhxrflusxeyylp.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
@@ -11,7 +10,7 @@ function App() {
   const [measurements, setMeasurements] = useState([]);
   const markersRef = useRef({});
 
-  // 1. Térkép inicializálása
+  // Térkép inicializálása
   useEffect(() => {
     if (!document.getElementById('map') || typeof L === 'undefined') return;
 
@@ -20,13 +19,12 @@ function App() {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(mapInstance);
-
     setMap(mapInstance);
 
     return () => mapInstance.remove();
   }, []);
 
-  // 2. Kezdeti adatok lekérése
+  // Adatok lekérése
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
@@ -43,34 +41,33 @@ function App() {
         `)
         .limit(10);
 
-      if (!error) setMeasurements(data || []);
+      if (!error && data) setMeasurements(data);
     };
-
     fetchData();
   }, []);
 
-  // 3. Valós idejű frissítések
+  // Valós idejű frissítések
   useEffect(() => {
     const channel = supabase
-      .channel('realtime')
+      .channel('realtime-air-quality')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
-        table: 'air_quality'
+        table: 'air_quality',
       }, (payload) => {
-        const newData = {
+        const newMeasurement = {
           ...payload.new,
           long: payload.new.location?.coordinates?.[0],
           lat: payload.new.location?.coordinates?.[1]
         };
-        setMeasurements(prev => [...prev, newData]);
+        setMeasurements(prev => [...prev, newMeasurement]);
       })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
   }, []);
 
-  // 4. Markerek kezelése
+  // Markerek kezelése
   useEffect(() => {
     if (!map) return;
 
@@ -79,28 +76,28 @@ function App() {
     markersRef.current = {};
 
     // Új markerek hozzáadása
-    measurements.forEach(measurement => {
-      if (!measurement.lat || !measurement.long) return;
+    measurements.forEach((m) => {
+      if (!m.lat || !m.long) return;
 
-      const marker = L.marker([measurement.lat, measurement.long])
+      const marker = L.marker([m.lat, m.long])
         .bindPopup(`
-          <div class="popup-content">
-            <p><b>Idő:</b> ${new Date(measurement.timestamp).toLocaleString('hu-HU')}</p>
-            <p><b>PM2.5:</b> ${measurement.pm2_5?.toFixed(2)} µg/m³</p>
-            <p><b>Hőmérséklet:</b> ${measurement.temperature?.toFixed(2)}°C</p>
-            <p><b>Páratartalom:</b> ${measurement.humidity?.toFixed(2)}%</p>
-            <p><b>CO₂:</b> ${measurement.co2 || 'N/A'} ppm</p>
+          <div style="padding: 8px;">
+            <p><b>Idő:</b> ${new Date(m.timestamp).toLocaleString('hu-HU')}</p>
+            <p><b>PM2.5:</b> ${m.pm2_5?.toFixed(2)} µg/m³</p>
+            <p><b>Hőmérséklet:</b> ${m.temperature?.toFixed(2)}°C</p>
+            <p><b>Páratartalom:</b> ${m.humidity?.toFixed(2)}%</p>
+            <p><b>CO₂:</b> ${m.co2 || 'N/A'} ppm</p>
           </div>
         `)
         .addTo(map);
 
-      markersRef.current[measurement.id] = marker;
+      markersRef.current[m.id] = marker;
     });
   }, [map, measurements]);
 
   return null;
 }
 
-// React 18 root inicializálás
+// React 18 createRoot
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
