@@ -82,16 +82,16 @@ function App() {
       if (!m.lat || !m.long) return;
 
       const marker = L.marker([m.lat, m.long])
-        .bindPopup(`
-          <div style="padding: 8px;">
-            <p><b>Idő:</b> ${new Date(m.timestamp).toLocaleString('hu-HU')}</p>
-            <p><b>PM2.5:</b> ${m.pm2_5?.toFixed(2)} µg/m³</p>
-            <p><b>Hőmérséklet:</b> ${m.temperature?.toFixed(2)}°C</p>
-            <p><b>Páratartalom:</b> ${m.humidity?.toFixed(2)}%</p>
-            <p><b>CO₂:</b> ${m.co2 || 'N/A'} ppm</p>
-          </div>
-        `)
-        .addTo(map);
+      .bindPopup(`
+        <div style="padding: 8px;">
+          <p><b>Idő:</b> ${new Date(m.timestamp).toLocaleString('hu-HU')}</p>
+          <p><b>PM2.5:</b> ${m.pm2_5 ? m.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
+          <p><b>Hőmérséklet:</b> ${m.temperature ? m.temperature.toFixed(2) : 'N/A'}°C</p>
+          <p><b>Páratartalom:</b> ${m.humidity ? m.humidity.toFixed(2) : 'N/A'}%</p>
+          <p><b>CO₂:</b> ${m.co2 || 'N/A'} ppm</p>
+        </div>
+  `)
+  .addTo(map);
 
       markersRef.current[m.id] = marker;
     });
