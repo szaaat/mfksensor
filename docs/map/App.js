@@ -25,10 +25,10 @@ function App() {
     }
     try {
       const mapInstance = L.map('map').setView([48.097, 20.729], 11); // Miskolc középpontja
-      L.tileLayer('[invalid url, do not cite] {
-        attribution: '© <a href="[invalid url, do not cite] contributors',
-        maxZoom: 19,
-      }).addTo(mapInstance);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(mapInstance);
       console.log('Map initialized successfully');
       setMap(mapInstance);
 
@@ -170,4 +170,4 @@ function App() {
   }, [map, measurements]);
 }
 
-ReactDOM.render(App(), document.getElementById('root'));
+ReactDOM.render(<App />, document.getElementById('root'));

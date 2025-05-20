@@ -4,7 +4,7 @@
   "description": "Valós idejű térképalkalmazás Supabase Realtime és MapLibre GL JS használatával",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
-    "maplibre-gl": "^4.7.0",
+    
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   }
