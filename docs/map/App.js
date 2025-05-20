@@ -27,26 +27,35 @@ function App() {
   // Adatok lekérése
   useEffect(() => {
     const fetchData = async () => {
-     const { data, error } = await supabase
-      .from('air_quality')
-      .select(`
-        id,
-        timestamp,
-        pm1_0,    // A CSV fájl szerint "pm1_0", nem "pm2_5"
-        pm2_5,
-        pm4_0,
-        pm10_0,
-        humidity,
-        temperature,
-        voc,
-        nox,
-        co2,
-        st_x(location::geometry) as long,
-        st_y(location::geometry) as lat
-      `)
-      .limit(10);
+      const { data, error } = await supabase
+        .from('air_quality')
+        .select(`
+          id,
+          timestamp,
+          pm1_0,
+          pm2_5,
+          pm4_0,
+          pm10_0,
+          humidity,
+          temperature,
+          voc,
+          nox,
+          co2,
+          st_x(location::geometry) as long,
+          st_y(location::geometry) as lat
+        `)
+        .limit(10);
 
-      if (!error && data) setMeasurements(data);
+      if (error) {
+        console.error('Error fetching data:', error);
+        return;
+      }
+
+      if (data) {
+        // Szűrjük ki az érvénytelen koordinátájú adatokat
+        const validData = data.filter(m => m.lat != null && m.long != null);
+        setMeasurements(validData);
+      }
     };
     fetchData();
   }, []);
@@ -55,22 +64,29 @@ function App() {
   useEffect(() => {
     const channel = supabase
       .channel('realtime-air-quality')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'air_quality',
-      }, (payload) => {
-        // Hibás adatok kiszűrése
-        if (!payload.new.location) return;
-        
-        const coordinates = payload.new.location.coordinates;
-        const newMeasurement = {
-          ...payload.new,
-           long: coordinates[0],
-           lat: coordinates[1]
-        };
-        setMeasurements(prev => [...prev, newMeasurement]);
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'air_quality',
+        },
+        (payload) => {
+          const newMeasurement = {
+            ...payload.new,
+            long: payload.new.st_x,
+            lat: payload.new.st_y,
+          };
+
+          // Csak érvényes koordinátájú adatokat adjunk hozzá
+          if (newMeasurement.lat == null || newMeasurement.long == null) {
+            console.warn('Invalid coordinates in realtime update:', newMeasurement);
+            return;
+          }
+
+          setMeasurements((prev) => [...prev, newMeasurement]);
+        }
+      )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -81,24 +97,27 @@ function App() {
     if (!map) return;
 
     // Régi markerek törlése
-    Object.values(markersRef.current).forEach(marker => marker.remove());
+    Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
     // Új markerek hozzáadása
     measurements.forEach((m) => {
-      if (!m.lat || !m.long) return;
+      if (m.lat == null || m.long == null) {
+        console.warn('Skipping marker due to invalid coordinates:', m);
+        return;
+      }
 
       const marker = L.marker([m.lat, m.long])
-      .bindPopup(`
-        <div style="padding: 8px;">
-          <p><b>Idő:</b> ${new Date(m.timestamp).toLocaleString('hu-HU')}</p>
-          <p><b>PM2.5:</b> ${m.pm2_5 ? m.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
-          <p><b>Hőmérséklet:</b> ${m.temperature ? m.temperature.toFixed(2) : 'N/A'}°C</p>
-          <p><b>Páratartalom:</b> ${m.humidity ? m.humidity.toFixed(2) : 'N/A'}%</p>
-          <p><b>CO₂:</b> ${m.co2 || 'N/A'} ppm</p>
-        </div>
-  `)
-  .addTo(map);
+        .bindPopup(`
+          <div style="padding: 8px;">
+            <p><b>Idő:</b> ${new Date(m.timestamp).toLocaleString('hu-HU')}</p>
+            <p><b>PM2.5:</b> ${m.pm2_5 != null ? m.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
+            <p><b>Hőmérséklet:</b> ${m.temperature != null ? m.temperature.toFixed(2) : 'N/A'}°C</p>
+            <p><b>Páratartalom:</b> ${m.humidity != null ? m.humidity.toFixed(2) : 'N/A'}%</p>
+            <p><b>CO₂:</b> ${m.co2 != null ? m.co2 : 'N/A'} ppm</p>
+          </div>
+        `)
+        .addTo(map);
 
       markersRef.current[m.id] = marker;
     });
