@@ -55,10 +55,12 @@ function App() {
         schema: 'public',
         table: 'air_quality',
       }, (payload) => {
+        const location = payload.new.location;
+        const coordinates = location ? location.coordinates : null;
         const newMeasurement = {
           ...payload.new,
-          long: payload.new.location?.coordinates?.[0],
-          lat: payload.new.location?.coordinates?.[1]
+          long: coordinates ? coordinates[0] : null,
+          lat: coordinates ? coordinates[1] : null
         };
         setMeasurements(prev => [...prev, newMeasurement]);
       })
