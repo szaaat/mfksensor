@@ -31,124 +31,129 @@
   </footer>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script>
-    try {
-      console.log('Starting map initialization');
-      if (!document.getElementById('map')) {
-        throw new Error('Map container not found');
-      }
-
-      const supabase = Supabase.createClient(
-        'https://yuamroqhxrflusxeyylp.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-      );
-      console.log('Supabase client initialized');
-
-      const map = new maplibregl.Map({
-        container: 'map',
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            },
-            air_quality: {
-              type: 'vector',
-              tiles: ['supabase://air_quality_mvt/{z}/{x}/{y}']
-            }
-          },
-          layers: [
-            {
-              id: 'osm-tiles',
-              type: 'raster',
-              source: 'osm',
-              minzoom: 0,
-              maxzoom: 19
-            },
-            {
-              id: 'air_quality',
-              type: 'circle',
-              source: 'air_quality',
-              'source-layer': 'air_quality',
-              paint: {
-                'circle-radius': 8,
-                'circle-color': [
-                  'interpolate',
-                  ['linear'],
-                  ['get', 'pm2_5'],
-                  0, '#00ff00',
-                  50, '#ff0000'
-                ]
-              }
-            }
-          ]
-        },
-        center: [20.729, 48.097],
-        zoom: 11
-      });
-      console.log('Map initialized successfully');
-
-      maplibregl.addProtocol('supabase', async (params, callback) => {
-        try {
-          console.log('Fetching tile:', params.url);
-          const [, , z, x, y] = params.url.match(/(\w+):\/\/(\w+)\/(\d+)\/(\d+)\/(\d+)/);
-          const { data, error } = await supabase.rpc('air_quality_mvt', { z: parseInt(z), x: parseInt(x), y: parseInt(y) });
-          if (error) {
-            console.error('Supabase RPC error:', error);
-            callback(error);
-            return;
-          }
-          if (!data) {
-            console.warn('No data returned from air_quality_mvt');
-            callback(null, new ArrayBuffer(0));
-            return;
-          }
-          const binaryData = Uint8Array.from(atob(data), c => c.charCodeAt(0)).buffer;
-          callback(null, binaryData);
-        } catch (error) {
-          console.error('Error in supabase protocol:', error);
-          callback(error);
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        console.log('Starting map initialization');
+        if (!document.getElementById('map')) {
+          throw new Error('Map container not found');
         }
-      });
+        if (typeof supabase === 'undefined') {
+          throw new Error('Supabase JS library not loaded. Check network or script URL.');
+        }
 
-      map.on('click', 'air_quality', (e) => {
-        const props = e.features[0].properties;
-        new maplibregl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div style="padding: 8px;">
-              <p><b>Idő:</b> ${new Date(props.timestamp).toLocaleString('hu-HU')}</p>
-              <p><b>PM2.5:</b> ${props.pm2_5 ? props.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
-              <p><b>Hőmérséklet:</b> ${props.temperature ? props.temperature.toFixed(2) : 'N/A'}°C</p>
-              <p><b>Páratartalom:</b> ${props.humidity ? props.humidity.toFixed(2) : 'N/A'}%</p>
-              <p><b>CO₂:</b> ${props.co2 ? props.co2 : 'N/A'} ppm</p>
-            </div>
-          `)
-          .addTo(map);
-      });
+        const supabaseClient = supabase.createClient(
+          'https://yuamroqhxrflusxeyylp.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+        );
+        console.log('Supabase client initialized');
 
-      map.on('mouseenter', 'air_quality', () => {
-        map.getCanvas().style.cursor = 'pointer';
-      });
+        const map = new maplibregl.Map({
+          container: 'map',
+          style: {
+            version: 8,
+            sources: {
+              osm: {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              },
+              air_quality: {
+                type: 'vector',
+                tiles: ['supabase://air_quality_mvt/{z}/{x}/{y}']
+              }
+            },
+            layers: [
+              {
+                id: 'osm-tiles',
+                type: 'raster',
+                source: 'osm',
+                minzoom: 0,
+                maxzoom: 19
+              },
+              {
+                id: 'air_quality',
+                type: 'circle',
+                source: 'air_quality',
+                'source-layer': 'air_quality',
+                paint: {
+                  'circle-radius': 8,
+                  'circle-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'pm2_5'],
+                    0, '#00ff00',
+                    50, '#ff0000'
+                  ]
+                }
+              }
+            ]
+          },
+          center: [20.362, 47.898], // Eger középpontja
+          zoom: 11
+        });
+        console.log('Map initialized successfully');
 
-      map.on('mouseleave', 'air_quality', () => {
-        map.getCanvas().style.cursor = '';
-      });
+        maplibregl.addProtocol('supabase', async (params, callback) => {
+          try {
+            console.log('Fetching tile:', params.url);
+            const [, , z, x, y] = params.url.match(/(\w+):\/\/(\w+)\/(\d+)\/(\d+)\/(\d+)/);
+            const { data, error } = await supabaseClient.rpc('air_quality_mvt', { z: parseInt(z), x: parseInt(x), y: parseInt(y) });
+            if (error) {
+              console.error('Supabase RPC error:', error);
+              callback(error);
+              return;
+            }
+            if (!data) {
+              console.warn('No data returned from air_quality_mvt for tile:', { z, x, y });
+              callback(null, new ArrayBuffer(0));
+              return;
+            }
+            const binaryData = Uint8Array.from(atob(data), c => c.charCodeAt(0)).buffer;
+            callback(null, binaryData);
+          } catch (error) {
+            console.error('Error in supabase protocol:', error);
+            callback(error);
+          }
+        });
 
-      map.on('error', (e) => {
-        console.error('Map error:', e.error);
-      });
-    } catch (error) {
-      console.error('Map initialization error:', error);
-      const mapContainer = document.getElementById('map');
-      if (mapContainer) {
-        mapContainer.innerHTML = '<p class="text-red-500 text-center p-4">Hiba a térkép inicializálásakor: ' + error.message + '</p>';
+        map.on('click', 'air_quality', (e) => {
+          const props = e.features[0].properties;
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="padding: 8px;">
+                <p><b>Idő:</b> ${new Date(props.timestamp).toLocaleString('hu-HU')}</p>
+                <p><b>PM2.5:</b> ${props.pm2_5 ? props.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
+                <p><b>Hőmérséklet:</b> ${props.temperature ? props.temperature.toFixed(2) : 'N/A'}°C</p>
+                <p><b>Páratartalom:</b> ${props.humidity ? props.humidity.toFixed(2) : 'N/A'}%</p>
+                <p><b>CO₂:</b> ${props.co2 ? props.co2 : 'N/A'} ppm</p>
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        map.on('mouseenter', 'air_quality', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', 'air_quality', () => {
+          map.getCanvas().style.cursor = '';
+        });
+
+        map.on('error', (e) => {
+          console.error('Map error:', e.error);
+        });
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        const mapContainer = document.getElementById('map');
+        if (mapContainer) {
+          mapContainer.innerHTML = '<p class="text-red-500 text-center p-4">Hiba a térkép inicializálásakor: ' + error.message + '</p>';
+        }
       }
-    }
+    });
   </script>
 </body>
 </html>
