@@ -1,134 +1,154 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Levegőminőség Térkép</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Supabase JavaScript kliens -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js" integrity="sha384-2zrRDgDHSYB/GN3nFW3fsZXoxEhKIr3N2h63Tc6DEOB9JJdFIu8xMJT2Cph/gBil" defer crossorigin="anonymous"></script>
-    <style>
-        body { margin: 0; font-family: Arial, sans-serif; }
-        #map { height: 100vh; width: 100%; }
-        #error-message { display: none; color: red; text-align: center; padding: 10px; background: #ffe6e6; position: absolute; top: 0; left: 0; right: 0; z-index: 1000; }
-        #loading { text-align: center; padding: 20px; color: #666; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Levegőminőségi Térkép</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #map { height: calc(100vh - 100px); }
+  </style>
 </head>
-<body>
-    <div id="error-message"></div>
-    <div id="loading">Térkép betöltése...</div>
-    <div id="map"></div>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
+    <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</h1>
+  </header>
 
-    <script>
-        // Supabase konfiguráció
-        const SUPABASE_URL = 'https://yuamroqhxflusxerwp.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+  <nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex justify-center space-x-8">
+      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+    </div>
+  </nav>
 
-        // Hibakezelés
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.style.display = 'block';
-            errorDiv.textContent = message;
-            document.getElementById('loading').style.display = 'none';
-        }
+  <div class="container mx-auto p-6 flex-grow">
+    <div id="map" class="bg-white rounded-xl shadow-xl"></div>
+  </div>
 
-        // Adatlekérdezés
-        async function fetchInitialData(supabase) {
-            try {
-                const { data, error } = await supabase
-                    .from('air_quality')
-                    .select('id, timestamp, location, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2')
-                    .order('timestamp', { ascending: false })
-                    .limit(100);
+  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+  </footer>
 
-                if (error) throw error;
-                return data.map(item => ({
-                    ...item,
-                    latitude: item.location?.coordinates[1],
-                    longitude: item.location?.coordinates[0]
-                }));
-            } catch (error) {
-                showError(`Hiba az adatlekéréskor: ${error.message}`);
-                return [];
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    try {
+      console.log('Starting map initialization');
+      if (!document.getElementById('map')) {
+        throw new Error('Map container not found');
+      }
+
+      const supabase = Supabase.createClient(
+        'https://yuamroqhxrflusxeyylp.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+      );
+      console.log('Supabase client initialized');
+
+      const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            },
+            air_quality: {
+              type: 'vector',
+              tiles: ['supabase://air_quality_mvt/{z}/{x}/{y}']
             }
-        }
-
-        // Marker létrehozása
-        function createMarker(map, point) {
-            if (!point.latitude || !point.longitude) return;
-            
-            const marker = L.marker([point.latitude, point.longitude]).addTo(map);
-            marker.bindPopup(`
-                <b>${new Date(point.timestamp).toLocaleString()}</b><br>
-                PM2.5: ${point.pm2_5 || 'N/A'} µg/m³<br>
-                Hőmérséklet: ${point.temperature || 'N/A'}°C<br>
-                Páratartalom: ${point.humidity || 'N/A'}%<br>
-                CO₂: ${point.co2 || 'N/A'} ppm
-            `);
-        }
-
-        // Térkép inicializálása
-        async function initMap() {
-            const map = L.map('map').setView([47.4979, 19.0402], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-            return map;
-        }
-
-        // Fő inicializálás
-        async function init() {
-            try {
-                // Supabase kapcsolat
-                if (typeof Supabase === 'undefined') {
-                    throw new Error('A Supabase JS könyvtár nem töltődött be.');
-                }
-                const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log('Supabase kliens sikeresen inicializálva');
-                
-                // Térkép betöltése
-                const map = await initMap();
-                
-                // Kezdeti adatok
-                const data = await fetchInitialData(supabase);
-                data.forEach(point => createMarker(map, point));
-                
-                // Valós idejű frissítések
-                const channel = supabase
-                    .channel('realtime-air-quality')
-                    .on('postgres_changes', {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'air_quality'
-                    }, (payload) => {
-                        const newPoint = {
-                            ...payload.new,
-                            latitude: payload.new.location?.coordinates[1],
-                            longitude: payload.new.location?.coordinates[0]
-                        };
-                        createMarker(map, newPoint);
-                    })
-                    .subscribe();
-
-                // Betöltés vége
-                document.getElementById('loading').style.display = 'none';
-
-            } catch (error) {
-                showError(`Hiba: ${error.message}`);
+          },
+          layers: [
+            {
+              id: 'osm-tiles',
+              type: 'raster',
+              source: 'osm',
+              minzoom: 0,
+              maxzoom: 19
+            },
+            {
+              id: 'air_quality',
+              type: 'circle',
+              source: 'air_quality',
+              'source-layer': 'air_quality',
+              paint: {
+                'circle-radius': 8,
+                'circle-color': [
+                  'interpolate',
+                  ['linear'],
+                  ['get', 'pm2_5'],
+                  0, '#00ff00',
+                  50, '#ff0000'
+                ]
+              }
             }
-        }
+          ]
+        },
+        center: [20.729, 48.097],
+        zoom: 11
+      });
+      console.log('Map initialized successfully');
 
-        // Indítás
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof Supabase === 'undefined') {
-                showError('Supabase könyvtár nem töltődött be!');
-                return;
-            }
-            init();
-        });
-    </script>
+      maplibregl.addProtocol('supabase', async (params, callback) => {
+        try {
+          console.log('Fetching tile:', params.url);
+          const [, , z, x, y] = params.url.match(/(\w+):\/\/(\w+)\/(\d+)\/(\d+)\/(\d+)/);
+          const { data, error } = await supabase.rpc('air_quality_mvt', { z: parseInt(z), x: parseInt(x), y: parseInt(y) });
+          if (error) {
+            console.error('Supabase RPC error:', error);
+            callback(error);
+            return;
+          }
+          if (!data) {
+            console.warn('No data returned from air_quality_mvt');
+            callback(null, new ArrayBuffer(0));
+            return;
+          }
+          const binaryData = Uint8Array.from(atob(data), c => c.charCodeAt(0)).buffer;
+          callback(null, binaryData);
+        } catch (error) {
+          console.error('Error in supabase protocol:', error);
+          callback(error);
+        }
+      });
+
+      map.on('click', 'air_quality', (e) => {
+        const props = e.features[0].properties;
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="padding: 8px;">
+              <p><b>Idő:</b> ${new Date(props.timestamp).toLocaleString('hu-HU')}</p>
+              <p><b>PM2.5:</b> ${props.pm2_5 ? props.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
+              <p><b>Hőmérséklet:</b> ${props.temperature ? props.temperature.toFixed(2) : 'N/A'}°C</p>
+              <p><b>Páratartalom:</b> ${props.humidity ? props.humidity.toFixed(2) : 'N/A'}%</p>
+              <p><b>CO₂:</b> ${props.co2 ? props.co2 : 'N/A'} ppm</p>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'air_quality', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', 'air_quality', () => {
+        map.getCanvas().style.cursor = '';
+      });
+
+      map.on('error', (e) => {
+        console.error('Map error:', e.error);
+      });
+    } catch (error) {
+      console.error('Map initialization error:', error);
+      const mapContainer = document.getElementById('map');
+      if (mapContainer) {
+        mapContainer.innerHTML = '<p class="text-red-500 text-center p-4">Hiba a térkép inicializálásakor: ' + error.message + '</p>';
+      }
+    }
+  </script>
 </body>
 </html>
