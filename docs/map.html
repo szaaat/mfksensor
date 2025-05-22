@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Levegőminőségi Térkép</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <script src="https://cdn.tailwindcss.com"></script> <!-- Csak fejlesztéshez -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     #map { height: calc(100vh - 100px); }
     .loading-overlay {
@@ -51,24 +51,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
   <script>
-    function parseEWKBHex(hex) {
-      try {
-        if (typeof hex !== 'string') throw new Error('location mező nem string');
-        const cleanHex = hex.slice(-32);
-        const lngHex = cleanHex.slice(0, 16);
-        const latHex = cleanHex.slice(16);
-
-        const lngArray = new Uint8Array(lngHex.match(/.{2}/g).map(b => parseInt(b, 16)));
-        const latArray = new Uint8Array(latHex.match(/.{2}/g).map(b => parseInt(b, 16)));
-
-        const lng = new DataView(lngArray.buffer).getFloat64(0, true);
-        const lat = new DataView(latArray.buffer).getFloat64(0, true);
-
-        return { lng, lat };
-      } catch (err) {
-        console.error('Koordináta hiba:', err.message);
-        return null;
+    function getCoordinates(location) {
+      if (typeof location === 'object' && location.type === 'Point' && Array.isArray(location.coordinates)) {
+        return {
+          lng: location.coordinates[0],
+          lat: location.coordinates[1]
+        };
       }
+      console.error('Ismeretlen location formátum:', location);
+      return null;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -103,9 +94,8 @@
 
       try {
         const { data, error } = await supabaseClient
-          .from('air_quality')
-          .select('id, timestamp, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2, location')
-          .not('location', 'is', null)
+          .from('air_quality_view') // <-- ez a GeoJSON-es nézet
+          .select('*')
           .limit(1000);
 
         if (error) throw new Error('Adatlekérdezés sikertelen: ' + error.message);
@@ -113,7 +103,7 @@
         const geojson = {
           type: 'FeatureCollection',
           features: data.map(item => {
-            const coords = parseEWKBHex(item.location);
+            const coords = getCoordinates(item.location);
             if (!coords) return null;
 
             return {
