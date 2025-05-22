@@ -77,13 +77,15 @@
           return null;
         }
 
-        const lng = parseFloat(location.coordinates[0]);
-        const lat = parseFloat(location.coordinates[1]);
+        // Biztosítjuk, hogy a koordináták numerikusak legyenek
+        const lng = Number(location.coordinates[0]);
+        const lat = Number(location.coordinates[1]);
         if (isNaN(lng) || isNaN(lat)) {
           console.error('A koordináták nem numerikusak:', location.coordinates);
           return null;
         }
 
+        console.log('Successfully extracted coordinates:', { lng, lat });
         return { lng, lat };
       }
 
