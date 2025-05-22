@@ -135,6 +135,16 @@
         console.log(`Fetched ${data.length} records`);
         console.log('First few records:', data.slice(0, 3));
 
+        // Egyedi koordináták kigyűjtése
+        const uniqueCoordinates = new Set();
+        data.forEach(item => {
+          const coords = getCoordinates(item.location);
+          if (coords) {
+            uniqueCoordinates.add(`${coords.lng},${coords.lat}`);
+          }
+        });
+        console.log('Unique coordinates found:', Array.from(uniqueCoordinates));
+
         const geojson = {
           type: 'FeatureCollection',
           features: []
