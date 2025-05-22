@@ -4,166 +4,298 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Levegőminőségi Térkép</title>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    #map { 
-      height: calc(100vh - 100px);
-      width: 100%;
-    }
+    #map { height: calc(100vh - 100px); }
     .loading-overlay {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.8);
       display: flex;
       justify-content: center;
       align-items: center;
       z-index: 1000;
     }
+    .loading-spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
-<body>
-  <header class="header">
-    <h1>Levegőminőségi Adatok Térképe</h1>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
+    <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</h1>
   </header>
 
-  <div class="container">
-    <div id="loading" class="loading-overlay">
-      <div class="spinner"></div>
-      <span>Adatok betöltése...</span>
+  <nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex justify-center space-x-8">
+      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
     </div>
-    <div id="map"></div>
+  </nav>
+
+  <div class="container mx-auto p-6 flex-grow relative">
+    <div id="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
+    </div>
+    <div id="map" class="bg-white rounded-xl shadow-xl"></div>
   </div>
+
+  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+  </footer>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script>
-    // EWKB hex konvertáló függvény
-    function parseEWKB(ewkbHex) {
-      try {
-        const hex = ewkbHex.slice(-16);
-        const lngBytes = new Uint8Array(
-          hex.substr(0, 8).match(/.{2}/g).map(b => parseInt(b, 16))
-        );
-        const latBytes = new Uint8Array(
-          hex.substr(8, 8).match(/.{2}/g).map(b => parseInt(b, 16))
-        );
-        
-        return {
-          lng: new DataView(lngBytes.buffer).getFloat32(0, true),
-          lat: new DataView(latBytes.buffer).getFloat32(0, true)
-        };
-      } catch (error) {
-        console.error('Koordináta konverziós hiba:', error);
-        return null;
-      }
+    document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    console.log('Starting map initialization');
+    if (!document.getElementById('map')) {
+      throw new Error('Map container not found');
+    }
+    if (typeof supabase === 'undefined') {
+      throw new Error('Supabase JS library not loaded');
+    }
+    if (typeof maplibregl === 'undefined') {
+      throw new Error('MapLibre GL library not loaded');
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const supabase = supabase.createClient(
-          'https://yuamroqhxrflusxeyylp.supabase.co',
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-        );
+    const loadingElement = document.getElementById('loading');
+    if (!loadingElement) {
+      throw new Error('Loading element not found');
+    }
+    loadingElement.style.display = 'flex';
 
-        const map = new maplibregl.Map({
-          container: 'map',
-          style: 'https://demotiles.maplibre.org/style.json',
-          center: [20.362248, 47.898280],
-          zoom: 13
-        });
+    const supabaseClient = supabase.createClient(
+      '[invalid url, do not cite]
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+    );
+    console.log('Supabase client initialized');
 
-        // Adatok lekérése
-        const { data, error } = await supabase
-          .from('air_quality')
-          .select('id, timestamp, pm2_5, temperature, humidity, location')
-          .not('location', 'is', null)
-          .limit(500);
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['[invalid url, do not cite]
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors'
+          }
+        },
+        layers: [{
+          id: 'osm-tiles',
+          type: 'raster',
+          source: 'osm',
+          minzoom: 0,
+          maxzoom: 19
+        }]
+      },
+      center: [20.362248, 47.898280],
+      zoom: 12
+    });
+    console.log('Map initialized successfully');
 
-        if (error) throw error;
+    console.log('Testing Supabase API key...');
+    const { data: testData, error: testError } = await supabaseClient
+      .from('air_quality')
+      .select('id')
+      .limit(1);
+    if (testError) {
+      console.error('Supabase API key test failed:', testError);
+      throw new Error('Supabase API key test failed: ' + testError.message);
+    }
+    console.log('Supabase API key test successful:', testData);
 
-        // GeoJSON konverzió
-        const geojson = {
-          type: 'FeatureCollection',
-          features: data.map(item => {
-            const coords = parseEWKB(item.location);
-            return coords ? {
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [coords.lng, coords.lat]
-              },
-              properties: {
-                id: item.id,
-                pm2_5: item.pm2_5,
-                temperature: item.temperature,
-                humidity: item.humidity,
-                timestamp: item.timestamp
-              }
-            } : null;
-          }).filter(Boolean)
+    console.log('Fetching air quality data...');
+    const { data, error } = await supabaseClient
+      .from('air_quality')
+      .select('id, timestamp, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2, ST_X(location) as long, ST_Y(location) as lat')
+      .not('location', 'is', null)
+      .order('timestamp', { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      console.error('Supabase API error:', error);
+      throw new Error('Failed to fetch air quality data: ' + error.message);
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('No air quality data returned from Supabase API:', data);
+      throw new Error('Nincsenek elérhető adatok');
+    }
+
+    console.log(`Fetched ${data.length} records`);
+    console.log('First few records:', data.slice(0, 3));
+
+    loadingElement.style.display = 'none';
+
+    const geojson = {
+      type: 'FeatureCollection',
+      features: data.map(item => {
+        if (!item.long || !item.lat) {
+          console.warn('Missing coordinates for item:', item);
+          return null;
+        }
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(item.long), parseFloat(item.lat)]
+          },
+          properties: {
+            id: item.id,
+            timestamp: item.timestamp,
+            pm1_0: item.pm1_0,
+            pm2_5: item.pm2_5,
+            pm4_0: item.pm4_0,
+            pm10_0: item.pm10_0,
+            humidity: item.humidity,
+            temperature: item.temperature,
+            voc: item.voc,
+            nox: item.nox,
+            co2: item.co2
+          }
         };
+      }).filter(item => item !== null)
+    };
 
-        // Térkép betöltése
-        map.on('load', () => {
-          map.addSource('szenzorok', {
-            type: 'geojson',
-            data: geojson
-          });
+    console.log('GeoJSON prepared:', geojson);
 
-          map.addLayer({
-            id: 'pontok',
-            type: 'circle',
-            source: 'szenzorok',
-            paint: {
-              'circle-radius': 8,
-              'circle-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'pm2_5'],
-                0, '#00FF00',
-                50, '#FF0000'
-              ],
-              'circle-opacity': 0.7
-            }
-          });
+    if (geojson.features.length === 0) {
+      console.warn('GeoJSON features are empty after filtering');
+      throw new Error('No valid features to display on the map');
+    }
 
-          // Popup kezelés
-          map.on('click', 'pontok', (e) => {
-            const props = e.features[0].properties;
-            new maplibregl.Popup()
-              .setLngLat(e.lngLat)
-              .setHTML(`
-                <div style="padding: 10px">
-                  <h3>Szenzor adatok</h3>
-                  <p><strong>ID:</strong> ${props.id}</p>
-                  <p><strong>PM2.5:</strong> ${props.pm2_5.toFixed(1)} µg/m³</p>
-                  <p><strong>Hőmérséklet:</strong> ${props.temperature.toFixed(1)}°C</p>
-                  <p><strong>Páratartalom:</strong> ${props.humidity.toFixed(1)}%</p>
-                  <p><small>${new Date(props.timestamp).toLocaleString('hu-HU')}</small></p>
-                </div>
-              `)
-              .addTo(map);
-          });
-
-          map.on('mouseenter', 'pontok', () => map.getCanvas().style.cursor = 'pointer');
-          map.on('mouseleave', 'pontok', () => map.getCanvas().style.cursor = '');
+    map.on('load', () => {
+      console.log('Adding air quality data to map...');
+      try {
+        map.addSource('air_quality', {
+          type: 'geojson',
+          data: geojson
         });
 
-        document.getElementById('loading').style.display = 'none';
+        map.addLayer({
+          id: 'air_quality_points',
+          type: 'circle',
+          source: 'air_quality',
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              10, 5,
+              15, 10
+            ],
+            'circle-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'pm2_5'],
+              0, '#00E400',
+              12, '#FFFF00',
+              35.4, '#FF7E00',
+              55.4, '#FF0000',
+              150.4, '#8F3F97',
+              250.4, '#7E0023'
+            ],
+            'circle-opacity': 0.8,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff'
+          }
+        });
 
+        console.log('Source and layer added successfully');
+
+        map.on('click', 'air_quality_points', (e) => {
+          const props = e.features[0].properties;
+          const timestamp = props.timestamp ? new Date(props.timestamp).toLocaleString('hu-HU') : 'N/A';
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="p-2 max-w-xs">
+                <h3 class="font-bold text-lg mb-2">Szenzor adatok</h3>
+                <div class="grid grid-cols-2 gap-2">
+                  <p class="font-semibold">Azonosító:</p>
+                  <p>${props.id}</p>
+                  <p class="font-semibold">Időpont:</p>
+                  <p>${timestamp}</p>
+                  <p class="font-semibold">PM1.0:</p>
+                  <p>${props.pm1_0?.toFixed(1) || 'N/A'} µg/m³</p>
+                  <p class="font-semibold">PM2.5:</p>
+                  <p>${props.pm2_5?.toFixed(1) || 'N/A'} µg/m³</p>
+                  <p class="font-semibold">PM4.0:</p>
+                  <p>${props.pm4_0?.toFixed(1) || 'N/A'} µg/m³</p>
+                  <p class="font-semibold">PM10.0:</p>
+                  <p>${props.pm10_0?.toFixed(1) || 'N/A'} µg/m³</p>
+                  <p class="font-semibold">Hőmérséklet:</p>
+                  <p>${props.temperature?.toFixed(1) || 'N/A'} °C</p>
+                  <p class="font-semibold">Páratartalom:</p>
+                  <p>${props.humidity?.toFixed(1) || 'N/A'} %</p>
+                  <p class="font-semibold">VOC:</p>
+                  <p>${props.voc || 'N/A'} ppb</p>
+                  <p class="font-semibold">NOx:</p>
+                  <p>${props.nox || 'N/A'} ppb</p>
+                  <p class="font-semibold">CO₂:</p>
+                  <p>${props.co2 || 'N/A'} ppm</p>
+                </div>
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        map.on('mouseenter', 'air_quality_points', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'air_quality_points', () => {
+          map.getCanvas().style.cursor = '';
+        });
       } catch (error) {
-        console.error('Hiba:', error);
-        document.getElementById('loading').innerHTML = `
-          <div style="color: red; padding: 20px">
-            <p>Hiba történt: ${error.message}</p>
-            <p>Kérjük próbálja újra később</p>
-          </div>
-        `;
+        console.error('Error adding source or layer:', error.message);
       }
     });
+
+    map.on('error', (e) => {
+      console.error('Map error:', e.error);
+    });
+
+  } catch (error) {
+    console.error('Error:', error.message || 'Unknown error', error.stack);
+    const mapContainer = document.getElementById('map');
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+      loadingElement.innerHTML = `
+        <div class="text-center p-4 text-red-600">
+          <p class="font-bold text-xl">Hiba történt</p>
+          <p>${error.message || 'Ismeretlen hiba'}</p>
+          <p class="mt-2">Kérjük, próbáld újra később.</p>
+        </div>
+      `;
+    }
+    if (mapContainer) {
+      mapContainer.innerHTML = `
+        <div class="p-4 text-red-600 text-center">
+          <p class="font-bold">Hiba történt a térkép betöltése közben:</p>
+          <p>${error.message || 'Ismeretlen hiba'}</p>
+        </div>
+      `;
+    }
+  }
+});
   </script>
 </body>
 </html>
