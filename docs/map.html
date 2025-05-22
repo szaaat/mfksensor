@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Levegőminőségi Térkép</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <script src="https://cdn.tailwindcss.com"></script> <!-- Fejlesztéshez használható, élesben cseréld buildelt CSS-re -->
+  <script src="https://cdn.tailwindcss.com"></script> <!-- Csak fejlesztéshez -->
   <style>
     #map { height: calc(100vh - 100px); }
     .loading-overlay {
@@ -51,22 +51,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
   <script>
-    function parseEWKBBase64(base64) {
+    function parseEWKBHex(hex) {
       try {
-        const binary = atob(base64);
-        const buffer = new ArrayBuffer(16);
-        const view = new DataView(buffer);
+        if (typeof hex !== 'string') throw new Error('location mező nem string');
+        const cleanHex = hex.slice(-32);
+        const lngHex = cleanHex.slice(0, 16);
+        const latHex = cleanHex.slice(16);
 
-        for (let i = 0; i < 16; i++) {
-          view.setUint8(i, binary.charCodeAt(binary.length - 16 + i));
-        }
+        const lngArray = new Uint8Array(lngHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+        const latArray = new Uint8Array(latHex.match(/.{2}/g).map(b => parseInt(b, 16)));
 
-        return {
-          lng: view.getFloat64(0, true),
-          lat: view.getFloat64(8, true)
-        };
-      } catch (e) {
-        console.error('Koordináta hiba:', e.message);
+        const lng = new DataView(lngArray.buffer).getFloat64(0, true);
+        const lat = new DataView(latArray.buffer).getFloat64(0, true);
+
+        return { lng, lat };
+      } catch (err) {
+        console.error('Koordináta hiba:', err.message);
         return null;
       }
     }
@@ -113,7 +113,7 @@
         const geojson = {
           type: 'FeatureCollection',
           features: data.map(item => {
-            const coords = parseEWKBBase64(item.location);
+            const coords = parseEWKBHex(item.location);
             if (!coords) return null;
 
             return {
@@ -186,3 +186,4 @@
   </script>
 </body>
 </html>
+
