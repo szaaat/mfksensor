@@ -52,12 +52,41 @@
 
   <script>
     function getCoordinates(location) {
-      if (typeof location === 'object' && location.type === 'Point' && Array.isArray(location.coordinates)) {
-        return {
-          lng: location.coordinates[0],
-          lat: location.coordinates[1]
-        };
+      // Logoljuk a nyers location mezőt
+      console.log('Raw location value:', location, 'Type:', typeof location);
+
+      // Ha a location stringként érkezik, parse-oljuk JSON objektummá
+      if (typeof location === 'string') {
+        try {
+          location = JSON.parse(location);
+          console.log('Parsed location:', location);
+        } catch (e) {
+          console.error('Hiba a location JSON parse-olása során:', e, 'Original location:', location);
+          return null;
+        }
       }
+
+      // Ellenőrizzük, hogy a location egy GeoJSON Point objektum-e
+      if (typeof location === 'object' && location !== null) {
+        if (location.type !== 'Point') {
+          console.error('A location.type nem "Point":', location.type);
+          return null;
+        }
+        if (!Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
+          console.error('A coordinates nem tömb vagy nem 2 elemű:', location.coordinates);
+          return null;
+        }
+
+        const lng = parseFloat(location.coordinates[0]);
+        const lat = parseFloat(location.coordinates[1]);
+        if (isNaN(lng) || isNaN(lat)) {
+          console.error('A koordináták nem numerikusak:', location.coordinates);
+          return null;
+        }
+
+        return { lng, lat };
+      }
+
       console.error('Ismeretlen location formátum:', location);
       return null;
     }
@@ -65,45 +94,92 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const loading = document.getElementById('loading');
 
-      const map = new maplibregl.Map({
-        container: 'map',
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap közreműködők'
-            }
-          },
-          layers: [{
-            id: 'osm-tiles',
-            type: 'raster',
-            source: 'osm'
-          }]
-        },
-        center: [20.3622, 47.8983],
-        zoom: 12
-      });
-
-      const supabaseClient = supabase.createClient(
-        'https://yuamroqhxrflusxeyylp.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-      );
-
       try {
+        console.log('Starting map initialization');
+        
+        // Ellenőrzések
+        if (!document.getElementById('map')) {
+          throw new Error('Map container not found');
+        }
+        if (typeof supabase === 'undefined') {
+          throw new Error('Supabase JS library not loaded');
+        }
+        if (typeof maplibregl === 'undefined') {
+          throw new Error('MapLibre GL library not loaded');
+        }
+        if (!loading) {
+          throw new Error('Loading element not found');
+        }
+
+        const map = new maplibregl.Map({
+          container: 'map',
+          style: {
+            version: 8,
+            sources: {
+              osm: {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap közreműködők'
+              }
+            },
+            layers: [{
+              id: 'osm-tiles',
+              type: 'raster',
+              source: 'osm'
+            }]
+          },
+          center: [20.3622, 47.8983],
+          zoom: 12
+        });
+        console.log('Map initialized successfully');
+
+        const supabaseClient = supabase.createClient(
+          'https://yuamroqhxrflusxeyylp.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+        );
+        console.log('Supabase client initialized');
+
+        // API kulcs tesztelése
+        console.log('Testing Supabase API key...');
+        const { data: testData, error: testError } = await supabaseClient
+          .from('air_quality_view')
+          .select('id')
+          .limit(1);
+        if (testError) {
+          console.error('Supabase API key test failed:', testError);
+          throw new Error('Supabase API key test failed: ' + testError.message);
+        }
+        console.log('Supabase API key test successful:', testData);
+
+        // Adatok lekérése
+        console.log('Fetching air quality data...');
+        loading.style.display = 'flex';
+        
         const { data, error } = await supabaseClient
-          .from('air_quality_view') // <-- ez a GeoJSON-es nézet
+          .from('air_quality_view')
           .select('*')
           .limit(1000);
 
-        if (error) throw new Error('Adatlekérdezés sikertelen: ' + error.message);
+        if (error) {
+          console.error('Adatlekérdezés sikertelen:', error);
+          throw new Error('Adatlekérdezés sikertelen: ' + error.message);
+        }
+
+        if (!data || data.length === 0) {
+          console.warn('No air quality data returned from Supabase API:', data);
+          throw new Error('Nincsenek elérhető adatok');
+        }
+
+        console.log(`Fetched ${data.length} records`);
+        console.log('First few records:', data.slice(0, 3));
 
         const geojson = {
           type: 'FeatureCollection',
           features: data.map(item => {
+            console.log('Processing item:', item.id, 'Location:', item.location);
             const coords = getCoordinates(item.location);
+            console.log('Extracted coordinates:', coords);
             if (!coords) return null;
 
             return {
@@ -117,9 +193,17 @@
           }).filter(f => f !== null)
         };
 
+        console.log('GeoJSON prepared:', geojson);
+
+        if (geojson.features.length === 0) {
+          console.warn('GeoJSON features are empty after filtering');
+          throw new Error('No valid features to display on the map');
+        }
+
         loading.style.display = 'none';
 
         map.on('load', () => {
+          console.log('Adding air quality data to map...');
           map.addSource('air_quality', { type: 'geojson', data: geojson });
 
           map.addLayer({
@@ -168,8 +252,15 @@
           map.on('mouseenter', 'air_quality_points', () => map.getCanvas().style.cursor = 'pointer');
           map.on('mouseleave', 'air_quality_points', () => map.getCanvas().style.cursor = '');
         });
+
+        // Hibakezelés a map objektum eseményeinél
+        map.on('error', (e) => {
+          console.error('Map error:', e.error);
+          loading.style.display = 'none';
+        });
+
       } catch (err) {
-        console.error('Hiba:', err.message);
+        console.error('Hiba:', err.message, err.stack);
         loading.innerHTML = `<div class="text-red-600 text-center p-4"><strong>Hiba:</strong><br>${err.message}</div>`;
       }
     });
