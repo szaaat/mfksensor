@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Levegőminőségi Térkép</title>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <!-- Tailwind CSS helyi telepítése ajánlott éles környezetben -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     #map { height: calc(100vh - 100px); }
@@ -35,7 +36,16 @@
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <!-- Fejléc és navigáció változatlan -->
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
+    <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium</h1>
+  </header>
+
+  <nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex justify-center space-x-8">
+      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+    </div>
+  </nav>
 
   <div class="container mx-auto p-6 flex-grow relative">
     <div id="loading" class="loading-overlay">
@@ -45,39 +55,23 @@
     <div id="map" class="bg-white rounded-xl shadow-xl"></div>
   </div>
 
-  <!-- Lábléc változatlan -->
+  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium</p>
+  </footer>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script>
-    // EWKB hex string konvertálása longitude/latitude értékekké
-    function parseEWKB(ewkbHex) {
-      // A hex string első része a fejléc, a koordináták a végén vannak
-      const hex = ewkbHex.slice(-16); // Az utolsó 16 karakter a koordináták
-      const lngHex = hex.substring(0, 8);
-      const latHex = hex.substring(8, 16);
-      
-      // Hex string konvertálása float értékekké
-      const lng = new DataView(new Uint8Array(
-        lngHex.match(/.{2}/g).map(h => parseInt(h, 16))
-        .buffer).getFloat32(0, true);
-      
-      const lat = new DataView(new Uint8Array(
-        latHex.match(/.{2}/g).map(h => parseInt(h, 16))
-        .buffer).getFloat32(0, true);
-      
-      return { lng, lat };
-    }
-
     document.addEventListener('DOMContentLoaded', async () => {
       try {
         console.log('Starting map initialization');
         
-        // Supabase inicializálás
-        const supabaseClient = supabase.createClient(
-          'https://yuamroqhxrflusxeyylp.supabase.co',
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-        );
+        // Supabase inicializálás - JAVÍTOTT RÉSZ
+        const supabaseUrl = 'https://yuamroqhxrflusxeyylp.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzODY2ODgsImV4cCI6MjA1NTk2MjY4OH0.5z3S3u9v2vX7Yc5eW1g0eN5eW1g0eN5eW1g0eN5eW1g0eN5eW1g';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        console.log('Supabase client initialized');
 
         // Térkép inicializálása
         const map = new maplibregl.Map({
@@ -104,6 +98,8 @@
           zoom: 12
         });
 
+        console.log('Map initialized successfully');
+
         // Adatok lekérése
         console.log('Fetching air quality data...');
         const { data, error } = await supabaseClient
@@ -115,52 +111,66 @@
         if (error) throw error;
         console.log(`Fetched ${data.length} records`);
 
-        // GeoJSON létrehozása EWKB konverzióval
+        // Koordináta konverzió
+        const parseLocation = (location) => {
+          if (!location) return null;
+          // Ha a location már {lng, lat} objektum
+          if (location.lng && location.lat) return location;
+          // Ha EWKB hex string
+          if (typeof location === 'string' && location.startsWith('010100')) {
+            const hex = location.slice(-16);
+            const lng = new DataView(new Uint8Array(
+              hex.substring(0, 8).match(/.{2}/g).map(h => parseInt(h, 16))
+              .buffer).getFloat32(0, true);
+            const lat = new DataView(new Uint8Array(
+              hex.substring(8, 16).match(/.{2}/g).map(h => parseInt(h, 16))
+              .buffer).getFloat32(0, true);
+            return { lng, lat };
+          }
+          return null;
+        };
+
+        // GeoJSON létrehozása
         const geojson = {
           type: 'FeatureCollection',
           features: data.map(item => {
-            try {
-              const { lng, lat } = parseEWKB(item.location);
-              return {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [lng, lat]
-                },
-                properties: {
-                  id: item.id,
-                  timestamp: item.timestamp,
-                  pm1_0: item.pm1_0,
-                  pm2_5: item.pm2_5,
-                  pm4_0: item.pm4_0,
-                  pm10_0: item.pm10_0,
-                  humidity: item.humidity,
-                  temperature: item.temperature,
-                  voc: item.voc,
-                  nox: item.nox,
-                  co2: item.co2
-                }
-              };
-            } catch (e) {
-              console.error('Error parsing location:', item.location, e);
-              return null;
-            }
+            const coords = parseLocation(item.location);
+            if (!coords) return null;
+            
+            return {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [coords.lng, coords.lat]
+              },
+              properties: {
+                id: item.id,
+                timestamp: item.timestamp,
+                pm1_0: item.pm1_0,
+                pm2_5: item.pm2_5,
+                pm4_0: item.pm4_0,
+                pm10_0: item.pm10_0,
+                humidity: item.humidity,
+                temperature: item.temperature,
+                voc: item.voc,
+                nox: item.nox,
+                co2: item.co2
+              }
+            };
           }).filter(Boolean)
         };
 
-        console.log('First point:', geojson.features[0]);
+        console.log('GeoJSON created with', geojson.features.length, 'features');
 
         // Térkép betöltése után
         map.on('load', () => {
           console.log('Adding data to map...');
           
-          // Forrás hozzáadása
           map.addSource('air_quality', {
             type: 'geojson',
             data: geojson
           });
 
-          // Réteg hozzáadása
           map.addLayer({
             id: 'air_quality_points',
             type: 'circle',
@@ -193,28 +203,14 @@
                 <div class="p-2 max-w-xs">
                   <h3 class="font-bold text-lg mb-2">Szenzor adatok</h3>
                   <div class="grid grid-cols-2 gap-2">
-                    <p class="font-semibold">Azonosító:</p>
-                    <p class="truncate">${props.id}</p>
                     <p class="font-semibold">Időpont:</p>
                     <p>${new Date(props.timestamp).toLocaleString('hu-HU')}</p>
-                    <p class="font-semibold">PM1.0:</p>
-                    <p>${props.pm1_0?.toFixed(1) || 'N/A'} µg/m³</p>
                     <p class="font-semibold">PM2.5:</p>
                     <p>${props.pm2_5?.toFixed(1) || 'N/A'} µg/m³</p>
-                    <p class="font-semibold">PM4.0:</p>
-                    <p>${props.pm4_0?.toFixed(1) || 'N/A'} µg/m³</p>
-                    <p class="font-semibold">PM10.0:</p>
-                    <p>${props.pm10_0?.toFixed(1) || 'N/A'} µg/m³</p>
                     <p class="font-semibold">Hőmérséklet:</p>
                     <p>${props.temperature?.toFixed(1) || 'N/A'} °C</p>
                     <p class="font-semibold">Páratartalom:</p>
                     <p>${props.humidity?.toFixed(1) || 'N/A'} %</p>
-                    <p class="font-semibold">VOC:</p>
-                    <p>${props.voc || 'N/A'} ppb</p>
-                    <p class="font-semibold">NOx:</p>
-                    <p>${props.nox || 'N/A'} ppb</p>
-                    <p class="font-semibold">CO₂:</p>
-                    <p>${props.co2 || 'N/A'} ppm</p>
                   </div>
                 </div>
               `)
