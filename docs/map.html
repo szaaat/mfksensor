@@ -128,10 +128,10 @@
         zoom: 8
       });
 
-      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
       map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
       map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
-      map.addControl(new maplibregl.CompassControl(), 'top-left');
+     
 
       const loading = document.getElementById('loading');
       const datePicker = document.getElementById('datePicker');
