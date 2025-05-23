@@ -112,14 +112,11 @@
     }
 
     async function fetchAirQualityData(date) {
-      const start = `${date} 00:00:00+00`;
-      const end = `${date} 23:59:59+00`;
       try {
         const { data, error } = await supabaseClient
           .from('air_quality_view')
           .select('*')
-          .gte('timestamp', start)
-          .lte('timestamp', end)
+          .eq('timestamp::date', date)
           .order('timestamp', { ascending: false });
 
         if (error) {
@@ -177,7 +174,7 @@
             type: 'raster',
             source: 'osm'
           }],
-          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
+          glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
         },
         center: [20.36, 47.89],
         zoom: 8
@@ -235,7 +232,7 @@
               filter: ['has', 'point_count'],
               layout: {
                 'text-field': '{point_count_abbreviated}',
-                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
                 'text-size': 12
               }
             });
@@ -277,7 +274,6 @@
                     <strong>Idő:</strong> ${ts}<br/>
                     PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>
                     PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>
-                    PM4.0: ${p.pm4_0?.toFixed(1) || '–'} µg/m³<br/>
                     PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>
                     Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>
                     RH: ${p.humidity?.toFixed(1) || '–'} %<br/>
