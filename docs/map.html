@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Levegőminőségi Térkép</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     #map { height: calc(100vh - 220px); }
@@ -30,7 +31,7 @@
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
 
   <header class="bg-green-700 text-white text-center py-6 shadow-lg">
-    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B – Mobil levegőminőségi szenzor térkép</h1>
+    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B alprojekt – Mobil levegőminőségi szenzor térkép</h1>
     <nav class="mt-2">
       <a href="/mfksensor/" class="underline text-sm hover:text-green-300">← Vissza a kezdőlapra</a>
     </nav>
@@ -39,7 +40,7 @@
   <main class="container mx-auto p-4 flex-grow relative">
     <div class="mb-4 flex justify-center items-center gap-2">
       <label for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
-      <input type="date" id="datePicker" class="border rounded px-2 py-1" />
+      <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
     </div>
 
     <div id="loading" class="loading-overlay">
@@ -60,27 +61,38 @@
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script>
-    function getCoordinates(location) {
+    const supabaseClient = supabase.createClient(
+      'https://yuamroqhxrflusxeyylp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+    );
+
+    const getCoordinates = (location) => {
       if (typeof location === 'string') {
         try {
           location = JSON.parse(location);
         } catch { return null; }
       }
-      if (location?.type === 'Point' && Array.isArray(location.coordinates)) {
-        return { lng: +location.coordinates[0], lat: +location.coordinates[1] };
-      }
-      return null;
+      return location?.type === 'Point' && Array.isArray(location.coordinates)
+        ? { lng: +location.coordinates[0], lat: +location.coordinates[1] }
+        : null;
+    };
+
+    async function loadAvailableDates() {
+      const { data, error } = await supabaseClient
+        .from('air_quality_view')
+        .select('timestamp')
+        .limit(10000);
+
+      if (error) return [];
+      const dates = [...new Set(data.map(row => row.timestamp.slice(0, 10)))];
+      return dates;
     }
 
     async function fetchAirQualityData(date) {
-      const supabaseClient = supabase.createClient(
-        'https://yuamroqhxrflusxeyylp.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-      );
-
-      const start = `${date}T00:00:00Z`, end = `${date}T23:59:59Z`;
+      const start = `${date}T00:00:00Z`;
+      const end = `${date}T23:59:59Z`;
       const { data, error } = await supabaseClient
         .from('air_quality_view')
         .select('*')
@@ -90,7 +102,7 @@
 
       if (error || !data || data.length === 0) throw new Error('Nincs elérhető adat');
 
-      const geojson = {
+      return {
         type: 'FeatureCollection',
         features: data.map(row => {
           const coords = getCoordinates(row.location);
@@ -101,8 +113,6 @@
           } : null;
         }).filter(Boolean)
       };
-
-      return geojson;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -131,11 +141,17 @@
       map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
       map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
       map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
-     
 
       const loading = document.getElementById('loading');
       const datePicker = document.getElementById('datePicker');
-      datePicker.value = new Date().toISOString().slice(0, 10);
+      const validDates = await loadAvailableDates();
+
+      flatpickr("#datePicker", {
+        dateFormat: "Y-m-d",
+        enable: validDates,
+        defaultDate: validDates[0] || new Date().toISOString().slice(0, 10),
+        onChange: () => updateMap()
+      });
 
       async function updateMap() {
         loading.style.display = 'flex';
@@ -210,7 +226,6 @@
                 .setLngLat(e.lngLat)
                 .setHTML(`
                   <div class="text-sm font-sans">
-                    <strong>ID:</strong> ${p.id}<br/>
                     <strong>Idő:</strong> ${ts}<br/>
                     PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>
                     PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>
@@ -226,7 +241,6 @@
             });
           }
 
-          // Automatikus zoom az adatokra
           const bounds = new maplibregl.LngLatBounds();
           geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
           if (!bounds.isEmpty()) {
@@ -240,8 +254,7 @@
         }
       }
 
-      datePicker.addEventListener('change', updateMap);
-      await updateMap();
+      updateMap();
     });
   </script>
 </body>
