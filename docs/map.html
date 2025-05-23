@@ -121,7 +121,8 @@
           .select('*')
           .gte('timestamp', start)
           .lte('timestamp', end)
-          .order('timestamp', { ascending: false });
+          .order('timestamp', { ascending: true }) // Délelőtti adatok előnyben
+          .range(0, 9999);
 
         if (error) {
           console.error('Supabase hiba:', error);
@@ -136,6 +137,12 @@
           timestamp: row.timestamp,
           coordinates: row.location ? row.location.coordinates : null
         })));
+
+        const hasMorningData = data.some(row => {
+          const hour = new Date(row.timestamp).getUTCHours();
+          return hour >= 0 && hour < 12;
+        });
+        console.log('Délelőtti adatok jelenléte:', hasMorningData);
 
         const features = data.map(row => {
           const coords = getCoordinates(row.location);
@@ -185,8 +192,7 @@
             id: 'osm-tiles',
             type: 'raster',
             source: 'osm'
-          }],
-          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
+          }]
         },
         center: [20.36, 47.89],
         zoom: 8
@@ -237,18 +243,6 @@
               paint: {
                 'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
                 'circle-radius': ['step', ['get', 'point_count'], 15, 10, 25, 50, 35]
-              }
-            });
-
-            map.addLayer({
-              id: 'cluster-count',
-              type: 'symbol',
-              source: 'air_quality',
-              filter: ['has', 'point_count'],
-              layout: {
-                'text-field': '{point_count_abbreviated}',
-                'text-font': ['Noto Sans Bold', 'Arial Unicode MS Bold'],
-                'text-size': 12
               }
             });
 
