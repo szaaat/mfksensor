@@ -132,7 +132,10 @@
           throw new Error('Nincs elérhető adat');
         }
 
-        console.log('Lekérdezett nyers adatok:', data.slice(0, 3));
+        console.log('Lekérdezett nyers adatok:', data.slice(0, 3).map(row => ({
+          timestamp: row.timestamp,
+          coordinates: row.location ? row.location.coordinates : null
+        })));
 
         const features = data.map(row => {
           const coords = getCoordinates(row.location);
@@ -149,7 +152,10 @@
 
         console.log(`Lekérdezett adatok száma (${date}):`, features.length);
         if (features.length > 0) {
-          console.log('Első pár adat:', features.slice(0, 3));
+          console.log('Első pár adat:', features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
         }
 
         return {
@@ -180,7 +186,7 @@
             type: 'raster',
             source: 'osm'
           }],
-          glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
+          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
         },
         center: [20.36, 47.89],
         zoom: 8
@@ -197,7 +203,7 @@
       flatpickr("#datePicker", {
         dateFormat: "Y-m-d",
         enable: validDates,
-        defaultDate: validDates[0] || new Date().toISOString().slice(0, 10),
+        defaultDate: validDates.includes('2025-05-12') ? '2025-05-12' : validDates[0] || new Date().toISOString().slice(0, 10),
         onChange: () => updateMap()
       });
 
@@ -207,7 +213,10 @@
           console.log('Adatok lekérdezése dátumra:', datePicker.value);
           const geojson = await fetchAirQualityData(datePicker.value);
           console.log('Lekérdezett adatok száma:', geojson.features.length);
-          console.log('Első pár adat:', geojson.features.slice(0, 3));
+          console.log('Első pár adat:', geojson.features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
 
           if (map.getSource('air_quality')) {
             map.getSource('air_quality').setData(geojson);
@@ -238,7 +247,7 @@
               filter: ['has', 'point_count'],
               layout: {
                 'text-field': '{point_count_abbreviated}',
-                'text-font': ['Noto Sans Bold', 'Droid Sans Fallback Bold'],
+                'text-font': ['Noto Sans Bold', 'Arial Unicode MS Bold'],
                 'text-size': 12
               }
             });
