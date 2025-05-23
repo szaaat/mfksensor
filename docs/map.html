@@ -116,35 +116,57 @@
         const start = `${date} 00:00:00+00`;
         const end = `${date} 23:59:59+00`;
         console.log('Lekérdezés időintervalluma:', { start, end });
-        const { data, error } = await supabaseClient
-          .from('air_quality_view')
-          .select('*')
-          .gte('timestamp', start)
-          .lte('timestamp', end)
-          .order('timestamp', { ascending: true }) // Délelőtti adatok előnyben
-          .range(0, 9999);
 
-        if (error) {
-          console.error('Supabase hiba:', error);
-          throw new Error('Hiba az adatok lekérdezésekor');
+        let allData = [];
+        let offset = 0;
+        const batchSize = 10000; // Batch mérete
+
+        while (true) {
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true })
+            .range(offset, offset + batchSize - 1);
+
+          if (error) {
+            console.error('Supabase hiba:', error);
+            throw new Error('Hiba az adatok lekérdezésekor');
+          }
+
+          if (!data || data.length === 0) {
+            console.log('Nincs több adat a megadott időszakra:', date);
+            break;
+          }
+
+          allData = allData.concat(data);
+          console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length);
+          offset += batchSize;
+
+          if (data.length < batchSize) {
+            break; // Nincs több adat
+          }
         }
-        if (!data || data.length === 0) {
+
+        if (allData.length === 0) {
           console.warn('Nincs adat a megadott időszakra:', date, 'Intervallum:', { start, end });
           throw new Error('Nincs elérhető adat');
         }
 
-        console.log('Lekérdezett nyers adatok:', data.slice(0, 3).map(row => ({
+        console.log('Összes betöltött rekord:', allData.length);
+        console.log('Lekérdezett nyers adatok:', allData.slice(0, 3).map(row => ({
           timestamp: row.timestamp,
           coordinates: row.location ? row.location.coordinates : null
         })));
 
-        const hasMorningData = data.some(row => {
+        const hasMorningData = allData.some(row => {
           const hour = new Date(row.timestamp).getUTCHours();
           return hour >= 0 && hour < 12;
         });
         console.log('Délelőtti adatok jelenléte:', hasMorningData);
 
-        const features = data.map(row => {
+        const features = allData.map(row => {
           const coords = getCoordinates(row.location);
           if (!coords) {
             console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
@@ -231,8 +253,8 @@
               type: 'geojson',
               data: geojson,
               cluster: true,
-              clusterRadius: 50,
-              clusterMaxZoom: 14
+              clusterRadius: 30, // Kisebb klaszterek a részletesebb megjelenítéshez
+              clusterMaxZoom: 15 // Nagyobb zoom szint a klaszterezéshez
             });
 
             map.addLayer({
@@ -242,7 +264,7 @@
               filter: ['has', 'point_count'],
               paint: {
                 'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
-                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 25, 50, 35]
+                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
               }
             });
 
@@ -252,7 +274,7 @@
               source: 'air_quality',
               filter: ['!', ['has', 'point_count']],
               paint: {
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 15, 10],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 15, 8],
                 'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
                   0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00',
                   55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'
