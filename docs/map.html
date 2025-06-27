@@ -1,308 +1,349 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Levegőminőségi Térkép</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    #map { height: calc(100vh - 150px); }
-    .loading { animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-    .warning { background-color: #fef3c7; color: #d97706; padding: 0.5rem 1rem; border-radius: 0.375rem; margin-top: 1rem; text-align: center; }
+    #map { height: calc(100vh - 220px); }
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px; height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
-    <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</h1>
+
+  <header class="bg-green-700 text-white text-center py-6 shadow-lg">
+    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B alprojekt – Mobil levegőminőségi szenzor térkép</h1>
+    <nav class="mt-2">
+      <a href="/mfksensor/" class="underline text-sm hover:text-green-300">← Vissza a kezdőlapra</a>
+    </nav>
   </header>
 
-  <nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex justify-center space-x-8">
-      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+  <main class="container mx-auto p-4 flex-grow relative">
+    <div class="mb-4 flex justify-center items-center gap-2">
+      <label for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
+      <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
+      <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2">Export CSV</button>
     </div>
-  </nav>
 
-  <div class="container mx-auto p-6 flex-grow">
-    <div id="controls" class="mb-4 flex justify-between items-center">
-      <div id="dateSelector">
-        <label for="dateFilter" class="block text-sm font-medium text-gray-700">Dátum szűrés:</label>
-        <select id="dateFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-          <option value="" selected disabled>Kérlek válassz dátumot...</option>
-        </select>
-        <p id="loadingIndicator" class="text-sm text-gray-500 mt-2 hidden">Adatok betöltése... <span class="loading">⏳</span></p>
-      </div>
-      <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
+    <div id="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
-    <div id="map" class="bg-white rounded-xl shadow-xl"></div>
-    <div class="warning mt-4">
+
+    <div id="map" class="rounded-xl shadow-lg border border-gray-300"></div>
+
+    <p class="text-sm text-red-600 text-center mt-2 font-semibold">
       ⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!
-    </div>
-  </div>
+    </p>
+  </main>
 
-  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
-    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+  <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
+    © Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium
   </footer>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      let map, geojsonData;
+    const supabaseClient = supabase.createClient(
+      'https://yuamroqhxrflusxeyylp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+    );
 
-      try {
-        console.log('Starting map initialization');
-        if (!document.getElementById('map')) {
-          throw new Error('Map container not found');
-        }
-        if (typeof supabase === 'undefined') {
-          throw new Error('Supabase JS library not loaded. Check network or script URL.');
-        }
-        if (typeof maplibregl === 'undefined') {
-          throw new Error('MapLibre GL library not loaded. Check network or script URL.');
-        }
-
-        const supabaseClient = supabase.createClient(
-          'https://yuamroqhxrflusxeyylp.supabase.co',
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
-        );
-        console.log('Supabase client initialized');
-
-        map = new maplibregl.Map({
-          container: 'map',
-          style: {
-            version: 8,
-            sources: {
-              osm: {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              }
-            },
-            layers: [
-              {
-                id: 'osm-tiles',
-                type: 'raster',
-                source: 'osm',
-                minzoom: 0,
-                maxzoom: 19
-              }
-            ]
-          },
-          center: [20.362248, 47.898280], // Eger pontos középpontja
-          zoom: 12
-        });
-        console.log('Map initialized successfully');
-
-        async function fetchData() {
-          const loadingIndicator = document.getElementById('loadingIndicator');
-          loadingIndicator.classList.remove('hidden');
-          
-          try {
-            console.log('Fetching air quality data from Supabase API...');
-            const { data, error } = await supabaseClient
-              .from('air_quality_view')
-              .select('id, timestamp, pm2_5, temperature, humidity, co2, long, lat')
-              .order('timestamp', { ascending: false });
-
-            if (error) {
-              console.error('Supabase API error:', error);
-              throw new Error('Failed to fetch air quality data: ' + error.message);
-            }
-
-            if (!data || data.length === 0) {
-              console.warn('No air quality data returned from Supabase API:', data);
-              throw new Error('No air quality data available');
-            }
-
-            console.log('Air quality data fetched successfully:', data);
-            geojsonData = {
-              type: 'FeatureCollection',
-              features: data.map(item => {
-                if (!item.long || !item.lat) {
-                  console.warn('Missing coordinates for item:', item);
-                  return null;
-                }
-                return {
-                  type: 'Feature',
-                  geometry: {
-                    type: 'Point',
-                    coordinates: [parseFloat(item.long), parseFloat(item.lat)]
-                  },
-                  properties: {
-                    id: item.id,
-                    timestamp: item.timestamp,
-                    pm2_5: item.pm2_5,
-                    temperature: item.temperature,
-                    humidity: item.humidity,
-                    co2: item.co2
-                  }
-                };
-              }).filter(item => item !== null)
-            };
-
-            console.log('GeoJSON data prepared:', geojsonData);
-
-            if (geojsonData.features.length === 0) {
-              console.warn('GeoJSON features are empty after filtering');
-              throw new Error('No valid features to display on the map');
-            }
-
-            // Frissítsd a dátumválasztót
-            const dateFilter = document.getElementById('dateFilter');
-            dateFilter.innerHTML = '<option value="" selected disabled>Kérlek válassz dátumot...</option>';
-            const uniqueTimestamps = [...new Set(data.map(item => item.timestamp))];
-            uniqueTimestamps.forEach(timestamp => {
-              const option = document.createElement('option');
-              option.value = timestamp;
-              option.textContent = new Date(timestamp).toLocaleString('hu-HU');
-              dateFilter.appendChild(option);
-            });
-
-            // Add GeoJSON source and layer
-            map.on('load', () => {
-              console.log('Map loaded, adding GeoJSON source and layer...');
-              try {
-                if (map.getSource('air_quality')) map.removeSource('air_quality');
-                if (map.getLayer('air_quality')) map.removeLayer('air_quality');
-
-                map.addSource('air_quality', {
-                  type: 'geojson',
-                  data: geojsonData
-                });
-
-                map.addLayer({
-                  id: 'air_quality',
-                  type: 'circle',
-                  source: 'air_quality',
-                  paint: {
-                    'circle-radius': 8,
-                    'circle-color': [
-                      'interpolate',
-                      ['linear'],
-                      ['get', 'pm2_5'],
-                      0, '#00ff00',
-                      50, '#ff0000'
-                    ]
-                  }
-                });
-                console.log('GeoJSON source and layer added successfully');
-
-                // Click event for popups
-                map.on('click', 'air_quality', (e) => {
-                  const props = e.features[0].properties;
-                  console.log('Clicked on air quality point:', props);
-                  new maplibregl.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(`
-                      <div style="padding: 8px;">
-                        <p><b>Idő:</b> ${new Date(props.timestamp).toLocaleString('hu-HU')}</p>
-                        <p><b>PM2.5:</b> ${props.pm2_5 ? props.pm2_5.toFixed(2) : 'N/A'} µg/m³</p>
-                        <p><b>Hőmérséklet:</b> ${props.temperature ? props.temperature.toFixed(2) : 'N/A'}°C</p>
-                        <p><b>Páratartalom:</b> ${props.humidity ? props.humidity.toFixed(2) : 'N/A'}%</p>
-                        <p><b>CO₂:</b> ${props.co2 ? props.co2 : 'N/A'} ppm</p>
-                      </div>
-                    `)
-                    .addTo(map);
-                });
-
-                // Change cursor on hover
-                map.on('mouseenter', 'air_quality', () => {
-                  map.getCanvas().style.cursor = 'pointer';
-                });
-
-                map.on('mouseleave', 'air_quality', () => {
-                  map.getCanvas().style.cursor = '';
-                });
-
-                // Dátumszűrés eseménykezelő
-                dateFilter.addEventListener('change', () => {
-                  const selectedTimestamp = dateFilter.value;
-                  const filteredFeatures = selectedTimestamp
-                    ? geojsonData.features.filter(feature => feature.properties.timestamp === selectedTimestamp)
-                    : geojsonData.features;
-                  map.getSource('air_quality').setData({
-                    type: 'FeatureCollection',
-                    features: filteredFeatures
-                  });
-                });
-              } catch (layerError) {
-                console.error('Error adding GeoJSON source or layer:', layerError);
-                throw new Error('Failed to add GeoJSON source or layer: ' + layerError.message);
-              }
-            });
-          } catch (fetchError) {
-            console.error('Error fetching data:', fetchError);
-            throw new Error('Failed to fetch data: ' + fetchError.message);
-          } finally {
-            loadingIndicator.classList.add('hidden');
-          }
-        }
-
-        // Próbáld meg újra az adatbetöltést, ha sikertelen
-        let attempt = 0;
-        const maxAttempts = 3;
-        async function loadDataWithRetry() {
-          while (attempt < maxAttempts) {
-            try {
-              await fetchData();
-              break;
-            } catch (error) {
-              attempt++;
-              console.warn(`Attempt ${attempt} failed: ${error.message}. Retrying...`);
-              if (attempt === maxAttempts) throw error;
-              await new Promise(resolve => setTimeout(resolve, 2000)); // 2 másodperc várakozás
-            }
-          }
-        }
-
-        // Indítsd el az adatbetöltést
-        loadDataWithRetry();
-
-        // Export gomb eseménykezelő
-        document.getElementById('exportButton').addEventListener('click', () => {
-          if (!geojsonData) {
-            alert('Nincs exportálható adat!');
-            return;
-          }
-
-          const csvRows = [];
-          const headers = ['ID', 'Idő', 'PM2.5', 'Hőmérséklet', 'Páratartalom', 'CO₂'];
-          csvRows.push(headers.join(','));
-
-          geojsonData.features.forEach(feature => {
-            const props = feature.properties;
-            const row = [
-              props.id,
-              new Date(props.timestamp).toLocaleString('hu-HU'),
-              props.pm2_5 || 'N/A',
-              props.temperature || 'N/A',
-              props.humidity || 'N/A',
-              props.co2 || 'N/A'
-            ].map(field => `"${field}"`).join(',');
-            csvRows.push(row);
-          });
-
-          const csvContent = csvRows.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'air_quality_data.csv';
-          a.click();
-          window.URL.revokeObjectURL(url);
-        });
-
-      } catch (error) {
-        console.error('Map initialization error:', error);
-        const mapContainer = document.getElementById('map');
-        if (mapContainer) {
-          mapContainer.innerHTML = '<p class="text-red-500 text-center p-4">Hiba a térkép inicializálásakor: ' + error.message + '</p>';
+    const getCoordinates = (location) => {
+      if (!location) {
+        console.warn('Hiányzó location mező');
+        return null;
+      }
+      if (typeof location === 'string') {
+        try {
+          location = JSON.parse(location);
+        } catch (e) {
+          console.warn('Érvénytelen location JSON:', location, e);
+          return null;
         }
       }
+      if (location?.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
+        const lng = +location.coordinates[0];
+        const lat = +location.coordinates[1];
+        if (isNaN(lng) || isNaN(lat)) {
+          console.warn('Érvénytelen koordináták:', location.coordinates);
+          return null;
+        }
+        return { lng, lat };
+      }
+      console.warn('Érvénytelen location formátum:', location);
+      return null;
+    };
+
+    async function loadAvailableDates() {
+      try {
+        const { data, error } = await supabaseClient
+          .rpc('get_distinct_dates');
+        if (error) {
+          console.error('Hiba a dátumok lekérdezésekor:', error);
+          return [];
+        }
+        const dates = data.map(row => row.date).filter(Boolean);
+        console.log('Elérhető dátumok:', dates);
+        return dates;
+      } catch (err) {
+        console.error('Váratlan hiba a dátumok betöltésekor:', err);
+        return [];
+      }
+    }
+
+    async function fetchAirQualityData(date) {
+      try {
+        const start = `${date} 00:00:00+00`;
+        const end = `${date} 23:59:59+00`;
+        console.log('Lekérdezés időintervalluma:', { start, end });
+
+        let allData = [];
+        let offset = 0;
+        const batchSize = 10000;
+
+        // Először lekérjük az összes rekord számát
+        const { count, error: countError } = await supabaseClient
+          .from('air_quality_view')
+          .select('*', { count: 'exact', head: true })
+          .gte('timestamp', start)
+          .lte('timestamp', end);
+
+        if (countError) {
+          console.error('Hiba a rekordszám lekérdezésekor:', countError);
+          throw new Error('Hiba a rekordszám lekérdezésekor');
+        }
+        console.log('Várható rekordszám:', count);
+
+        while (offset < count) {
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true })
+            .range(offset, offset + batchSize - 1);
+
+          if (error) {
+            console.error('Supabase hiba (offset ' + offset + '):', error);
+            throw new Error('Hiba az adatok lekérdezésekor');
+          }
+
+          if (!data || data.length === 0) {
+            console.log('Nincs több adat (offset ' + offset + ')');
+            break;
+          }
+
+          allData = allData.concat(data);
+          console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length, `Összes eddig: ${allData.length}`);
+          offset += data.length; // Offset növelése a tényleges adatmennyiség alapján
+        }
+
+        if (allData.length === 0) {
+          console.warn('Nincs adat a megadott időszakra:', date, 'Intervallum:', { start, end });
+          throw new Error('Nincs elérhető adat');
+        }
+
+        console.log('Összes betöltött rekord:', allData.length);
+        console.log('Lekérdezett nyers adatok:', allData.slice(0, 3).map(row => ({
+          timestamp: row.timestamp,
+          coordinates: row.location ? row.location.coordinates : null
+        })));
+
+        const hasMorningData = allData.some(row => {
+          const hour = new Date(row.timestamp).getUTCHours();
+          return hour >= 0 && hour < 12;
+        });
+        console.log('Délelőtti adatok jelenléte:', hasMorningData);
+
+        const features = allData.map(row => {
+          const coords = getCoordinates(row.location);
+          if (!coords) {
+            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
+            return null;
+          }
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+            properties: { ...row, location: undefined }
+          };
+        }).filter(Boolean);
+
+        console.log(`Lekérdezett adatok száma (${date}):`, features.length);
+        if (features.length > 0) {
+          console.log('Első pár adat:', features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
+        }
+
+        return {
+          type: 'FeatureCollection',
+          features
+        };
+      } catch (err) {
+        console.error('Hiba az adatok betöltésekor:', err);
+        throw err;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap'
+            }
+          },
+          layers: [{
+            id: 'osm-tiles',
+            type: 'raster',
+            source: 'osm'
+          }]
+        },
+        center: [20.36, 47.89],
+        zoom: 8
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
+      map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
+
+      const loading = document.getElementById('loading');
+      const datePicker = document.getElementById('datePicker');
+      const validDates = await loadAvailableDates();
+
+      flatpickr("#datePicker", {
+        dateFormat: "Y-m-d",
+        enable: validDates,
+        defaultDate: validDates.includes('2025-05-12') ? '2025-05-12' : validDates[0] || new Date().toISOString().slice(0, 10),
+        onChange: () => updateMap()
+      });
+
+      async function updateMap() {
+        loading.style.display = 'flex';
+        try {
+          console.log('Adatok lekérdezése dátumra:', datePicker.value);
+          const geojson = await fetchAirQualityData(datePicker.value);
+          console.log('Lekérdezett adatok száma:', geojson.features.length);
+          console.log('Első pár adat:', geojson.features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
+
+          if (map.getSource('air_quality')) {
+            map.getSource('air_quality').setData(geojson);
+          } else {
+            map.addSource('air_quality', {
+              type: 'geojson',
+              data: geojson,
+              cluster: true,
+              clusterRadius: 30,
+              clusterMaxZoom: 15
+            });
+
+            map.addLayer({
+              id: 'clusters',
+              type: 'circle',
+              source: 'air_quality',
+              filter: ['has', 'point_count'],
+              paint: {
+                'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
+                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
+              }
+            });
+
+            map.addLayer({
+              id: 'air_quality_points',
+              type: 'circle',
+              source: 'air_quality',
+              filter: ['!', ['has', 'point_count']],
+              paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
+                'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
+                  0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00',
+                  55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'
+                ],
+                'circle-opacity': 0.8,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#fff'
+              }
+            });
+
+            map.on('click', 'clusters', e => {
+              const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+              const clusterId = features[0].properties.cluster_id;
+              map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (!err) {
+                  map.easeTo({ center: features[0].geometry.coordinates, zoom });
+                }
+              });
+            });
+
+            map.on('click', 'air_quality_points', e => {
+              const p = e.features[0].properties;
+              const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A';
+              new maplibregl.Popup()
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                  <div class="text-sm font-sans">
+                    <strong>Idő:</strong> ${ts}<br/>
+                    PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>
+                    PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>
+                    PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>
+                    Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>
+                    RH: ${p.humidity?.toFixed(1) || '–'} %<br/>
+                    VOC: ${p.voc || '–'} index<br/>
+                    NOx: ${p.nox || '–'} index<br/>
+                    CO₂: ${p.co2 || '–'} ppm
+                  </div>
+                `)
+                .addTo(map);
+            });
+          }
+
+          const bounds = new maplibregl.LngLatBounds();
+          geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
+          if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+          } else {
+            console.warn('Üres bounds, alapértelmezett nézet Miskolcra');
+            map.setCenter([20.36, 47.89]);
+            map.setZoom(8);
+          }
+        } catch (err) {
+          console.error('Hiba a térkép frissítésekor:', err.message);
+        } finally {
+          loading.style.display = 'none';
+        }
+      }
+
+      updateMap();
     });
   </script>
 </body>
