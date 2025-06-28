@@ -7,10 +7,7 @@
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    .chart-container { max-width: 600px; margin: 0 auto; }
-    canvas { max-width: 100%; }
     .loading-overlay {
       position: absolute; inset: 0;
       background: rgba(255, 255, 255, 0.8);
@@ -27,6 +24,28 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    .stats-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 1rem;
+      background-color: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .stats-table th, .stats-table td {
+      padding: 0.75rem;
+      text-align: center;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .stats-table th {
+      background-color: #f3f4f6;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -53,17 +72,24 @@
       <div class="loading-spinner"></div>
       <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
-    <div class="chart-container">
-      <h2 class="text-xl font-semibold mb-4 text-center">PM2.5 Átlagok és Mediánok</h2>
-      <canvas id="pm25Chart" width="400" height="200"></canvas>
-    </div>
-    <div class="chart-container mt-6">
-      <h2 class="text-xl font-semibold mb-4 text-center">Hőmérséklet és Páratartalom Átlagok és Mediánok</h2>
-      <canvas id="tempHumChart" width="400" height="200"></canvas>
-    </div>
-    <div class="chart-container mt-6">
-      <h2 class="text-xl font-semibold mb-4 text-center">CO₂ Átlagok és Mediánok</h2>
-      <canvas id="co2Chart" width="400" height="200"></canvas>
+    <div id="statsContainer" class="stats-container hidden">
+      <h2 class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
+      <table id="statsTable" class="stats-table">
+        <thead>
+          <tr>
+            <th>Időszak</th>
+            <th>PM2.5 Átlag (µg/m³)</th>
+            <th>PM2.5 Medián (µg/m³)</th>
+            <th>Hőm. Átlag (°C)</th>
+            <th>Hőm. Medián (°C)</th>
+            <th>Párat. Átlag (%)</th>
+            <th>Párat. Medián (%)</th>
+            <th>CO₂ Átlag (ppm)</th>
+            <th>CO₂ Medián (ppm)</th>
+          </tr>
+        </thead>
+        <tbody id="statsBody"></tbody>
+      </table>
     </div>
     <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
   </div>
@@ -79,8 +105,6 @@
         'https://yuamroqhxrflusxeyylp.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
       );
-
-      let pm25Chart, tempHumChart, co2Chart; // Diagramok referenciái
 
       async function loadAvailableDates() {
         try {
@@ -166,55 +190,29 @@
         }
       }
 
-      function updateCharts(data) {
+      function updateStats(data) {
+        const statsContainer = document.getElementById('statsContainer');
+        const statsBody = document.getElementById('statsBody');
         const stats = calculateStats(data);
 
-        if (!pm25Chart) {
-          const pm25ChartCtx = document.getElementById('pm25Chart').getContext('2d');
-          pm25Chart = new Chart(pm25ChartCtx, {
-            type: 'bar',
-            data: { labels: [], datasets: [] },
-            options: { scales: { y: { beginAtZero: true, title: { display: true, text: 'PM2.5 (µg/m³)' } } }, responsive: true, maintainAspectRatio: false }
-          });
-        }
-        pm25Chart.data.labels = ['Délelőtt', 'Délután'];
-        pm25Chart.data.datasets = [
-          { label: 'Átlag', data: [stats.pm25.morning.avg, stats.pm25.afternoon.avg], backgroundColor: '#36A2EB' },
-          { label: 'Medián', data: [stats.pm25.morning.median, stats.pm25.afternoon.median], backgroundColor: '#FF6384' }
-        ];
-        pm25Chart.update();
+        statsBody.innerHTML = '';
+        ['morning', 'afternoon'].forEach(period => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${period === 'morning' ? 'Délelőtt' : 'Délután'}</td>
+            <td>${stats.pm25[period].avg.toFixed(1)}</td>
+            <td>${stats.pm25[period].median.toFixed(1)}</td>
+            <td>${stats.temp[period].avg.toFixed(1)}</td>
+            <td>${stats.temp[period].median.toFixed(1)}</td>
+            <td>${stats.hum[period].avg.toFixed(1)}</td>
+            <td>${stats.hum[period].median.toFixed(1)}</td>
+            <td>${stats.co2[period].avg.toFixed(1)}</td>
+            <td>${stats.co2[period].median.toFixed(1)}</td>
+          `;
+          statsBody.appendChild(row);
+        });
 
-        if (!tempHumChart) {
-          const tempHumChartCtx = document.getElementById('tempHumChart').getContext('2d');
-          tempHumChart = new Chart(tempHumChartCtx, {
-            type: 'bar',
-            data: { labels: [], datasets: [] },
-            options: { scales: { y: { beginAtZero: true, title: { display: true, text: 'Érték (°C / %)' } } }, responsive: true, maintainAspectRatio: false }
-          });
-        }
-        tempHumChart.data.labels = ['Délelőtt', 'Délután'];
-        tempHumChart.data.datasets = [
-          { label: 'Hőmérséklet Átlag (°C)', data: [stats.temp.morning.avg, stats.temp.afternoon.avg], backgroundColor: '#4BC0C0' },
-          { label: 'Hőmérséklet Medián (°C)', data: [stats.temp.morning.median, stats.temp.afternoon.median], backgroundColor: '#FF9F40' },
-          { label: 'Páratartalom Átlag (%)', data: [stats.hum.morning.avg, stats.hum.afternoon.avg], backgroundColor: '#9966FF' },
-          { label: 'Páratartalom Medián (%)', data: [stats.hum.morning.median, stats.hum.afternoon.median], backgroundColor: '#FFCD56' }
-        ];
-        tempHumChart.update();
-
-        if (!co2Chart) {
-          const co2ChartCtx = document.getElementById('co2Chart').getContext('2d');
-          co2Chart = new Chart(co2ChartCtx, {
-            type: 'bar',
-            data: { labels: [], datasets: [] },
-            options: { scales: { y: { beginAtZero: true, title: { display: true, text: 'CO₂ (ppm)' } } }, responsive: true, maintainAspectRatio: false }
-          });
-        }
-        co2Chart.data.labels = ['Délelőtt', 'Délután'];
-        co2Chart.data.datasets = [
-          { label: 'Átlag', data: [stats.co2.morning.avg, stats.co2.afternoon.avg], backgroundColor: '#36A2EB' },
-          { label: 'Medián', data: [stats.co2.morning.median, stats.co2.afternoon.median], backgroundColor: '#FF6384' }
-        ];
-        co2Chart.update();
+        statsContainer.classList.remove('hidden');
       }
 
       async function initializeAnalytics() {
@@ -228,7 +226,7 @@
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
               const data = await fetchData(date);
-              updateCharts(data);
+              updateStats(data);
             }
           }
         });
@@ -237,7 +235,7 @@
           const latestDate = validDates[validDates.length - 1];
           datePicker._flatpickr.setDate(latestDate);
           const data = await fetchData(latestDate);
-          updateCharts(data);
+          updateStats(data);
         }
       }
 
