@@ -69,6 +69,8 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
     );
 
+    let geojsonData = null; // Globális változó az adatok tárolására
+
     const getCoordinates = (location) => {
       if (!location) {
         console.warn('Hiányzó location mező');
@@ -197,10 +199,12 @@
           })));
         }
 
-        return {
+        geojsonData = {
           type: 'FeatureCollection',
           features
-        };
+        }; // Frissítjük a globális geojsonData változót
+
+        return geojsonData;
       } catch (err) {
         console.error('Hiba az adatok betöltésekor:', err);
         throw err;
@@ -236,6 +240,9 @@
 
       const loading = document.getElementById('loading');
       const datePicker = document.getElementById('datePicker');
+      const exportButton = document.getElementById('exportButton'); // Ellenőrizzük a gomb létezését
+      if (!exportButton) console.error('Export gomb nem található!');
+
       const validDates = await loadAvailableDates();
 
       flatpickr("#datePicker", {
@@ -344,6 +351,47 @@
       }
 
       updateMap();
+
+      // Export gomb eseménykezelő
+      exportButton.addEventListener('click', () => {
+        console.log('Export gomb megnyomva');
+        if (!geojsonData || !geojsonData.features || geojsonData.features.length === 0) {
+          console.warn('Nincs exportálható adat:', geojsonData);
+          alert('Nincs exportálható adat! Kérlek, tölts be adatokat először.');
+          return;
+        }
+
+        const csvRows = [];
+        const headers = ['ID', 'Idő', 'PM1.0', 'PM2.5', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂'];
+        csvRows.push(headers.join(','));
+
+        geojsonData.features.forEach(feature => {
+          const props = feature.properties;
+          const row = [
+            props.id || 'N/A',
+            props.timestamp ? new Date(props.timestamp).toLocaleString('hu-HU') : 'N/A',
+            props.pm1_0?.toFixed(1) || 'N/A',
+            props.pm2_5?.toFixed(1) || 'N/A',
+            props.pm10_0?.toFixed(1) || 'N/A',
+            props.temperature?.toFixed(1) || 'N/A',
+            props.humidity?.toFixed(1) || 'N/A',
+            props.voc || 'N/A',
+            props.nox || 'N/A',
+            props.co2 || 'N/A'
+          ].map(field => `"${field}"`).join(',');
+          csvRows.push(row);
+        });
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'air_quality_data_' + datePicker.value + '.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+        console.log('Export sikeresen elindítva:', a.download);
+      });
     });
   </script>
 </body>
