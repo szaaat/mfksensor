@@ -84,12 +84,15 @@
     async function loadAvailableDates() {
       try {
         const { data, error } = await supabaseClient.rpc('get_distinct_dates');
-        if (error) throw error;
+        if (error) {
+          console.error('Hiba a dátumok lekérdezésekor:', error.message);
+          return [];
+        }
         const dates = data.map(row => row.date).filter(Boolean);
         console.log('Elérhető dátumok:', dates);
         return dates;
       } catch (err) {
-        console.error('Hiba a dátumok lekérdezésekor:', err);
+        console.error('Váratlan hiba a dátumok betöltésekor:', err.message);
         return [];
       }
     }
@@ -104,14 +107,17 @@
 
         let allData = [];
         let offset = 0;
-        const batchSize = 1000; // Csökkentett batch méret a terhelés csökkentéséhez
+        const batchSize = 1000; // Csökkentett batch méret
 
         const { count, error: countError } = await supabaseClient
           .from('air_quality_view')
           .select('*', { count: 'exact', head: true })
           .gte('timestamp', start)
           .lte('timestamp', end);
-        if (countError) throw countError;
+        if (countError) {
+          console.error('Hiba a rekordszám lekérdezésekor:', countError.message);
+          throw countError;
+        }
         console.log('Várható rekordszám:', count);
 
         while (offset < count) {
@@ -122,20 +128,29 @@
             .lte('timestamp', end)
             .order('timestamp', { ascending: true })
             .range(offset, offset + batchSize - 1);
-          if (error) throw error;
-          if (!data || data.length === 0) break;
+          if (error) {
+            console.error('Supabase hiba (offset ' + offset + '):', error.message);
+            throw error;
+          }
+          if (!data || data.length === 0) {
+            console.log('Nincs több adat (offset ' + offset + ')');
+            break;
+          }
           allData = allData.concat(data);
           console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length, `Összes eddig: ${allData.length}`);
           offset += data.length;
         }
 
-        if (allData.length === 0) throw new Error('Nincs adat a megadott dátumra.');
+        if (allData.length === 0) {
+          console.warn('Nincs adat a megadott dátumra:', date, 'Intervallum:', { start, end });
+          throw new Error('Nincs adat a megadott dátumra. Ellenőrizd a dátumot vagy a nézetet!');
+        }
         console.log('Összes betöltött rekord:', allData.length);
 
         const features = allData.map(row => {
           const coords = getCoordinates(row.location);
           if (!coords) {
-            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
+            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row.id, row.timestamp);
             return null;
           }
           return {
@@ -149,7 +164,7 @@
         console.log(`Lekérdezett adatok száma (${date}):`, features.length);
         return geojsonData;
       } catch (err) {
-        console.error('Hiba az adatok betöltésekor:', err);
+        console.error('Hiba az adatok betöltésekor:', err.message);
         return { type: 'FeatureCollection', features: [] };
       } finally {
         loading.style.display = 'none';
