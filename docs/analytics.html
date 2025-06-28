@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Levegőminőségi Analitika</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .chart-container { max-width: 600px; margin: 0 auto; }
+    canvas { max-width: 100%; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
+    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B alprojekt – Levegőminőségi Analitika</h1>
+  </header>
+  <nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex justify-center space-x-8">
+      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      <a href="/mfksensor/analytics.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Analitika</a>
+    </div>
+  </nav>
+  <div class="container mx-auto p-6 flex-grow">
+    <div class="chart-container">
+      <h2 class="text-xl font-semibold mb-4 text-center">PM2.5 Trendek Idővel</h2>
+      <canvas id="pm25Chart" width="400" height="200"></canvas>
+    </div>
+    <div class="chart-container mt-6">
+      <h2 class="text-xl font-semibold mb-4 text-center">CO₂ Szint Eloszlása</h2>
+      <canvas id="co2Chart" width="400" height="200"></canvas>
+    </div>
+    <div class="chart-container mt-6">
+      <h2 class="text-xl font-semibold mb-4 text-center">Napi Átlagok (Hőmérséklet és Páratartalom)</h2>
+      <canvas id="dailyAveragesChart" width="400" height="200"></canvas>
+    </div>
+    <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
+  </div>
+  <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
+    © Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium
+  </footer>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const supabaseClient = supabase.createClient(
+        'https://yuamroqhxrflusxeyylp.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+      );
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('air_quality_view')
+          .select('id, timestamp, pm2_5, temperature, humidity, co2, long, lat')
+          .order('timestamp', { ascending: false });
+        if (error) throw new Error('Hiba az adatok lekérdezésekor: ' + error.message);
+
+        // PM2.5 Trend Vonaldiagram
+        const pm25ChartCtx = document.getElementById('pm25Chart').getContext('2d');
+        new Chart(pm25ChartCtx, {
+          type: 'line',
+          data: {
+            labels: data.map(item => new Date(item.timestamp).toLocaleString('hu-HU')),
+            datasets: [{
+              label: 'PM2.5 (µg/m³)',
+              data: data.map(item => item.pm2_5 || 0),
+              borderColor: '#36A2EB',
+              backgroundColor: 'rgba(54, 162, 235, 0.2)',
+              fill: true
+            }]
+          },
+          options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+        });
+
+        // CO₂ Eloszlás Kördiagram
+        const co2Values = data.map(item => item.co2 || 0);
+        const co2Categories = { low: 0, medium: 0, high: 0 };
+        co2Values.forEach(v => {
+          if (v < 400) co2Categories.low++;
+          else if (v < 1000) co2Categories.medium++;
+          else co2Categories.high++;
+        });
+        const co2ChartCtx = document.getElementById('co2Chart').getContext('2d');
+        new Chart(co2ChartCtx, {
+          type: 'pie',
+          data: {
+            labels: ['Alacsony (<400 ppm)', 'Közepes (400-1000 ppm)', 'Magas (>1000 ppm)'],
+            datasets: [{
+              data: [co2Categories.low, co2Categories.medium, co2Categories.high],
+              backgroundColor: ['#36A2EB', '#FFCE56', '#FF6384']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Napi Átlagok Oszlopdiagram
+        const dailyData = data.reduce((acc, item) => {
+          const date = new Date(item.timestamp).toISOString().split('T')[0];
+          if (!acc[date]) acc[date] = { temp: [], hum: [] };
+          acc[date].temp.push(item.temperature || 0);
+          acc[date].hum.push(item.humidity || 0);
+          return acc;
+        }, {});
+        const dailyAverages = Object.keys(dailyData).map(date => ({
+          date,
+          tempAvg: dailyData[date].temp.reduce((sum, v) => sum + v, 0) / dailyData[date].temp.length,
+          humAvg: dailyData[date].hum.reduce((sum, v) => sum + v, 0) / dailyData[date].hum.length
+        }));
+        const dailyAveragesChartCtx = document.getElementById('dailyAveragesChart').getContext('2d');
+        new Chart(dailyAveragesChartCtx, {
+          type: 'bar',
+          data: {
+            labels: dailyAverages.map(item => item.date),
+            datasets: [{
+              label: 'Átlagos hőmérséklet (°C)',
+              data: dailyAverages.map(item => item.tempAvg),
+              backgroundColor: '#FF6384'
+            }, {
+              label: 'Átlagos páratartalom (%)',
+              data: dailyAverages.map(item => item.humAvg),
+              backgroundColor: '#36A2EB'
+            }]
+          },
+          options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+        });
+
+        // Export gomb eseménykezelő
+        document.getElementById('exportButton').addEventListener('click', () => {
+          console.log('Export gomb megnyomva');
+          if (!data || data.length === 0) {
+            console.warn('Nincs exportálható adat:', data);
+            alert('Nincs exportálható adat!');
+            return;
+          }
+
+          const csvRows = [];
+          const headers = ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM2.5', 'Hőmérséklet', 'Páratartalom', 'CO₂'];
+          csvRows.push(headers.join(','));
+
+          data.forEach(item => {
+            const row = [
+              item.id || 'N/A',
+              new Date(item.timestamp).toLocaleString('hu-HU'),
+              item.long?.toFixed(6) || 'N/A',
+              item.lat?.toFixed(6) || 'N/A',
+              item.pm2_5?.toFixed(1) || 'N/A',
+              item.temperature?.toFixed(1) || 'N/A',
+              item.humidity?.toFixed(1) || 'N/A',
+              item.co2 || 'N/A'
+            ].map(field => `"${field}"`).join(',');
+            csvRows.push(row);
+          });
+
+          const csvContent = csvRows.join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'air_quality_analytics.csv';
+          a.click();
+          window.URL.revokeObjectURL(url);
+          console.log('Export sikeresen elindítva:', a.download);
+        });
+
+      } catch (error) {
+        console.error('Hiba az analitika inicializálásakor:', error);
+        const container = document.querySelector('.container');
+        if (container) {
+          container.innerHTML = '<p class="text-red-500 text-center p-4">Hiba az adatok betöltésekor: ' + error.message + '</p>';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
