@@ -1,4 +1,4 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
@@ -65,21 +65,18 @@
     let geojsonData = null;
 
     const getCoordinates = (location) => {
-      if (!location) {
-        console.warn('Hiányzó location mező');
+      if (!location || typeof location !== 'object') {
+        console.warn('Hiányzó vagy érvénytelen location mező:', location);
         return null;
       }
       try {
-        if (typeof location === 'string') {
-          location = JSON.parse(location);
-        }
-        if (location?.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
+        if (location.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
           const lng = parseFloat(location.coordinates[0]);
           const lat = parseFloat(location.coordinates[1]);
           return isNaN(lng) || isNaN(lat) ? null : { lng, lat };
         }
       } catch (e) {
-        console.warn('Érvénytelen location formátum:', location, e);
+        console.warn('Hiba a koordináták feldolgozásakor:', location, e);
       }
       return null;
     };
@@ -120,7 +117,7 @@
         while (offset < count) {
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('*')
+            .select('id, timestamp, pm1_0, pm2_5, pm4_0, pm10_0, humidity, temperature, voc, nox, co2, created_at, location')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true })
@@ -137,7 +134,10 @@
 
         const features = allData.map(row => {
           const coords = getCoordinates(row.location);
-          if (!coords) return null;
+          if (!coords) {
+            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
+            return null;
+          }
           return {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
@@ -161,8 +161,19 @@
         container: 'map',
         style: {
           version: 8,
-          sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap' } },
-          layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm' }]
+          sources: {
+            osm: {
+              type: 'raster',
+              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '© OpenStreetMap'
+            }
+          },
+          layers: [{
+            id: 'osm-tiles',
+            type: 'raster',
+            source: 'osm'
+          }]
         },
         center: [20.36, 47.89],
         zoom: 8
@@ -172,7 +183,9 @@
       map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
       map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
 
+      const loading = document.getElementById('loading');
       const datePicker = document.getElementById('datePicker');
+      const exportButton = document.getElementById('exportButton');
       const validDates = await loadAvailableDates();
 
       flatpickr("#datePicker", {
@@ -186,13 +199,76 @@
             if (map.getSource('air_quality')) {
               map.getSource('air_quality').setData(geojson);
             } else {
-              map.addSource('air_quality', { type: 'geojson', data: geojson, cluster: true, clusterRadius: 30, clusterMaxZoom: 15 });
-              map.addLayer({ id: 'clusters', type: 'circle', source: 'air_quality', filter: ['has', 'point_count'], paint: { 'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'], 'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30] } });
-              map.addLayer({ id: 'air_quality_points', type: 'circle', source: 'air_quality', filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6], 'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'], 0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00', 55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'], 'circle-opacity': 0.8, 'circle-stroke-width': 1, 'circle-stroke-color': '#fff' } });
-              map.on('click', 'clusters', e => { const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] }); const clusterId = features[0].properties.cluster_id; map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => { if (!err) map.easeTo({ center: features[0].geometry.coordinates, zoom }); }); });
-              map.on('click', 'air_quality_points', e => { const p = e.features[0].properties; const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A'; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<div class="text-sm font-sans"><strong>Idő:</strong> ${ts}<br/>PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>RH: ${p.humidity?.toFixed(1) || '–'} %<br/>VOC: ${p.voc || '–'} index<br/>NOx: ${p.nox || '–'} index<br/>CO₂: ${p.co2 || '–'} ppm</div>`).addTo(map); });
+              map.addSource('air_quality', {
+                type: 'geojson',
+                data: geojson,
+                cluster: true,
+                clusterRadius: 30,
+                clusterMaxZoom: 15
+              });
+              map.addLayer({
+                id: 'clusters',
+                type: 'circle',
+                source: 'air_quality',
+                filter: ['has', 'point_count'],
+                paint: {
+                  'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
+                  'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
+                }
+              });
+              map.addLayer({
+                id: 'air_quality_points',
+                type: 'circle',
+                source: 'air_quality',
+                filter: ['!', ['has', 'point_count']],
+                paint: {
+                  'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
+                  'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
+                    0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00',
+                    55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'
+                  ],
+                  'circle-opacity': 0.8,
+                  'circle-stroke-width': 1,
+                  'circle-stroke-color': '#fff'
+                }
+              });
+              map.on('click', 'clusters', e => {
+                const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+                const clusterId = features[0].properties.cluster_id;
+                map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                  if (!err) map.easeTo({ center: features[0].geometry.coordinates, zoom });
+                });
+              });
+              map.on('click', 'air_quality_points', e => {
+                const p = e.features[0].properties;
+                const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A';
+                new maplibregl.Popup()
+                  .setLngLat(e.lngLat)
+                  .setHTML(`
+                    <div class="text-sm font-sans">
+                      <strong>Idő:</strong> ${ts}<br/>
+                      PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>
+                      PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>
+                      PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>
+                      Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>
+                      RH: ${p.humidity?.toFixed(1) || '–'} %<br/>
+                      VOC: ${p.voc || '–'} index<br/>
+                      NOx: ${p.nox || '–'} index<br/>
+                      CO₂: ${p.co2 || '–'} ppm
+                    </div>
+                  `)
+                  .addTo(map);
+              });
             }
-            const bounds = new maplibregl.LngLatBounds(); geojson.features.forEach(f => bounds.extend(f.geometry.coordinates)); if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 40, maxZoom: 14 }); else { console.warn('Üres bounds, alapértelmezett nézet Miskolcra'); map.setCenter([20.36, 47.89]); map.setZoom(8); }
+            const bounds = new maplibregl.LngLatBounds();
+            geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
+            if (!bounds.isEmpty()) {
+              map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+            } else {
+              console.warn('Üres bounds, alapértelmezett nézet Miskolcra');
+              map.setCenter([20.36, 47.89]);
+              map.setZoom(8);
+            }
           }
         }
       });
@@ -205,13 +281,76 @@
         if (map.getSource('air_quality')) {
           map.getSource('air_quality').setData(geojson);
         } else {
-          map.addSource('air_quality', { type: 'geojson', data: geojson, cluster: true, clusterRadius: 30, clusterMaxZoom: 15 });
-          map.addLayer({ id: 'clusters', type: 'circle', source: 'air_quality', filter: ['has', 'point_count'], paint: { 'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'], 'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30] } });
-          map.addLayer({ id: 'air_quality_points', type: 'circle', source: 'air_quality', filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6], 'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'], 0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00', 55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'], 'circle-opacity': 0.8, 'circle-stroke-width': 1, 'circle-stroke-color': '#fff' } });
-          map.on('click', 'clusters', e => { const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] }); const clusterId = features[0].properties.cluster_id; map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => { if (!err) map.easeTo({ center: features[0].geometry.coordinates, zoom }); }); });
-          map.on('click', 'air_quality_points', e => { const p = e.features[0].properties; const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A'; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<div class="text-sm font-sans"><strong>Idő:</strong> ${ts}<br/>PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>RH: ${p.humidity?.toFixed(1) || '–'} %<br/>VOC: ${p.voc || '–'} index<br/>NOx: ${p.nox || '–'} index<br/>CO₂: ${p.co2 || '–'} ppm</div>`).addTo(map); });
+          map.addSource('air_quality', {
+            type: 'geojson',
+            data: geojson,
+            cluster: true,
+            clusterRadius: 30,
+            clusterMaxZoom: 15
+          });
+          map.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'air_quality',
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
+              'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
+            }
+          });
+          map.addLayer({
+            id: 'air_quality_points',
+            type: 'circle',
+            source: 'air_quality',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
+              'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
+                0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00',
+                55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'
+              ],
+              'circle-opacity': 0.8,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+            }
+          });
+          map.on('click', 'clusters', e => {
+            const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+            const clusterId = features[0].properties.cluster_id;
+            map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => {
+              if (!err) map.easeTo({ center: features[0].geometry.coordinates, zoom });
+            });
+          });
+          map.on('click', 'air_quality_points', e => {
+            const p = e.features[0].properties;
+            const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A';
+            new maplibregl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div class="text-sm font-sans">
+                  <strong>Idő:</strong> ${ts}<br/>
+                  PM1.0: ${p.pm1_0?.toFixed(1) || '–'} µg/m³<br/>
+                  PM2.5: ${p.pm2_5?.toFixed(1) || '–'} µg/m³<br/>
+                  PM10: ${p.pm10_0?.toFixed(1) || '–'} µg/m³<br/>
+                  Temp: ${p.temperature?.toFixed(1) || '–'} °C<br/>
+                  RH: ${p.humidity?.toFixed(1) || '–'} %<br/>
+                  VOC: ${p.voc || '–'} index<br/>
+                  NOx: ${p.nox || '–'} index<br/>
+                  CO₂: ${p.co2 || '–'} ppm
+                </div>
+              `)
+              .addTo(map);
+          });
         }
-        const bounds = new maplibregl.LngLatBounds(); geojson.features.forEach(f => bounds.extend(f.geometry.coordinates)); if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 40, maxZoom: 14 }); else { console.warn('Üres bounds, alapértelmezett nézet Miskolcra'); map.setCenter([20.36, 47.89]); map.setZoom(8); }
+        const bounds = new maplibregl.LngLatBounds();
+        geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+        } else {
+          console.warn('Üres bounds, alapértelmezett nézet Miskolcra');
+          map.setCenter([20.36, 47.89]);
+          map.setZoom(8);
+        }
       }
 
       // Export gomb eseménykezelő
