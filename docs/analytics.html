@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Levegőminőségi Analitika</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script> <!-- Pontos verzió, hogy elkerüljük a source map hibát -->
   <style>
     .chart-container { max-width: 600px; margin: 0 auto; }
     canvas { max-width: 100%; }
@@ -39,7 +39,7 @@
     <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
   </div>
   <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
-    © Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium
+    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium</p>
   </footer>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -55,7 +55,17 @@
           .from('air_quality_view')
           .select('id, timestamp, pm2_5, temperature, humidity, co2, long, lat')
           .order('timestamp', { ascending: false });
-        if (error) throw new Error('Hiba az adatok lekérdezésekor: ' + error.message);
+        if (error) {
+          console.error('Hiba az adatok lekérdezésekor:', error.message);
+          if (error.message.includes('column air_quality_view.long does not exist')) {
+            throw new Error('A nézet nem tartalmazza a "long" és "lat" oszlopokat. Kérlek, frissítsd a nézetet a Supabase-ben.');
+          }
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          throw new Error('Nincs elérhető adat.');
+        }
 
         // PM2.5 Trend Vonaldiagram
         const pm25ChartCtx = document.getElementById('pm25Chart').getContext('2d');
