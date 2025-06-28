@@ -26,6 +26,27 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      font-size: 12px;
+      z-index: 1000;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -46,6 +67,15 @@
       <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     <div id="map" class="rounded-xl shadow-lg border border-gray-300"></div>
+    <div id="legend" class="legend hidden">
+      <h3 class="font-bold mb-2">PM2.5 Jelmagyarázat</h3>
+      <div class="legend-item"><div class="legend-color" style="background-color: #00E400;"></div> 0 - 12 µg/m³ (Jó)</div>
+      <div class="legend-item"><div class="legend-color" style="background-color: #FFFF00;"></div> 12.1 - 35.4 µg/m³ (Közepes)</div>
+      <div class="legend-item"><div class="legend-color" style="background-color: #FF7E00;"></div> 35.5 - 55.4 µg/m³ (Rossz)</div>
+      <div class="legend-item"><div class="legend-color" style="background-color: #FF0000;"></div> 55.5 - 150.4 µg/m³ (Nagyon rossz)</div>
+      <div class="legend-item"><div class="legend-color" style="background-color: #8F3F97;"></div> 150.5 - 250.4 µg/m³ (Veszélyes)</div>
+      <div class="legend-item"><div class="legend-color" style="background-color: #7E0023;"></div> 250.5+ µg/m³ (Extrém)</div>
+    </div>
     <p class="text-sm text-red-600 text-center mt-2 font-semibold">
       ⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!
     </p>
@@ -220,6 +250,7 @@
       const loading = document.getElementById('loading');
       const datePicker = document.getElementById('datePicker');
       const exportButton = document.getElementById('exportButton');
+      const legend = document.getElementById('legend');
       const validDates = await loadAvailableDates();
 
       flatpickr("#datePicker", {
@@ -305,6 +336,7 @@
                 `)
                 .addTo(map);
             });
+            legend.classList.remove('hidden'); // Jelmagyarázat megjelenítése
           }
 
           const bounds = new maplibregl.LngLatBounds();
@@ -324,6 +356,54 @@
       }
 
       updateMap();
+
+      // Export gomb eseménykezelő
+      document.getElementById('exportButton').addEventListener('click', () => {
+        console.log('Export gomb megnyomva');
+        if (!geojsonData || !geojsonData.features || geojsonData.features.length === 0) {
+          console.warn('Nincs exportálható adat:', geojsonData);
+          alert('Nincs exportálható adat! Kérlek, tölts be adatokat először.');
+          return;
+        }
+
+        try {
+          const csvRows = [];
+          const headers = ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM1.0', 'PM2.5', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂'];
+          csvRows.push(headers.join(','));
+
+          geojsonData.features.forEach(feature => {
+            const props = feature.properties;
+            const row = [
+              props.id || 'N/A',
+              props.timestamp ? new Date(props.timestamp).toLocaleString('hu-HU') : 'N/A',
+              feature.geometry.coordinates[0]?.toFixed(6) || 'N/A',
+              feature.geometry.coordinates[1]?.toFixed(6) || 'N/A',
+              props.pm1_0?.toFixed(1) || 'N/A',
+              props.pm2_5?.toFixed(1) || 'N/A',
+              props.pm10_0?.toFixed(1) || 'N/A',
+              props.temperature?.toFixed(1) || 'N/A',
+              props.humidity?.toFixed(1) || 'N/A',
+              props.voc || 'N/A',
+              props.nox || 'N/A',
+              props.co2 || 'N/A'
+            ].map(field => `"${field}"`).join(',');
+            csvRows.push(row);
+          });
+
+          const csvContent = csvRows.join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'air_quality_data_' + datePicker.value + '.csv';
+          a.click();
+          window.URL.revokeObjectURL(url);
+          console.log('Export sikeresen elindítva:', a.download);
+        } catch (err) {
+          console.error('Hiba az exportálás során:', err);
+          alert('Hiba az exportálás során!');
+        }
+      });
     });
   </script>
 </body>
