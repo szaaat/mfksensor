@@ -5,11 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Levegőminőségi Analitika</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     .chart-container { max-width: 600px; margin: 0 auto; }
     canvas { max-width: 100%; }
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px; height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -23,10 +41,18 @@
     <div class="container mx-auto px-6 flex justify-center space-x-8">
       <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
       <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
-      <a href="/mfksensor/analytics.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Analitika</a>
+      <a href="/mfksensor/analytics.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Elemzés</a>
     </div>
   </nav>
-  <div class="container mx-auto p-6 flex-grow">
+  <div class="container mx-auto p-6 flex-grow relative">
+    <div class="mb-4 flex justify-center items-center gap-2">
+      <label for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
+      <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
+    </div>
+    <div id="loading" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
+    </div>
     <div class="chart-container">
       <h2 class="text-xl font-semibold mb-4 text-center">PM2.5 Trendek Idővel</h2>
       <canvas id="pm25Chart" width="400" height="200"></canvas>
@@ -46,6 +72,7 @@
   </footer>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const supabaseClient = supabase.createClient(
@@ -53,41 +80,85 @@
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
       );
 
-      try {
-        const { data, error } = await supabaseClient
-          .from('air_quality_view')
-          .select('id, timestamp, pm2_5, temperature, humidity, co2, long, lat')
-          .order('timestamp', { ascending: false });
-        if (error) {
-          console.error('Hiba az adatok lekérdezésekor:', error.message);
-          if (error.message.includes('column air_quality_view.long does not exist')) {
-            throw new Error('A nézet nem tartalmazza a "long" és "lat" oszlopokat. Kérlek, frissítsd a nézetet a Supabase-ben.');
-          }
-          throw error;
+      let pm25Chart, co2Chart, dailyAveragesChart; // Diagramok referenciái
+
+      async function loadAvailableDates() {
+        try {
+          const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+          if (error) throw error;
+          const dates = data.map(row => row.date).filter(Boolean);
+          console.log('Elérhető dátumok:', dates);
+          return dates;
+        } catch (err) {
+          console.error('Hiba a dátumok lekérdezésekor:', err);
+          return [];
+        }
+      }
+
+      async function fetchData(date) {
+        const loading = document.getElementById('loading');
+        loading.classList.remove('hidden');
+        try {
+          const start = `${date} 00:00:00+00`;
+          const end = `${date} 23:59:59+00`;
+          console.log('Lekérdezés időintervalluma:', { start, end });
+
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('id, timestamp, pm2_5, temperature, humidity, co2, long, lat')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true });
+          if (error) throw error;
+          if (!data || data.length === 0) throw new Error('Nincs adat a megadott dátumra.');
+          console.log(`Lekérdezett adatok száma (${date}):`, data.length);
+          return data;
+        } catch (err) {
+          console.error('Hiba az adatok lekérdezésekor:', err);
+          return [];
+        } finally {
+          loading.classList.add('hidden');
+        }
+      }
+
+      function updateCharts(data) {
+        if (!pm25Chart) {
+          const pm25ChartCtx = document.getElementById('pm25Chart').getContext('2d');
+          pm25Chart = new Chart(pm25ChartCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+          });
+        }
+        if (!co2Chart) {
+          const co2ChartCtx = document.getElementById('co2Chart').getContext('2d');
+          co2Chart = new Chart(co2ChartCtx, {
+            type: 'pie',
+            data: { labels: [], datasets: [] },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+        if (!dailyAveragesChart) {
+          const dailyAveragesChartCtx = document.getElementById('dailyAveragesChart').getContext('2d');
+          dailyAveragesChart = new Chart(dailyAveragesChartCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+          });
         }
 
-        if (!data || data.length === 0) {
-          throw new Error('Nincs elérhető adat.');
-        }
+        // PM2.5 Trend
+        pm25Chart.data.labels = data.map(item => new Date(item.timestamp).toLocaleString('hu-HU'));
+        pm25Chart.data.datasets = [{
+          label: 'PM2.5 (µg/m³)',
+          data: data.map(item => item.pm2_5 || 0),
+          borderColor: '#36A2EB',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          fill: true
+        }];
+        pm25Chart.update();
 
-        // PM2.5 Trend Vonaldiagram
-        const pm25ChartCtx = document.getElementById('pm25Chart').getContext('2d');
-        new Chart(pm25ChartCtx, {
-          type: 'line',
-          data: {
-            labels: data.map(item => new Date(item.timestamp).toLocaleString('hu-HU')),
-            datasets: [{
-              label: 'PM2.5 (µg/m³)',
-              data: data.map(item => item.pm2_5 || 0),
-              borderColor: '#36A2EB',
-              backgroundColor: 'rgba(54, 162, 235, 0.2)',
-              fill: true
-            }]
-          },
-          options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
-        });
-
-        // CO₂ Eloszlás Kördiagram
+        // CO₂ Eloszlás
         const co2Values = data.map(item => item.co2 || 0);
         const co2Categories = { low: 0, medium: 0, high: 0 };
         co2Values.forEach(v => {
@@ -95,20 +166,14 @@
           else if (v < 1000) co2Categories.medium++;
           else co2Categories.high++;
         });
-        const co2ChartCtx = document.getElementById('co2Chart').getContext('2d');
-        new Chart(co2ChartCtx, {
-          type: 'pie',
-          data: {
-            labels: ['Alacsony (<400 ppm)', 'Közepes (400-1000 ppm)', 'Magas (>1000 ppm)'],
-            datasets: [{
-              data: [co2Categories.low, co2Categories.medium, co2Categories.high],
-              backgroundColor: ['#36A2EB', '#FFCE56', '#FF6384']
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
+        co2Chart.data.labels = ['Alacsony (<400 ppm)', 'Közepes (400-1000 ppm)', 'Magas (>1000 ppm)'];
+        co2Chart.data.datasets = [{
+          data: [co2Categories.low, co2Categories.medium, co2Categories.high],
+          backgroundColor: ['#36A2EB', '#FFCE56', '#FF6384']
+        }];
+        co2Chart.update();
 
-        // Napi Átlagok Oszlopdiagram
+        // Napi Átlagok
         const dailyData = data.reduce((acc, item) => {
           const date = new Date(item.timestamp).toISOString().split('T')[0];
           if (!acc[date]) acc[date] = { temp: [], hum: [] };
@@ -121,30 +186,62 @@
           tempAvg: dailyData[date].temp.reduce((sum, v) => sum + v, 0) / dailyData[date].temp.length,
           humAvg: dailyData[date].hum.reduce((sum, v) => sum + v, 0) / dailyData[date].hum.length
         }));
-        const dailyAveragesChartCtx = document.getElementById('dailyAveragesChart').getContext('2d');
-        new Chart(dailyAveragesChartCtx, {
-          type: 'bar',
-          data: {
-            labels: dailyAverages.map(item => item.date),
-            datasets: [{
-              label: 'Átlagos hőmérséklet (°C)',
-              data: dailyAverages.map(item => item.tempAvg),
-              backgroundColor: '#FF6384'
-            }, {
-              label: 'Átlagos páratartalom (%)',
-              data: dailyAverages.map(item => item.humAvg),
-              backgroundColor: '#36A2EB'
-            }]
+        dailyAveragesChart.data.labels = dailyAverages.map(item => item.date);
+        dailyAveragesChart.data.datasets = [
+          {
+            label: 'Átlagos hőmérséklet (°C)',
+            data: dailyAverages.map(item => item.tempAvg),
+            backgroundColor: '#FF6384'
           },
-          options: { scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+          {
+            label: 'Átlagos páratartalom (%)',
+            data: dailyAverages.map(item => item.humAvg),
+            backgroundColor: '#36A2EB'
+          }
+        ];
+        dailyAveragesChart.update();
+      }
+
+      async function initializeAnalytics() {
+        const validDates = await loadAvailableDates();
+        const datePicker = document.getElementById('datePicker');
+        flatpickr("#datePicker", {
+          dateFormat: "Y-m-d",
+          enable: validDates,
+          defaultDate: validDates.length > 0 ? validDates[validDates.length - 1] : null, // Legfrissebb dátum
+          onChange: async (selectedDates) => {
+            if (selectedDates.length > 0) {
+              const date = selectedDates[0].toISOString().split('T')[0];
+              const data = await fetchData(date);
+              updateCharts(data);
+            }
+          }
         });
 
-        // Export gomb eseménykezelő
-        document.getElementById('exportButton').addEventListener('click', () => {
-          console.log('Export gomb megnyomva');
-          if (!data || data.length === 0) {
-            console.warn('Nincs exportálható adat:', data);
-            alert('Nincs exportálható adat!');
+        // Alapértelmezésként a legfrissebb dátum betöltése
+        if (validDates.length > 0) {
+          const latestDate = validDates[validDates.length - 1];
+          datePicker._flatpickr.setDate(latestDate);
+          const data = await fetchData(latestDate);
+          updateCharts(data);
+        }
+      }
+
+      // Export gomb eseménykezelő
+      document.getElementById('exportButton').addEventListener('click', () => {
+        console.log('Export gomb megnyomva');
+        const datePicker = document.getElementById('datePicker');
+        const selectedDate = datePicker.value;
+        if (!selectedDate) {
+          console.warn('Nincs kiválasztott dátum az exportáláshoz.');
+          alert('Kérlek, válassz dátumot az exportáláshoz!');
+          return;
+        }
+
+        fetchData(selectedDate).then(data => {
+          if (data.length === 0) {
+            console.warn('Nincs exportálható adat a kiválasztott dátumra:', data);
+            alert('Nincs exportálható adat a kiválasztott dátumra!');
             return;
           }
 
@@ -171,19 +268,17 @@
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'air_quality_analytics.csv';
+          a.download = `air_quality_analytics_${selectedDate}.csv`;
           a.click();
           window.URL.revokeObjectURL(url);
           console.log('Export sikeresen elindítva:', a.download);
+        }).catch(err => {
+          console.error('Hiba az exportálás során:', err);
+          alert('Hiba az exportálás során!');
         });
+      });
 
-      } catch (error) {
-        console.error('Hiba az analitika inicializálásakor:', error);
-        const container = document.querySelector('.container');
-        if (container) {
-          container.innerHTML = '<p class="text-red-500 text-center p-4">Hiba az adatok betöltésekor: ' + error.message + '</p>';
-        }
-      }
+      initializeAnalytics();
     });
   </script>
 </body>
