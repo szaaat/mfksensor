@@ -248,7 +248,7 @@
       flatpickr("#datePicker", {
         dateFormat: "Y-m-d",
         enable: validDates,
-        defaultDate: validDates.includes('2025-05-12') ? '2025-05-12' : validDates[0] || new Date().toISOString().slice(0, 10),
+        defaultDate: validDates.length > 0 ? validDates[validDates.length - 1] : null, // Legfrissebb dátum
         onChange: () => updateMap()
       });
 
@@ -362,14 +362,17 @@
         }
 
         const csvRows = [];
-        const headers = ['ID', 'Idő', 'PM1.0', 'PM2.5', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂'];
+        const headers = ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM1.0', 'PM2.5', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂'];
         csvRows.push(headers.join(','));
 
         geojsonData.features.forEach(feature => {
+          const coords = feature.geometry.coordinates;
           const props = feature.properties;
           const row = [
             props.id || 'N/A',
             props.timestamp ? new Date(props.timestamp).toLocaleString('hu-HU') : 'N/A',
+            coords[0]?.toFixed(6) || 'N/A', // Hosszúság
+            coords[1]?.toFixed(6) || 'N/A', // Szélesség
             props.pm1_0?.toFixed(1) || 'N/A',
             props.pm2_5?.toFixed(1) || 'N/A',
             props.pm10_0?.toFixed(1) || 'N/A',
