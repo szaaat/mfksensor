@@ -101,13 +101,17 @@
       const loading = document.getElementById('loading');
       loading.style.display = 'flex';
       try {
-        const start = `${date} 00:00:00+00`;
-        const end = `${date} 23:59:59+00`;
-        console.log('Lekérdezés időintervalluma:', { start, end });
+        // Konvertáljuk a dátumot UTC-be a Flatpickr helyi dátumából
+        const selectedDate = new Date(date);
+        selectedDate.setUTCHours(0, 0, 0, 0); // Kezdete az adott napnak UTC-ben
+        const start = selectedDate.toISOString().replace('Z', '+00:00');
+        selectedDate.setUTCHours(23, 59, 59, 999);
+        const end = selectedDate.toISOString().replace('Z', '+00:00');
+        console.log('Lekérdezés időintervalluma (UTC):', { start, end });
 
         let allData = [];
         let offset = 0;
-        const batchSize = 1000; // Csökkentett batch méret
+        const batchSize = 1000;
 
         const { count, error: countError } = await supabaseClient
           .from('air_quality_view')
@@ -209,7 +213,7 @@
         defaultDate: validDates.length > 0 ? validDates[validDates.length - 1] : null,
         onChange: async (selectedDates) => {
           if (selectedDates.length > 0) {
-            const date = selectedDates[0].toISOString().split('T')[0];
+            const date = selectedDates[0]; // Date objektum
             const geojson = await fetchAirQualityData(date);
             if (map.getSource('air_quality')) {
               map.getSource('air_quality').setData(geojson);
