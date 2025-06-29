@@ -128,8 +128,10 @@
           return [];
         }
         const dates = data.map(row => row.date).filter(Boolean);
-        console.log('Elérhető dátumok:', dates);
-        return dates;
+        console.log('Elérhető dátumok (nyers sorrend):', dates);
+        const sortedDates = [...dates].sort((a, b) => new Date(b) - new Date(a)); // Csökkenő sorrend
+        console.log('Elérhető dátumok (rendezve, legfrissebb elöl):', sortedDates);
+        return sortedDates;
       } catch (err) {
         console.error('Váratlan hiba a dátumok betöltésekor:', err);
         return [];
