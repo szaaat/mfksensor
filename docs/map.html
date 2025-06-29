@@ -127,11 +127,9 @@
           console.error('Hiba a dátumok lekérdezésekor:', error);
           return [];
         }
-        const dates = data.map(row => row.date).filter(Boolean);
-        console.log('Elérhető dátumok (nyers sorrend):', dates);
-        const sortedDates = [...dates].sort((a, b) => new Date(b) - new Date(a)); // Csökkenő sorrend
-        console.log('Elérhető dátumok (rendezve, legfrissebb elöl):', sortedDates);
-        return sortedDates;
+        const dates = data.map(row => row.date).filter(Boolean).sort();
+        console.log('Elérhető dátumok:', dates);
+        return dates;
       } catch (err) {
         console.error('Váratlan hiba a dátumok betöltésekor:', err);
         return [];
@@ -254,11 +252,12 @@
       const exportButton = document.getElementById('exportButton');
       const legend = document.getElementById('legend');
       const validDates = await loadAvailableDates();
+      const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
 
       flatpickr("#datePicker", {
         dateFormat: "Y-m-d",
         enable: validDates,
-        defaultDate: validDates.length > 0 ? validDates[validDates.length - 1] : null, // Legfrissebb dátum
+        defaultDate: latestDate,
         onChange: () => updateMap()
       });
 
@@ -338,7 +337,7 @@
                 `)
                 .addTo(map);
             });
-            legend.classList.remove('hidden'); // Jelmagyarázat megjelenítése
+            legend.classList.remove('hidden');
           }
 
           const bounds = new maplibregl.LngLatBounds();
@@ -357,7 +356,10 @@
         }
       }
 
-      updateMap();
+      // Automatikusan frissítjük a térképet a legfrissebb dátummal
+      if (latestDate) {
+        updateMap();
+      }
 
       // Export gomb eseménykezelő
       document.getElementById('exportButton').addEventListener('click', () => {
