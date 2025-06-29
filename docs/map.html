@@ -1,11 +1,86 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <!-- ... (előző head rész változatlan) ... -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Levegőminőségi Térkép</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #map { height: calc(100vh - 220px); }
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px; height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid #ddd;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      z-index: 1000;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+      font-size: 11px;
+    }
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      margin-right: 5px;
+      border-radius: 50%;
+      border: 1px solid #666;
+    }
+    .custom-popup {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .custom-popup .maplibregl-popup-content {
+      padding: 12px;
+      border-radius: 6px;
+    }
+    .custom-popup .maplibregl-popup-tip {
+      border-top-color: rgba(255,255,255,0.9);
+    }
+    @media (max-width: 768px) {
+      #map { height: calc(100vh - 180px); }
+      .legend {
+        bottom: 10px;
+        left: 5px;
+        padding: 5px;
+        font-size: 10px;
+      }
+    }
+  </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <!-- ... (header rész változatlan) ... -->
-  
+  <header class="bg-green-700 text-white text-center py-6 shadow-lg">
+    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B alprojekt – Mobil levegőminőségi szenzor térkép</h1>
+    <nav class="mt-2">
+      <a href="/mfksensor/" class="underline text-sm hover:text-green-300">← Vissza a kezdőlapra</a>
+    </nav>
+  </header>
   <main class="container mx-auto p-4 flex-grow relative">
     <div class="mb-4 flex justify-center items-center gap-2">
       <label for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
@@ -17,7 +92,6 @@
       <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     <div id="map" class="rounded-xl shadow-lg border border-gray-300"></div>
-    <!-- Frissített jelmagyarázat -->
     <div id="legend" class="legend hidden bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
       <h3 class="font-bold mb-2 text-sm">Levegőminőség (PM2.5)</h3>
       <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #00E400;"></div> 0-12 µg/m³ (Jó)</div>
@@ -31,11 +105,145 @@
       ⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!
     </p>
   </main>
-
-  <!-- ... (footer rész változatlan) ... -->
-
+  <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
+    © Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium
+  </footer>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script>
-    // ... (korábbi változatlan script részek) ...
+    const supabaseClient = supabase.createClient(
+      'https://yuamroqhxrflusxeyylp.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+    );
+
+    let geojsonData = null;
+
+    const getCoordinates = (location) => {
+      if (!location) {
+        console.warn('Hiányzó location mező');
+        return null;
+      }
+      if (typeof location === 'string') {
+        try {
+          location = JSON.parse(location);
+        } catch (e) {
+          console.warn('Érvénytelen location JSON:', location, e);
+          return null;
+        }
+      }
+      if (location?.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
+        const lng = +location.coordinates[0];
+        const lat = +location.coordinates[1];
+        if (isNaN(lng) || isNaN(lat)) {
+          console.warn('Érvénytelen koordináták:', location.coordinates);
+          return null;
+        }
+        return { lng, lat };
+      }
+      console.warn('Érvénytelen location formátum:', location);
+      return null;
+    };
+
+    async function loadAvailableDates() {
+      try {
+        const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+        if (error) {
+          console.error('Hiba a dátumok lekérdezésekor:', error);
+          return [];
+        }
+        const dates = data.map(row => row.date).filter(Boolean).sort();
+        console.log('Elérhető dátumok:', dates);
+        return dates;
+      } catch (err) {
+        console.error('Váratlan hiba a dátumok betöltésekor:', err);
+        return [];
+      }
+    }
+
+    async function fetchAirQualityData(date) {
+      const loading = document.getElementById('loading');
+      loading.style.display = 'flex';
+      try {
+        const start = `${date} 00:00:00+00`;
+        const end = `${date} 23:59:59+00`;
+        console.log('Lekérdezés időintervalluma:', { start, end });
+
+        let allData = [];
+        let offset = 0;
+        const batchSize = 10000;
+
+        const { count, error: countError } = await supabaseClient
+          .from('air_quality_view')
+          .select('*', { count: 'exact', head: true })
+          .gte('timestamp', start)
+          .lte('timestamp', end);
+        if (countError) {
+          console.error('Hiba a rekordszám lekérdezésekor:', countError);
+          throw new Error('Hiba a rekordszám lekérdezésekor');
+        }
+        console.log('Várható rekordszám:', count);
+
+        while (offset < count) {
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true })
+            .range(offset, offset + batchSize - 1);
+          if (error) {
+            console.error('Supabase hiba (offset ' + offset + '):', error);
+            throw new Error('Hiba az adatok lekérdezésekor');
+          }
+          if (!data || data.length === 0) {
+            console.log('Nincs több adat (offset ' + offset + ')');
+            break;
+          }
+          allData = allData.concat(data);
+          console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length, `Összes eddig: ${allData.length}`);
+          offset += data.length;
+        }
+
+        if (allData.length === 0) {
+          console.warn('Nincs adat a megadott időszakra:', date, 'Intervallum:', { start, end });
+          throw new Error('Nincs adat a megadott dátumra. Ellenőrizd a dátumot vagy a nézetet!');
+        }
+        console.log('Összes betöltött rekord:', allData.length);
+        console.log('Lekérdezett nyers adatok (első 3):', allData.slice(0, 3).map(row => ({
+          timestamp: row.timestamp,
+          coordinates: row.location ? row.location.coordinates : null
+        })));
+
+        const features = allData.map(row => {
+          const coords = getCoordinates(row.location);
+          if (!coords) {
+            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
+            return null;
+          }
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+            properties: { ...row, location: undefined }
+          };
+        }).filter(Boolean);
+
+        geojsonData = { type: 'FeatureCollection', features };
+        console.log(`Lekérdezett adatok száma (${date}):`, features.length);
+        if (features.length > 0) {
+          console.log('Első pár adat:', features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
+        }
+        return geojsonData;
+      } catch (err) {
+        console.error('Hiba az adatok betöltésekor:', err);
+        return { type: 'FeatureCollection', features: [] };
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
       const map = new maplibregl.Map({
@@ -49,7 +257,6 @@
               tileSize: 256,
               attribution: '© OpenStreetMap'
             },
-            // Alapértelmezett stílus javítása
             'hillshade': {
               type: 'raster-dem',
               url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
@@ -64,90 +271,161 @@
               minzoom: 0,
               maxzoom: 22
             },
-            // Háttér kontrasztjának növelése
             {
               id: 'hillshade',
               type: 'hillshade',
               source: 'hillshade',
-              layout: { visibility: 'none' } // Alapból ki van kapcsolva
+              layout: { visibility: 'none' }
             }
           ]
         },
         center: [20.36, 47.89],
         zoom: 8,
-        // Jobb megjelenés érdekében
         antialias: true,
         interactive: true,
         pitchWithRotate: true,
         attributionControl: false
       });
 
-      // ... (további inicializálások) ...
+      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
+      map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
 
-      map.on('click', 'air_quality_points', e => {
-        const p = e.features[0].properties;
-        const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A';
-        
-        // Stílusosabb popup design
-        new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="popup-content">
-              <h3 class="font-bold text-lg mb-2 text-blue-700">Mérési adatok</h3>
-              <div class="grid grid-cols-2 gap-2 text-sm">
-                <div><strong>Időpont:</strong></div>
-                <div>${ts}</div>
-                
-                <div><strong>PM1.0:</strong></div>
-                <div>${p.pm1_0?.toFixed(1) || '–'} µg/m³</div>
-                
-                <div><strong>PM2.5:</strong></div>
-                <div>${p.pm2_5?.toFixed(1) || '–'} µg/m³</div>
-                
-                <div><strong>PM4.0:</strong></div>
-                <div>${p.pm4_0?.toFixed(1) || '–'} µg/m³</div>
-                
-                <div><strong>PM10:</strong></div>
-                <div>${p.pm10_0?.toFixed(1) || '–'} µg/m³</div>
-                
-                <div><strong>Hőmérséklet:</strong></div>
-                <div>${p.temperature?.toFixed(1) || '–'} °C</div>
-                
-                <div><strong>Páratartalom:</strong></div>
-                <div>${p.humidity?.toFixed(1) || '–'} %</div>
-                
-                <div><strong>VOC:</strong></div>
-                <div>${p.voc || '–'} index</div>
-                
-                <div><strong>NOx:</strong></div>
-                <div>${p.nox || '–'} index</div>
-                
-                <div><strong>CO₂:</strong></div>
-                <div>${p.co2 || '–'} ppm</div>
-              </div>
-            </div>
-          `)
-          .addTo(map);
+      const loading = document.getElementById('loading');
+      const datePicker = document.getElementById('datePicker');
+      const exportButton = document.getElementById('exportButton');
+      const legend = document.getElementById('legend');
+      const validDates = await loadAvailableDates();
+      const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
+
+      flatpickr("#datePicker", {
+        dateFormat: "Y-m-d",
+        enable: validDates,
+        defaultDate: latestDate,
+        onChange: () => updateMap()
       });
 
-      // További térkép megjelenés javítások
+      async function updateMap() {
+        loading.style.display = 'flex';
+        try {
+          console.log('Adatok lekérdezése dátumra:', datePicker.value);
+          const geojson = await fetchAirQualityData(datePicker.value);
+          console.log('Lekérdezett adatok száma:', geojson.features.length);
+          console.log('Első pár adat:', geojson.features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
+
+          if (map.getSource('air_quality')) {
+            map.getSource('air_quality').setData(geojson);
+          } else {
+            map.addSource('air_quality', {
+              type: 'geojson',
+              data: geojson,
+              cluster: true,
+              clusterRadius: 30,
+              clusterMaxZoom: 15
+            });
+            map.addLayer({
+              id: 'clusters',
+              type: 'circle',
+              source: 'air_quality',
+              filter: ['has', 'point_count'],
+              paint: {
+                'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
+                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
+              }
+            });
+            map.addLayer({
+              id: 'air_quality_points',
+              type: 'circle',
+              source: 'air_quality',
+              filter: ['!', ['has', 'point_count']],
+              paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
+                'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
+                  0, '#00E400', 12, '#FFFF00', 35.4, '#FF7E00',
+                  55.4, '#FF0000', 150.4, '#8F3F97', 250.4, '#7E0023'
+                ],
+                'circle-opacity': 0.8,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#fff'
+              }
+            });
+            map.on('click', 'clusters', e => {
+              const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+              const clusterId = features[0].properties.cluster_id;
+              map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (!err) {
+                  map.easeTo({ center: features[0].geometry.coordinates, zoom });
+                }
+              });
+            });
+            map.on('click', 'air_quality_points', e => {
+              const p = e.features[0].properties;
+              const ts = p.timestamp ? new Date(p.timestamp).toLocaleString('hu-HU') : 'N/A';
+              new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                  <div class="popup-content">
+                    <h3 class="font-bold text-lg mb-2 text-blue-700">Mérési adatok</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                      <div><strong>Időpont:</strong></div>
+                      <div>${ts}</div>
+                      <div><strong>PM1.0:</strong></div>
+                      <div>${p.pm1_0?.toFixed(1) || '–'} µg/m³</div>
+                      <div><strong>PM2.5:</strong></div>
+                      <div>${p.pm2_5?.toFixed(1) || '–'} µg/m³</div>
+                      <div><strong>PM4.0:</strong></div>
+                      <div>${p.pm4_0?.toFixed(1) || '–'} µg/m³</div>
+                      <div><strong>PM10:</strong></div>
+                      <div>${p.pm10_0?.toFixed(1) || '–'} µg/m³</div>
+                      <div><strong>Hőmérséklet:</strong></div>
+                      <div>${p.temperature?.toFixed(1) || '–'} °C</div>
+                      <div><strong>Páratartalom:</strong></div>
+                      <div>${p.humidity?.toFixed(1) || '–'} %</div>
+                      <div><strong>VOC:</strong></div>
+                      <div>${p.voc || '–'} index</div>
+                      <div><strong>NOx:</strong></div>
+                      <div>${p.nox || '–'} index</div>
+                      <div><strong>CO₂:</strong></div>
+                      <div>${p.co2 || '–'} ppm</div>
+                    </div>
+                  </div>
+                `)
+                .addTo(map);
+            });
+            legend.classList.remove('hidden');
+          }
+
+          const bounds = new maplibregl.LngLatBounds();
+          geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
+          if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+          } else {
+            console.warn('Üres bounds, alapértelmezett nézet Miskolcra');
+            map.setCenter([20.36, 47.89]);
+            map.setZoom(8);
+          }
+        } catch (err) {
+          console.error('Hiba a térkép frissítésekor:', err.message);
+        } finally {
+          loading.style.display = 'none';
+        }
+      }
+
       map.on('load', () => {
-        // Jelmagyarázat mindig látható
         document.getElementById('legend').classList.remove('hidden');
-        
-        // Kontraszt beállítása
         map.setPaintProperty('osm-tiles', 'raster-opacity', 0.9);
         map.setPaintProperty('osm-tiles', 'raster-contrast', 0.2);
-        
-        // Éjszakai mód opcionális bekapcsolása
+
         const toggleDarkMode = document.createElement('button');
         toggleDarkMode.innerHTML = '🌙';
         toggleDarkMode.className = 'maplibregl-ctrl-icon maplibregl-ctrl-night-mode';
         toggleDarkMode.onclick = () => {
-          map.setStyle('https://demotiles.maplibre.org/style.json'); // Sötét téma
+          map.setStyle('https://demotiles.maplibre.org/style.json');
         };
-        
-        // Visszaállítás gomb
+
         const toggleLightMode = document.createElement('button');
         toggleLightMode.innerHTML = '☀️';
         toggleLightMode.className = 'maplibregl-ctrl-icon maplibregl-ctrl-day-mode';
@@ -168,12 +446,7 @@
             }]
           });
         };
-        
-        // Gombok hozzáadása a térképhez
-        const nav = new maplibregl.NavigationControl();
-        map.addControl(nav, 'top-right');
-        
-        // Egyéni gombok hozzáadása
+
         const customControls = document.createElement('div');
         customControls.className = 'maplibregl-ctrl-group maplibregl-ctrl';
         customControls.appendChild(toggleDarkMode);
@@ -184,53 +457,58 @@
         }, 'top-right');
       });
 
-      // ... (további kód változatlan) ...
+      if (latestDate) {
+        updateMap();
+      }
+
+      document.getElementById('exportButton').addEventListener('click', () => {
+        console.log('Export gomb megnyomva');
+        if (!geojsonData || !geojsonData.features || geojsonData.features.length === 0) {
+          console.warn('Nincs exportálható adat:', geojsonData);
+          alert('Nincs exportálható adat! Kérlek, tölts be adatokat először.');
+          return;
+        }
+
+        try {
+          const csvRows = [];
+          const headers = ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM1.0', 'PM2.5', 'PM4.0', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂'];
+          csvRows.push(headers.join(','));
+
+          geojsonData.features.forEach(feature => {
+            const props = feature.properties;
+            const row = [
+              props.id || 'N/A',
+              props.timestamp ? new Date(props.timestamp).toLocaleString('hu-HU') : 'N/A',
+              feature.geometry.coordinates[0]?.toFixed(6) || 'N/A',
+              feature.geometry.coordinates[1]?.toFixed(6) || 'N/A',
+              props.pm1_0?.toFixed(1) || 'N/A',
+              props.pm2_5?.toFixed(1) || 'N/A',
+              props.pm4_0?.toFixed(1) || 'N/A',
+              props.pm10_0?.toFixed(1) || 'N/A',
+              props.temperature?.toFixed(1) || 'N/A',
+              props.humidity?.toFixed(1) || 'N/A',
+              props.voc || 'N/A',
+              props.nox || 'N/A',
+              props.co2 || 'N/A'
+            ].map(field => `"${field}"`).join(',');
+            csvRows.push(row);
+          });
+
+          const csvContent = csvRows.join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'air_quality_data_' + datePicker.value + '.csv';
+          a.click();
+          window.URL.revokeObjectURL(url);
+          console.log('Export sikeresen elindítva:', a.download);
+        } catch (err) {
+          console.error('Hiba az exportálás során:', err);
+          alert('Hiba az exportálás során!');
+        }
+      });
     });
   </script>
-
-  <style>
-    /* Egyéni stílusok a térkép megjelenéséhez */
-    .custom-popup {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    .custom-popup .maplibregl-popup-content {
-      padding: 12px;
-      border-radius: 6px;
-    }
-    
-    .custom-popup .maplibregl-popup-tip {
-      border-top-color: rgba(255,255,255,0.9);
-    }
-    
-    .legend {
-      background: rgba(255,255,255,0.95);
-      border: 1px solid #ddd;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .legend-item {
-      margin: 4px 0;
-      font-size: 11px;
-    }
-    
-    .legend-color {
-      border-radius: 50%;
-      border: 1px solid #666;
-    }
-    
-    /* Responszív design */
-    @media (max-width: 768px) {
-      #map { height: calc(100vh - 180px); }
-      .legend {
-        bottom: 10px;
-        left: 5px;
-        padding: 5px;
-        font-size: 10px;
-      }
-    }
-  </style>
 </body>
 </html>
