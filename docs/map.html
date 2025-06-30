@@ -93,14 +93,13 @@
     </div>
     <div id="map" class="rounded-xl shadow-lg border border-gray-300"></div>
     <div id="legend" class="legend hidden bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
-      <h3 class="font-bold mb-2 text-sm">Levegőminőség (PM2.5, WHO 2021)</h3>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #00E400;"></div> 0–5 µg/m³ (Kiváló)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #66FF33;"></div> 5–10 µg/m³ (Jó)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FFFF00;"></div> 10–15 µg/m³ (Mérsékelten szennyezett)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF9900;"></div> 15–25 µg/m³ (Egészségügyi kockázat nő)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF0000;"></div> 25–35 µg/m³ (EU-határértéken túl)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #990099;"></div> 35–50 µg/m³ (Jelentős egészségi kockázat)</div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #660033;"></div> 50+ µg/m³ (Nagyon magas, veszélyes)</div>
+      <h3 class="font-bold mb-2 text-sm">Levegőminőség (PM2.5)</h3>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #00E400;"></div> 0–10 µg/m³ (JÓ)</div>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #66FF33;"></div> 10.1–20 µg/m³ (MEGFELELŐ)</div>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FFFF00;"></div> 20.1–25 µg/m³ (ELFOGADHATÓ)</div>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF9900;"></div> 25.1–50 µg/m³ (SZENNYEZETT)</div>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF0000;"></div> 50.1–75 µg/m³ (ERŐSEN SZENNYEZETT)</div>
+      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #660033;"></div> 75+ µg/m³ (EXTRÉM SZENNYEZETT)</div>
     </div>
     <p class="text-sm text-red-600 text-center mt-2 font-semibold">
       ⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!
@@ -345,9 +344,8 @@
               paint: {
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
                 'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
-                  0, '#00E400', 5, '#66FF33', 10, '#FFFF00',
-                  15, '#FF9900', 25, '#FF0000', 35, '#990099',
-                  50, '#660033'
+                  0, '#00E400', 10, '#66FF33', 20, '#FFFF00',
+                  25, '#FF9900', 50, '#FF0000', 75, '#660033'
                 ],
                 'circle-opacity': 0.8,
                 'circle-stroke-width': 1,
