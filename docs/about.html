@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jul 13 21:33:36 2025
+
+@author: szamosiattila
+"""
+
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rólunk - Éghajlatvédelmi Kutatócsoport</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .hero {
+      background: linear-gradient(rgba(22, 101, 52, 0.85), rgba(22, 101, 52, 0.9)), 
+                  url('https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?q=80&w=1000') center/cover;
+    }
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    .lang-btn {
+      padding: 2px 10px;
+      border: 1px solid white;
+      border-radius: 4px;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .lang-btn.active {
+      background: white;
+      color: green;
+      font-weight: bold;
+    }
+    .lang-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
+    <div class="absolute top-4 right-4 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
+      <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Rólunk - Éghajlatvédelmi Kutatócsoport</h1>
+  </header>
+
+  <nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex justify-center space-x-8">
+      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Rólunk</a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8 flex-grow max-w-6xl">
+    <!-- Hero Section -->
+    <section class="hero rounded-xl shadow-xl text-white p-8 mb-12">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 id="hero-title" class="text-3xl md:text-5xl font-bold mb-4">Levegőminőség-kutatás Miskolcon</h2>
+        <p id="hero-subtitle" class="text-xl mb-6">Mobil szenzorokkal végzett hosszútávú mérések a szennyezett levegő és az éghajlatváltozás hatásainak vizsgálatára</p>
+        <div class="flex justify-center space-x-4">
+          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
+            <i class="fas fa-flask text-2xl mr-2"></i>
+            <div>
+              <p class="text-2xl font-bold">7B</p>
+              <p id="hero-project" class="text-sm">Alprojekt</p>
+            </div>
+          </div>
+          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
+            <i class="fas fa-sensor text-2xl mr-2"></i>
+            <div>
+              <p class="text-2xl font-bold">10+</p>
+              <p id="hero-sensors" class="text-sm">Szenzor</p>
+            </div>
+          </div>
+          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
+            <i class="fas fa-calendar-days text-2xl mr-2"></i>
+            <div>
+              <p class="text-2xl font-bold">2022-</p>
+              <p id="hero-ongoing" class="text-sm">Folyamatban</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="mb-16">
+      <h2 id="about-title" class="text-3xl font-bold text-center mb-12 text-green-800">Rólunk</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+          <h3 id="contact-title" class="text-2xl font-bold text-green-700 mb-4">Kapcsolat</h3>
+          <div class="flex items-start mb-6">
+            <div class="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 mr-4"></div>
+            <div>
+              <h4 class="text-xl font-semibold">Szamosi Attila</h4>
+              <p id="position" class="text-gray-600">Kutatásó</p>
+              <div class="mt-2">
+                <p class="flex items-center"><i class="fas fa-envelope mr-2 text-green-600"></i> attila.szamosi@uni-miskolc.hu</p>
+              </div>
+            </div>
+          </div>
+          <p id="contact-text" class="text-gray-700">
+            Kérdéseivel, észrevételeivel és együttműködési ajánlataival forduljon hozzám bátran. 
+            Az adatok minőségének folyamatos javításán és a kutatási eredmények széles körű terjesztésén dolgozunk.
+          </p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+          <h3 id="goal-title" class="text-2xl font-bold text-green-700 mb-4">Kutatási célunk</h3>
+          <p id="goal-text" class="text-gray-700 mb-4">
+            Célunk, hogy a mobil levegőminőség-mérést hosszú távon teszteljük a Miskolcon kihelyezett 
+            olcsó levegőminőség-szenzorokkal összehasonlítva és azokat kiegészítve.
+          </p>
+          <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
+            <p id="life-project" class="text-green-800">
+              A PM monitoring mérőhálózat a <a href="https://pmmonitoring.hu" target="_blank" class="underline hover:text-green-600">LIFE IP HUNGAIRY</a> projekt keretein belül jött létre. 
+              A LIFE IP HUNGAIRY (LIFE17 IPE/HU/000017) projekt az Európai Unió LIFE programjának 
+              támogatásával valósul meg.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Faculty Section -->
+    <section class="mb-16">
+      <h2 id="faculty-title" class="text-3xl font-bold text-center mb-12 text-green-800">Intézményünk</h2>
+      <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
+        <h3 id="mfk-title" class="text-2xl font-bold text-green-700 mb-4">Műszaki Föld- és Környezettudományi Kar</h3>
+        <p id="mfk-text" class="text-gray-700 mb-4">
+          Kutatásaink a Miskolci Egyetem Műszaki Föld- és Környezettudományi Karán zajlanak, 
+          amely a fenntartható természeti erőforrás-gazdálkodás és környezettudomány területén végez kiemelkedő munkát.
+        </p>
+        <a href="https://mfk.uni-miskolc.hu" target="_blank" id="mfk-link" class="inline-flex items-center text-green-600 hover:text-green-800">
+          <i class="fas fa-external-link-alt mr-2"></i> Tovább a kar honlapjára
+        </a>
+      </div>
+    </section>
+
+    <!-- Funding Section -->
+    <section class="mb-16">
+      <h2 id="funding-title" class="text-3xl font-bold text-center mb-8 text-green-800">Támogatóink</h2>
+      <div class="text-center">
+        <p id="funding-text" class="text-gray-700 mb-4">
+          A projekt az Európai Unió támogatásával, az RRF-2.3.1-21-2022-00014 azonosítószámú 
+          Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium keretében valósul meg.
+        </p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
+            <div class="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24"></div>
+          </div>
+          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
+            <div class="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24"></div>
+          </div>
+          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
+            <div class="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24"></div>
+          </div>
+          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
+            <div class="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+  </footer>
+
+  <script>
+    const translations = {
+      hu: {
+        title: "Rólunk - Éghajlatvédelmi Kutatócsoport",
+        navHome: "Kezdőlap",
+        navMap: "Térkép",
+        navAbout: "Rólunk",
+        heroTitle: "Levegőminőség-kutatás Miskolcon",
+        heroSubtitle: "Mobil szenzorokkal végzett hosszútávú mérések az éghajlatváltozás hatásainak vizsgálatára",
+        heroProject: "Alprojekt",
+        heroSensors: "Szenzor",
+        heroOngoing: "Folyamatban",
+        aboutTitle: "Rólunk",
+        contactTitle: "Kapcsolat",
+        position: "Kutatási vezető",
+        contactText: "Kérdéseivel, észrevételeivel és együttműködési ajánlataival forduljon hozzám bátran. Az adatok minőségének folyamatos javításán és a kutatási eredmények széles körű terjesztésén dolgozunk.",
+        goalTitle: "Kutatási célunk",
+        goalText: "Célunk, hogy a mobil levegőminőség-mérést hosszú távon teszteljük a Miskolcon kihelyezett olcsó levegőminőség-szenzorokkal összehasonlítva és kiegészítve.",
+        lifeProject: "A PM monitoring mérőhálózat a <a href=\"https://pmmonitoring.hu\" target=\"_blank\" class=\"underline hover:text-green-600\">LIFE IP HUNGAIRY</a> projekt keretein belül jött létre. A LIFE IP HUNGAIRY (LIFE17 IPE/HU/000017) projekt az Európai Unió LIFE programjának támogatásával valósul meg.",
+        facultyTitle: "Intézményünk",
+        mfkTitle: "Műszaki Föld- és Környezettudományi Kar",
+        mfkText: "Kutatásaink a Miskolci Egyetem Műszaki Föld- és Környezettudományi Karán zajlanak, amely a fenntartható természeti erőforrás-gazdálkodás és környezettudomány területén végez kiemelkedő munkát.",
+        mfkLink: "Tovább a kar honlapjára",
+        fundingTitle: "Támogatóink",
+        fundingText: "A projekt az Európai Unió támogatásával, az RRF-2.3.1-21-2022-00014 azonosítószámú Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium keretében valósul meg.",
+        footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
+        disclaimer: "A mérési adatok nem hitelesítettek."
+      },
+      en: {
+        title: "About Us - Climate Protection Research Group",
+        navHome: "Home",
+        navMap: "Map",
+        navAbout: "About",
+        heroTitle: "Air Quality Research in Miskolc",
+        heroSubtitle: "Long-term measurements with mobile sensors to study the effects of climate change",
+        heroProject: "Subproject",
+        heroSensors: "Sensors",
+        heroOngoing: "Ongoing",
+        aboutTitle: "About Us",
+        contactTitle: "Contact",
+        position: "Research Lead",
+        contactText: "Feel free to contact me with any questions, feedback, or collaboration proposals. We are working on continuously improving data quality and disseminating research results widely.",
+        goalTitle: "Our Research Goals",
+        goalText: "Our goal is to test mobile air quality measurements in the long term, comparing and complementing them with low-cost air quality sensors deployed in Miskolc.",
+        lifeProject: "The PM monitoring network was established within the framework of the <a href=\"https://pmmonitoring.hu\" target=\"_blank\" class=\"underline hover:text-green-600\">LIFE IP HUNGAIRY</a> project. The LIFE IP HUNGAIRY (LIFE17 IPE/HU/000017) project is implemented with the support of the European Union's LIFE program.",
+        facultyTitle: "Our Institution",
+        mfkTitle: "Faculty of Earth Science and Engineering",
+        mfkText: "Our research is conducted at the Faculty of Earth Science and Engineering at the University of Miskolc, which excels in sustainable natural resource management and environmental science.",
+        mfkLink: "Visit the faculty website",
+        fundingTitle: "Our Supporters",
+        fundingText: "The project is implemented with the support of the European Union under the RRF-2.3.1-21-2022-00014 National Multidisciplinary Laboratory for Climate Change.",
+        footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
+        disclaimer: "Measurement data is not verified."
+      }
+    };
+
+    function setLanguage(lang) {
+      localStorage.setItem('language', lang);
+      applyLanguage(lang);
+    }
+
+    function applyLanguage(lang) {
+      const langData = translations[lang];
+      document.title = langData.title;
+      document.getElementById('main-title').textContent = langData.title;
+      document.getElementById('nav-home').textContent = langData.navHome;
+      document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-about').textContent = langData.navAbout;
+      document.getElementById('hero-title').textContent = langData.heroTitle;
+      document.getElementById('hero-subtitle').textContent = langData.heroSubtitle;
+      document.getElementById('hero-project').textContent = langData.heroProject;
+      document.getElementById('hero-sensors').textContent = langData.heroSensors;
+      document.getElementById('hero-ongoing').textContent = langData.heroOngoing;
+      document.getElementById('about-title').textContent = langData.aboutTitle;
+      document.getElementById('contact-title').textContent = langData.contactTitle;
+      document.getElementById('position').textContent = langData.position;
+      document.getElementById('contact-text').textContent = langData.contactText;
+      document.getElementById('goal-title').textContent = langData.goalTitle;
+      document.getElementById('goal-text').textContent = langData.goalText;
+      document.getElementById('life-project').innerHTML = langData.lifeProject;
+      document.getElementById('faculty-title').textContent = langData.facultyTitle;
+      document.getElementById('mfk-title').textContent = langData.mfkTitle;
+      document.getElementById('mfk-text').textContent = langData.mfkText;
+      document.getElementById('mfk-link').textContent = langData.mfkLink;
+      document.getElementById('funding-title').textContent = langData.fundingTitle;
+      document.getElementById('funding-text').textContent = langData.fundingText;
+      document.getElementById('footer-text').textContent = langData.footer;
+      document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      document.documentElement.lang = lang;
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedLang = localStorage.getItem('language') || 'hu';
+      setLanguage(savedLang);
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setLanguage(btn.dataset.lang);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
