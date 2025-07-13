@@ -1,0 +1,6 @@
+.DS_Store
+docs/.DS_Store
+backup*.*
+mentés/
+supabase_setup.sql
+talaj-proxy/
