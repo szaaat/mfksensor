@@ -18,8 +18,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // Javított Supabase inicializálás
     let supabase = SupabaseClient(
-        supabaseURL: URL(string: "https://yuamroqhxrflusxeyylp.supabase.co")!,
-        supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U",
+        supabaseURL: URL(string: "https://....supabase.co")!,
+        supabaseKey: "...",
         options: SupabaseClientOptions()
     )
     
