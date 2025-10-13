@@ -261,129 +261,104 @@
     };
 
     async function loadAvailableDates() {
-  try {
-    console.log('Dátumok betöltése - fallback módszerrel...');
-    
-    // Közvetlenül a fallback megoldást használjuk, mert az RPC timeoutol
-    const { data, error } = await supabaseClient
-      .from('air_quality_view')
-      .select('timestamp')
-      .order('timestamp', { ascending: false })
-      .limit(1000); // Korlátozzuk a lekérdezést
-
-    if (error) {
-      console.error('Hiba a dátumok lekérdezésekor:', error);
-      
-      // Még egyszerűbb fallback - csak az utolsó 7 nap
-      const today = new Date();
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
+      try {
+        const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+        if (error) {
+          console.error('Hiba a dátumok lekérdezésekor:', error);
+          return [];
+        }
+        const dates = data.map(row => row.date).filter(Boolean).sort();
+        console.log('Elérhető dátumok:', dates);
+        return dates;
+      } catch (err) {
+        console.error('Váratlan hiba a dátumok betöltésekor:', err);
+        return [];
       }
-      console.log('Fallback dátumok:', dates);
-      return dates;
     }
-
-    // Dátumok kinyerése és egyedivé tétele
-    const dates = [...new Set(data.map(row => 
-      row.timestamp ? row.timestamp.split('T')[0] : null
-    ))].filter(Boolean).sort();
-    
-    console.log('Elérhető dátumok:', dates);
-    
-    // Ha üres a lista, adjunk vissza néhány dátumot
-    if (dates.length === 0) {
-      const today = new Date();
-      const fallbackDates = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        fallbackDates.push(date.toISOString().split('T')[0]);
-      }
-      return fallbackDates;
-    }
-    
-    return dates;
-  } catch (err) {
-    console.error('Váratlan hiba a dátumok betöltésekor:', err);
-    // Visszaadunk néhány alap dátumot hiba esetén
-    const today = new Date();
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates;
-  }
-}
 
     async function fetchAirQualityData(date) {
-  const loading = document.getElementById('loading');
-  loading.style.display = 'flex';
-  
-  try {
-    const start = `${date} 00:00:00+00`;
-    const end = `${date} 23:59:59+00`;
-    console.log('Lekérdezés időintervalluma:', { start, end });
+      const loading = document.getElementById('loading');
+      loading.style.display = 'flex';
+      try {
+        const start = `${date} 00:00:00+00`;
+        const end = `${date} 23:59:59+00`;
+        console.log('Lekérdezés időintervalluma:', { start, end });
 
-    // Egyszerű, direkt lekérdezés count nélkül
-    console.log('Közvetlen adatlekérés...');
-    const { data, error } = await supabaseClient
-      .from('air_quality_view')
-      .select('*')
-      .gte('timestamp', start)
-      .lte('timestamp', end)
-      .order('timestamp', { ascending: true })
-      .limit(20000); // Maximum 20000 rekord
+        let allData = [];
+        let offset = 0;
+        const batchSize = 10000;
 
-    if (error) {
-      console.error('Supabase hiba:', error);
-      throw new Error(`Hiba az adatok lekérdezésekor: ${error.message}`);
-    }
+        const { count, error: countError } = await supabaseClient
+          .from('air_quality_view')
+          .select('*', { count: 'exact', head: true })
+          .gte('timestamp', start)
+          .lte('timestamp', end);
+        if (countError) {
+          console.error('Hiba a rekordszám lekérdezésekor:', countError);
+          throw new Error('Hiba a rekordszám lekérdezésekor');
+        }
+        console.log('Várható rekordszám:', count);
 
-    if (!data || data.length === 0) {
-      console.warn('Nincs adat a megadott időszakra:', date);
-      throw new Error('Nincs adat a megadott dátumra. Ellenőrizd a dátumot vagy a nézetet!');
-    }
+        while (offset < count) {
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true })
+            .range(offset, offset + batchSize - 1);
+          if (error) {
+            console.error('Supabase hiba (offset ' + offset + '):', error);
+            throw new Error('Hiba az adatok lekérdezésekor');
+          }
+          if (!data || data.length === 0) {
+            console.log('Nincs több adat (offset ' + offset + ')');
+            break;
+          }
+          allData = allData.concat(data);
+          console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length, `Összes eddig: ${allData.length}`);
+          offset += data.length;
+        }
 
-    console.log(`Betöltött rekordok száma:`, data.length);
+        if (allData.length === 0) {
+          console.warn('Nincs adat a megadott időszakra:', date, 'Intervallum:', { start, end });
+          throw new Error('Nincs adat a megadott dátumra. Ellenőrizd a dátumot vagy a nézetet!');
+        }
+        console.log('Összes betöltött rekord:', allData.length);
+        console.log('Lekérdezett nyers adatok (első 3):', allData.slice(0, 3).map(row => ({
+          timestamp: row.timestamp,
+          coordinates: row.location ? row.location.coordinates : null
+        })));
 
-    const features = data.map(row => {
-      const coords = getCoordinates(row.location);
-      if (!coords) {
-        console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
-        return null;
+        const features = allData.map(row => {
+          const coords = getCoordinates(row.location);
+          if (!coords) {
+            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
+            return null;
+          }
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+            properties: { ...row, location: undefined }
+          };
+        }).filter(Boolean);
+
+        geojsonData = { type: 'FeatureCollection', features };
+        console.log(`Lekérdezett adatok száma (${date}):`, features.length);
+        if (features.length > 0) {
+          console.log('Első pár adat:', features.slice(0, 3).map(f => ({
+            coordinates: f.geometry.coordinates,
+            timestamp: f.properties.timestamp
+          })));
+        }
+        return geojsonData;
+      } catch (err) {
+        console.error('Hiba az adatok betöltésekor:', err);
+        return { type: 'FeatureCollection', features: [] };
+      } finally {
+        loading.style.display = 'none';
       }
-      return {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
-        properties: { ...row, location: undefined }
-      };
-    }).filter(Boolean);
-
-    geojsonData = { type: 'FeatureCollection', features };
-    console.log(`Feldolgozott adatok száma (${date}):`, features.length);
-    
-    return geojsonData;
-  } catch (err) {
-    console.error('Hiba az adatok betöltésekor:', err);
-    const lang = localStorage.getItem('language') || 'hu';
-    const errorMsg = lang === 'hu' 
-      ? `Hiba az adatok betöltésekor: ${err.message}. Próbáld újra később.` 
-      : `Error loading data: ${err.message}. Please try again later.`;
-    
-    setTimeout(() => {
-      alert(errorMsg);
-    }, 100);
-    
-    return { type: 'FeatureCollection', features: [] };
-  } finally {
-    loading.style.display = 'none';
-  }
-}
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
       const savedLang = localStorage.getItem('language') || 'hu';
