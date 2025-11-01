@@ -76,6 +76,7 @@
     <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
       <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
       <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
       <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Hőtérkép</a>
       <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
       <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
@@ -241,6 +242,7 @@
         mainTitle: "Hőtérkép Elemzés",
         navHome: "Kezdőlap",
         navMap: "Térkép",
+        navMapCO2: "CO₂ Térkép",
         navHeatmap: "Hőtérkép",
         navComparison: "Összehasonlítás",
         navAbout: "Rólunk",
@@ -260,6 +262,7 @@
         mainTitle: "Heatmap Analysis",
         navHome: "Home",
         navMap: "Map",
+        navMapCO2: "CO₂ Map",
         navHeatmap: "Heatmap",
         navComparison: "Comparison",
         navAbout: "About",
@@ -287,6 +290,7 @@
       document.getElementById('main-title').textContent = langData.mainTitle;
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-about').textContent = langData.navAbout;
