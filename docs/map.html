@@ -302,7 +302,7 @@
         while (offset < count) {
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('*')
+            .select('id, timestamp, location, pm2_5')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true })
@@ -489,28 +489,59 @@
                 }
               });
             });
-            map.on('click', 'air_quality_points', e => {
+            // EZ AZ ÚJ, KATTINTÁSRA TÖLTŐ KÓD:
+            map.on('click', 'air_quality_points', async e => { // <-- FIGYELD MEG AZ "async" KULCSSZÓT!
               const lang = localStorage.getItem('language') || 'hu';
               const langData = mapTranslations[lang];
-              const p = e.features[0].properties;
-              const options = lang === 'hu' ? {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              } : {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-              };
-              const ts = p.timestamp ? new Date(p.timestamp).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB', options) : 'N/A';
-              window.currentPopup = new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
-                .setLngLat(e.lngLat)
+              
+              // 1. Vedd ki az alap adatokat (id és koordináták)
+              const properties = e.features[0].properties; // Ebben már csak (id, ts, pm2_5) van
+              const pointId = properties.id; // Kell az 'id' a lekérdezéshez
+              const coordinates = e.features[0].geometry.coordinates.slice();
+
+              // 2. Azonnal jeleníts meg egy "Töltés..." popupot
+              const popup = new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
+                .setLngLat(coordinates)
                 .setHTML(`
+                  <div class="popup-content">
+                    <h3 class="font-bold text-lg mb-2 text-blue-700">${langData.popupTitle}</h3>
+                    <p>${langData.loading}...</p>
+                  </div>
+                `)
+                .addTo(map);
+              window.currentPopup = popup; // Mentsd el a referenciát
+
+              try {
+                // 3. Kérdezd le a TELJES adatot ehhez az EGY ponthoz az ID alapján
+                const { data: fullData, error } = await supabaseClient
+                  .from('air_quality_view')
+                  .select('*') // Itt már lekérünk mindent
+                  .eq('id', pointId) // De csak erre az egy ID-ra
+                  .single(); // Csak egy sort várunk
+
+                if (error) throw error;
+                if (!fullData) throw new Error('Point data not found');
+
+                // 4. Most már megvan a teljes adat, 'p' a 'fullData'
+                const p = fullData; 
+                const options = lang === 'hu' ? {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                } : {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false
+                };
+                const ts = p.timestamp ? new Date(p.timestamp).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB', options) : 'N/A';
+
+                // 5. Frissítsd a popup tartalmát a teljes, betöltött adattal
+                popup.setHTML(`
                   <div class="popup-content">
                     <h3 class="font-bold text-lg mb-2 text-blue-700">${langData.popupTitle}</h3>
                     <div class="grid grid-cols-2 gap-2 text-sm">
@@ -536,8 +567,12 @@
                       <div>${p.co2 || '–'} ppm</div>
                     </div>
                   </div>
-                `)
-                .addTo(map);
+                `);
+
+              } catch (err) {
+                console.error('Hiba a pont részleteinek lekérésekor:', err);
+                popup.setHTML(`<p class="text-red-500">Hiba az adatok betöltésekor.</p>`);
+              }
             });
             legend.classList.remove('hidden');
           }
