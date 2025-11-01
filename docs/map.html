@@ -640,27 +640,84 @@
         updateMap();
       }
 
-      document.getElementById('exportButton').addEventListener('click', () => {
+      // EZ AZ ÚJ, MINDENT TÖLTŐ EXPORT KÓD:
+      document.getElementById('exportButton').addEventListener('click', async () => { // <-- FIGYELD MEG: ASYNC
         const lang = localStorage.getItem('language') || 'hu';
         const langData = mapTranslations[lang];
-        console.log('Export gomb megnyomva');
-        if (!geojsonData || !geojsonData.features || geojsonData.features.length === 0) {
-          console.warn('Nincs exportálható adat:', geojsonData);
-          alert(lang === 'hu' ? 'Nincs exportálható adat! Kérlek, tölts be adatokat először.' : 'No data to export! Please load data first.');
+        console.log('Export gomb megnyomva, teljes adatbázis lekérdezése indul...');
+
+        const date = datePicker.value;
+        if (!date) {
+          alert(lang === 'hu' ? 'Nincs kiválasztva dátum!' : 'No date selected!');
           return;
         }
 
+        const exportButton = document.getElementById('exportButton');
+        const originalText = exportButton.textContent;
+        
+        // Gomb letiltása és szöveg átállítása, amíg tölt
+        exportButton.disabled = true;
+        exportButton.textContent = lang === 'hu' ? 'Exportálás...' : 'Exporting...';
+
         try {
+          // --- ÚJ ADATLEKÉRDEZÉS AZ EXPORTHOZ ---
+          // Ez most újra lekérdezi az ÖSSZES adatot, csakúgy mint régen
+          // a fetchAirQualityData, de csak az exportáláshoz.
+          
+          const start = `${date} 00:00:00+00`;
+          const end = `${date} 23:59:59+00`;
+          
+          // 1. Rekordok számának lekérése
+          const { count, error: countError } = await supabaseClient
+            .from('air_quality_view')
+            .select('*', { count: 'exact', head: true })
+            .gte('timestamp', start)
+            .lte('timestamp', end);
+          
+          if (countError) throw countError;
+          if (count === 0) {
+            alert(lang === 'hu' ? 'Nincs exportálható adat ezen a napon.' : 'No data to export for this date.');
+            return;
+          }
+          console.log('Exportálandó rekordok száma:', count);
+
+          // 2. Adatok letöltése lapozással
+          let allData = [];
+          let offset = 0;
+          const batchSize = 10000; // Ezt az értéket kisebbre veheted, ha a Supabase időtúllépést adna
+
+          while (offset < count) {
+            const { data, error } = await supabaseClient
+              .from('air_quality_view')
+              .select('*') // <-- A LÉNYEG: MINDEN OSZLOP (*)
+              .gte('timestamp', start)
+              .lte('timestamp', end)
+              .order('timestamp', { ascending: true })
+              .range(offset, offset + batchSize - 1);
+
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            
+            allData = allData.concat(data);
+            console.log(`Export adatok betöltve: ${allData.length} / ${count}`);
+            offset += data.length;
+          }
+          // --- ADATLEKÉRDEZÉS VÉGE ---
+
+          // 3. CSV generálása a letöltött 'allData' alapján
           const csvRows = [];
           csvRows.push(langData.exportHeaders.join(','));
 
-          geojsonData.features.forEach(feature => {
-            const props = feature.properties;
+          allData.forEach(props => { // Nem geojsonData.features, hanem allData!
+            const coords = getCoordinates(props.location); // Koordináták kinyerése
+            const lng = coords ? coords.lng.toFixed(6) : 'N/A';
+            const lat = coords ? coords.lat.toFixed(6) : 'N/A';
+
             const row = [
               props.id || 'N/A',
               props.timestamp ? new Date(props.timestamp).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB') : 'N/A',
-              feature.geometry.coordinates[0]?.toFixed(6) || 'N/A',
-              feature.geometry.coordinates[1]?.toFixed(6) || 'N/A',
+              lng, // Javított koordináta
+              lat, // Javított koordináta
               props.pm1_0?.toFixed(1) || 'N/A',
               props.pm2_5?.toFixed(1) || 'N/A',
               props.pm4_0?.toFixed(1) || 'N/A',
@@ -670,12 +727,13 @@
               props.voc || 'N/A',
               props.nox || 'N/A',
               props.co2 || 'N/A'
-            ].map(field => `"${field}"`).join(',');
+            ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','); // Biztonságosabb CSV generálás
             csvRows.push(row);
           });
 
+          // 4. Fájl letöltése (ez ugyanaz, mint a régi kód)
           const csvContent = csvRows.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -683,9 +741,14 @@
           a.click();
           window.URL.revokeObjectURL(url);
           console.log('Export sikeresen elindítva:', a.download);
+
         } catch (err) {
           console.error('Hiba az exportálás során:', err);
-          alert(lang === 'hu' ? 'Hiba az exportálás során!' : 'Error during export!');
+          alert(lang === 'hu' ? `Hiba az exportálás során: ${err.message}` : `Error during export: ${err.message}`);
+        } finally {
+          // Gomb visszaállítása mindenképp
+          exportButton.disabled = false;
+          exportButton.textContent = originalText;
         }
       });
     });
