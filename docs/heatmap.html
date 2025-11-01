@@ -1,36 +1,19 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov  1 18:54:13 2025
-
-@author: szamosiattila
-"""
-
 <!DOCTYPE html>
 <html lang="hu">
 <head>
     <meta charset="UTF-R">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title data-lang-hu="Szezonális Hőtérkép - MFKSensor" 
-           data-lang-en="Seasonal Heatmap - MFKSensor">
-           Szezonális Hőtérkép - MFKSensor
-    </title>
+    <title>Szezonális Hőtérkép - MFKSensor</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
          crossorigin=""/>
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        body { font-family: sans-serif; margin: 0; }
-        nav { background-color: #333; padding: 10px; }
-        nav a { color: white; padding: 14px 20px; text-decoration: none; display: inline-block; }
-        nav a:hover { background-color: #ddd; color: black; }
-        #map { height: 80vh; width: 100%; }
-        .controls { padding: 10px; background-color: #f4f4f4; text-align: center; }
-        .controls select { margin: 5px; }
+        #map { height: 75vh; width: 100%; }
         #loading-spinner {
-            display: none; /* Alapból rejtett */
+            display: none;
             margin-left: 15px;
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -44,51 +27,61 @@ Created on Sat Nov  1 18:54:13 2025
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .lang-switcher { float: right; padding: 14px 10px; }
-        .lang-switcher a { color: white; text-decoration: none; padding: 0 5px; }
+        .lang-btn {
+          padding: 2px 10px;
+          border: 1px solid white;
+          border-radius: 4px;
+          background: transparent;
+          color: white;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+        .lang-btn.active {
+          background: white;
+          color: green;
+          font-weight: bold;
+        }
+        .lang-btn:hover:not(.active) {
+          background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
-<body>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
 
-<nav>
-    <a href="index.html" data-lang-hu="Kezdőlap" data-lang-en="Home">Kezdőlap</a>
-    <a href="map.html" data-lang-hu="Térkép (Napi)" data-lang-en="Map (Daily)">Térkép (Napi)</a>
-    <a href="heatmap.html" data-lang-hu="Hőtérkép" data-lang-en="Heatmap">Hőtérkép</a>
-    <a href="comparison.html" data-lang-hu="Összehasonlítás" data-lang-en="Comparison">Összehasonlítás</a>
-    <a href="analytics.html" data-lang-hu="Statisztikák" data-lang-en="Analytics">Statisztikák</a>
-    <a href="about.html" data-lang-hu="Rólam" data-lang-en="About">Rólam</a>
-    
-    <div class="lang-switcher">
-        <a href="#" onclick="setLanguage('hu')" style="font-weight: bold;">HU</a>
-        <span style="color: white;">|</span>
-        <a href="#" onclick="setLanguage('en')">EN</a>
+<header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
+    <div class="absolute top-4 right-4 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
+      <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Hőtérkép Elemzés</h1>
+</header>
+
+<nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
+      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
+      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
     </div>
 </nav>
 
-<div class="controls">
-    <label for="period-select" 
-           data-lang-hu="<strong>Válassz időszakot:</strong>" 
-           data-lang-en="<strong>Select period:</strong>">
-           <strong>Válassz időszakot:</strong>
-    </label>
-    <select id="period-select">
-        <option value="annual" data-lang-hu="Összes (teljes átlag)" data-lang-en="All (total average)">Összes (teljes átlag)</option>
-        <option value="winter" data-lang-hu="Tél (Dec, Jan, Feb)" data-lang-en="Winter (Dec, Jan, Feb)">Tél (Dec, Jan, Feb)</option>
-        <option value="spring" data-lang-hu="Tavasz (Már, Ápr, Máj)" data-lang-en="Spring (Mar, Apr, May)">Tavasz (Már, Ápr, Máj)</option>
-        <option value="summer" data-lang-hu="Nyár (Jún, Júl, Aug)" data-lang-en="Summer (Jun, Jul, Aug)">Nyár (Jún, Júl, Aug)</option>
-        <option value="autumn" data-lang-hu="Ősz (Szep, Okt, Nov)" data-lang-en="Autumn (Sep, Oct, Nov)">Ősz (Szep, Okt, Nov)</option>
+<div class="controls text-center p-4 bg-gray-100 shadow-sm">
+    <label for="period-select" id="period-label" class="font-semibold text-gray-700">Válassz időszakot:</label>
+    <select id="period-select" class="mx-2 p-2 rounded border border-gray-300">
+        <option id="period-all" value="annual">Összes (teljes átlag)</option>
+        <option id="period-winter" value="winter">Tél (Dec, Jan, Feb)</option>
+        <option id="period-spring" value="spring">Tavasz (Már, Ápr, Máj)</option>
+        <option id="period-summer" value="summer">Nyár (Jún, Júl, Aug)</option>
+        <option id="period-autumn" value="autumn">Ősz (Szep, Okt, Nov)</option>
     </select>
     
-    <label for="metric-select" 
-           style="margin-left: 20px;"
-           data-lang-hu="<strong>Válassz adatot:</strong>" 
-           data-lang-en="<strong>Select metric:</strong>">
-           <strong>Válassz adatot:</strong>
-    </label>
-    <select id="metric-select">
+    <label for="metric-select" id="metric-label" class="ml-4 font-semibold text-gray-700">Válassz adatot:</label>
+    <select id="metric-select" class="mx-2 p-2 rounded border border-gray-300">
         <option value="pm2_5">PM2.5</option>
         <option value="pm10_0">PM10.0</option>
-        <option value="co2">CO2</option> <option value="temperature">Hőmérséklet</option>
+        <option value="co2">CO2</option>
+        <option value="temperature">Hőmérséklet</option>
         <option value="humidity">Páratartalom</option>
         <option value="voc">VOC Index</option>
         <option value="nox">NOx Index</option>
@@ -99,43 +92,48 @@ Created on Sat Nov  1 18:54:13 2025
     <div id="loading-spinner"></div>
 </div>
 
-<div id="map"></div>
+<div id="map" class="flex-grow"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
+<footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
     // -----------------------------------------------------------------
-    // 1. SUPABASE BEÁLLÍTÁSOK (A TE KULCSAIDDAL)
+    // 1. SUPABASE
     // -----------------------------------------------------------------
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // -----------------------------------------------------------------
-    // 2. METRIKA KONFIGURÁCIÓ (CO2-vel bővítve)
+    // 2. METRIKA KONFIG (▼▼▼ MÓDOSÍTVA ▼▼▼)
     // -----------------------------------------------------------------
-    // A kulcsoknak meg kell egyezniük a <select> 'value' értékeivel (és az oszlopnevekkel)
+    // Lejjebb vettük a 'max' értékeket és finomítottuk a 'gradient'-et,
+    // hogy érzékenyebb legyen a térkép az alacsonyabb értékekre.
     const METRIC_CONFIG = {
-        'pm1_0':       { max: 50,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
-        'pm2_5':       { max: 50,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
-        'pm4_0':       { max: 75,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
-        'pm10_0':      { max: 100, gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
-        'temperature': { max: 35,  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } }, // Kék-Sárga-Piros
-        'humidity':    { max: 100, gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } }, // Sárga-Cián-Kék
-        'voc':         { max: 500, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
-        'nox':         { max: 200, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
-        'co2':         { max: 2000, gradient: { 0.2: 'green', 0.5: 'yellow', 1: 'red' } } // ÚJ: 400ppm(zöld) - 2000ppm(piros)
+        'pm1_0':       { max: 25,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm2_5':       { max: 25,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm4_0':       { max: 35,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm10_0':      { max: 50,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'temperature': { max: 35,  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } }, // Változatlan
+        'humidity':    { max: 100, gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } }, // Változatlan
+        'voc':         { max: 250, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } }, // Max csökkentve
+        'nox':         { max: 100, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } }, // Max csökkentve
+        // CO2 skála 400ppm (0.26) körül indul (légköri alap)
+        'co2':         { max: 1500, gradient: { 0.26: 'blue', 0.5: 'green', 0.8: 'yellow', 1: 'red' } } 
     };
     const DEFAULT_CONFIG = { max: 100, gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
 
     // -----------------------------------------------------------------
-    // 3. TÉRKÉP INICIALIZÁLÁSA
+    // 3. TÉRKÉP INICIALIZÁLÁS
     // -----------------------------------------------------------------
-    const map = L.map('map').setView([47.95, 20.55], 10); // Eger-Miskolc középre
+    const map = L.map('map').setView([47.95, 20.55], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -147,32 +145,23 @@ Created on Sat Nov  1 18:54:13 2025
     const metricSelect = document.getElementById('metric-select');
 
     // -----------------------------------------------------------------
-    // 4. ADATLEKÉRŐ ÉS TÉRKÉP FRISSÍTŐ FUNKCIÓ
+    // 4. ADATLEKÉRÉS (▼▼▼ MÓDOSÍTVA ▼▼▼)
     // -----------------------------------------------------------------
     async function updateHeatmap() {
         const period = periodSelect.value;
         const metric = metricSelect.value;
         const config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
-
         loadingSpinner.style.display = 'inline-block';
 
         try {
-            // A Supabase adatbázis függvény hívása
-            // Fontos: a függvény neve 'get_heatmap_data' legyen a Supabase-ban!
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
-                grid_size: 0.001 // kb. 100m-es rács
+                grid_size: 0.001
             });
 
-            if (error) {
-                throw error;
-            }
-
-            if (heatLayer) {
-                map.removeLayer(heatLayer);
-            }
-
+            if (error) throw error;
+            if (heatLayer) map.removeLayer(heatLayer);
             if (data.length === 0) {
                 console.log("Nincs adat erre a szűrésre.");
                 return;
@@ -180,72 +169,107 @@ Created on Sat Nov  1 18:54:13 2025
 
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
+            // ▼▼▼ MÓDOSÍTVA: Kisebb sugár (radius) és elmosás (blur) az élesebb pontokért ▼▼▼
             heatLayer = L.heatLayer(heatData, {
-                radius: 20,
-                blur: 25,
+                radius: 15,
+                blur: 10,
                 maxZoom: 18,
-                max: config.max,         // Konfigból vett maximum
-                gradient: config.gradient  // Konfigból vett színskála
+                max: config.max,
+                gradient: config.gradient
             }).addTo(map);
 
         } catch (error) {
             console.error('Hiba a hőtérkép adatok lekérése közben:', error.message);
-            alert('Hiba történt az adatok lekérése közben. Lásd a konzolt.');
         } finally {
             loadingSpinner.style.display = 'none';
         }
     }
 
-    // -----------------------------------------------------------------
-    // 5. ESEMÉNYKEZELŐ ÉS INDÍTÁS
-    // -----------------------------------------------------------------
     periodSelect.addEventListener('change', updateHeatmap);
     metricSelect.addEventListener('change', updateHeatmap);
-    
-    // Az oldal betöltődésekor azonnal futtassuk le az alapbeállításokkal
-    // A 'DOMContentLoaded' esemény megvárja, míg a nyelvváltó lefut
-    // document.addEventListener('DOMContentLoaded', updateHeatmap);
-    // Módosítás: A nyelvváltó szkript fut le először, és az hívja a 'translatePage'-et.
-    // Az 'updateHeatmap' fusson le a nyelvváltó script *után*.
 </script>
 
 <script>
-    const allTranslatableElements = document.querySelectorAll('[data-lang-hu]');
-    const langLinks = {
-        hu: document.querySelector('.lang-switcher a[onclick*="setLanguage(\'hu\')"]'),
-        en: document.querySelector('.lang-switcher a[onclick*="setLanguage(\'en\')"]')
+    const translations = {
+      hu: {
+        title: "Szezonális Hőtérkép - MFKSensor",
+        mainTitle: "Hőtérkép Elemzés",
+        navHome: "Kezdőlap",
+        navMap: "Térkép",
+        navHeatmap: "Hőtérkép",
+        navComparison: "Összehasonlítás",
+        navAbout: "Rólunk",
+        periodLabel: "<strong>Válassz időszakot:</strong>",
+        metricLabel: "<strong>Válassz adatot:</strong>",
+        periodAll: "Összes (teljes átlag)",
+        periodWinter: "Tél (Dec, Jan, Feb)",
+        periodSpring: "Tavasz (Már, Ápr, Máj)",
+        periodSummer: "Nyár (Jún, Júl, Aug)",
+        periodAutumn: "Ősz (Szep, Okt, Nov)",
+        footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
+        disclaimer: "A mérési adatok nem hitelesítettek."
+      },
+      en: {
+        title: "Seasonal Heatmap - MFKSensor",
+        mainTitle: "Heatmap Analysis",
+        navHome: "Home",
+        navMap: "Map",
+        navHeatmap: "Heatmap",
+        navComparison: "Comparison",
+        navAbout: "About",
+        periodLabel: "<strong>Select period:</strong>",
+        metricLabel: "<strong>Select metric:</strong>",
+        periodAll: "All (total average)",
+        periodWinter: "Winter (Dec, Jan, Feb)",
+        periodSpring: "Spring (Mar, Apr, May)",
+        periodSummer: "Summer (Jun, Jul, Aug)",
+        periodAutumn: "Autumn (Sep, Oct, Nov)",
+        footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
+        disclaimer: "Measurement data is not verified."
+      }
     };
 
-    function translatePage(lang) {
-        allTranslatableElements.forEach(el => {
-            const text = el.getAttribute(`data-lang-${lang}`);
-            if (text) {
-                if (el.tagName === 'TITLE') {
-                    document.title = text; // Címsor speciális kezelése
-                } else {
-                    el.innerHTML = text; // Minden más elem
-                }
-            }
-        });
-        
-        if (langLinks.hu && langLinks.en) {
-            langLinks.hu.style.fontWeight = (lang === 'hu') ? 'bold' : 'normal';
-            langLinks.en.style.fontWeight = (lang === 'en') ? 'bold' : 'normal';
-        }
-        localStorage.setItem('preferredLanguage', lang);
+    function setLanguage(lang) {
+      localStorage.setItem('language', lang);
+      applyLanguage(lang);
     }
 
-    function setLanguage(lang) {
-        event.preventDefault(); 
-        translatePage(lang);
+    function applyLanguage(lang) {
+      const langData = translations[lang];
+      document.title = langData.title;
+      document.getElementById('main-title').textContent = langData.mainTitle;
+      document.getElementById('nav-home').textContent = langData.navHome;
+      document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+      document.getElementById('nav-comparison').textContent = langData.navComparison;
+      document.getElementById('nav-about').textContent = langData.navAbout;
+      document.getElementById('period-label').innerHTML = langData.periodLabel;
+      document.getElementById('metric-label').innerHTML = langData.metricLabel;
+      document.getElementById('period-all').textContent = langData.periodAll;
+      document.getElementById('period-winter').textContent = langData.periodWinter;
+      document.getElementById('period-spring').textContent = langData.periodSpring;
+      document.getElementById('period-summer').textContent = langData.periodSummer;
+      document.getElementById('period-autumn').textContent = langData.periodAutumn;
+      document.getElementById('footer-text').textContent = langData.footer;
+      document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      document.documentElement.lang = lang;
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const savedLang = localStorage.getItem('preferredLanguage') || 'hu';
-        translatePage(savedLang);
-        
-        // Most, hogy a nyelv beállt, indíthatjuk a térkép betöltését
-        updateHeatmap();
+      const savedLang = localStorage.getItem('language') || 'hu';
+      setLanguage(savedLang);
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setLanguage(btn.dataset.lang);
+        });
+      });
+      
+      updateHeatmap();
     });
 </script>
 
