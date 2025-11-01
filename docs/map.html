@@ -452,7 +452,14 @@
               data: geojson,
               cluster: true,
               clusterRadius: 30,
-              clusterMaxZoom: 15
+              clusterMaxZoom: 15,
+              // ▼▼▼ EZ AZ ÚJ RÉSZ ▼▼▼
+              clusterProperties: {
+                // Létrehoz egy 'pm2_5_sum' nevű tulajdonságot a klaszteren,
+                // ami a benne lévő pontok 'pm2_5' értékeinek összege.
+                'pm2_5_sum': ['+', ['get', 'pm2_5']]
+              }
+              // ▲▲▲ EDDIG ▲▲▲
             });
             map.addLayer({
               id: 'clusters',
@@ -460,8 +467,25 @@
               source: 'air_quality',
               filter: ['has', 'point_count'],
               paint: {
-                'circle-color': ['step', ['get', 'point_count'], '#00BCD4', 10, '#FFC107', 50, '#F44336'],
-                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30]
+              // ▼▼▼ EZ A MÓDOSÍTOTT RÉSZ ▼▼▼
+                'circle-color': [
+                  'interpolate', ['linear'],
+                  // Kiszámoljuk az átlagot: pm2_5_sum / point_count
+                  ['/', ['get', 'pm2_5_sum'], ['get', 'point_count']],
+                  // Ugyanaz a színskála, mint a pontoknál
+                  0, '#00E400', 
+                  10, '#66FF33', 
+                  20, '#FFFF00',
+                  25, '#FF9900', 
+                  50, '#FF0000', 
+                  75, '#660033'
+                ],
+              // A sugár maradjon darabszám alapú, hogy a nagy klaszterek nagyobbak legyenek
+                'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30],
+              // Adjunk hozzá egy kis körvonalat a szebb kinézethez
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+              // ▲▲▲ EDDIG ▲▲▲
               }
             });
             map.addLayer({
