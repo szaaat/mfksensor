@@ -13,37 +13,53 @@
     <style>
         #map { height: 75vh; width: 100%; }
         #loading-spinner {
-            display: none;
-            margin-left: 15px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
+            display: none; margin-left: 15px; border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db; border-radius: 50%;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
             vertical-align: middle;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .lang-btn {
-          padding: 2px 10px;
-          border: 1px solid white;
-          border-radius: 4px;
-          background: transparent;
-          color: white;
-          cursor: pointer;
-          transition: all 0.3s;
+          padding: 2px 10px; border: 1px solid white; border-radius: 4px;
+          background: transparent; color: white; cursor: pointer; transition: all 0.3s;
         }
-        .lang-btn.active {
-          background: white;
-          color: green;
-          font-weight: bold;
+        .lang-btn.active { background: white; color: green; font-weight: bold; }
+        .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
+        
+        /* ÚJ: Jelmagyarázat stílusa */
+        .info.legend {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            line-height: 1.5;
         }
-        .lang-btn:hover:not(.active) {
-          background: rgba(255,255,255,0.2);
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
         }
+        .legend-gradient {
+            width: 30px;
+            height: 150px;
+            border: 1px solid #ccc;
+        }
+        .legend-labels {
+            position: relative;
+            height: 150px;
+            width: 30px;
+            float: right;
+            margin-left: 5px;
+        }
+        .legend-labels span {
+            position: absolute;
+            left: 5px;
+            font-size: 12px;
+            color: #333;
+        }
+        .legend-labels .max { top: 0; }
+        .legend-labels .mid { top: 50%; transform: translateY(-50%); }
+        .legend-labels .min { bottom: 0; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -75,7 +91,6 @@
         <option id="period-summer" value="summer">Nyár (Jún, Júl, Aug)</option>
         <option id="period-autumn" value="autumn">Ősz (Szep, Okt, Nov)</option>
     </select>
-    
     <label for="metric-select" id="metric-label" class="ml-4 font-semibold text-gray-700">Válassz adatot:</label>
     <select id="metric-select" class="mx-2 p-2 rounded border border-gray-300">
         <option value="pm2_5">PM2.5</option>
@@ -88,7 +103,6 @@
         <option value="pm1_0">PM1.0</option>
         <option value="pm4_0">PM4.0</option>
     </select>
-    
     <div id="loading-spinner"></div>
 </div>
 
@@ -104,9 +118,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // -----------------------------------------------------------------
-    // 1. SUPABASE
-    // -----------------------------------------------------------------
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -114,25 +125,22 @@
     // -----------------------------------------------------------------
     // 2. METRIKA KONFIG (▼▼▼ MÓDOSÍTVA ▼▼▼)
     // -----------------------------------------------------------------
-    // Lejjebb vettük a 'max' értékeket és finomítottuk a 'gradient'-et,
-    // hogy érzékenyebb legyen a térkép az alacsonyabb értékekre.
+    // Még alacsonyabb 'max' értékek és új színátmenet (kékkel kezdve)
+    // Hozzáadva 'min' és 'unit' a jelmagyarázathoz
     const METRIC_CONFIG = {
-        'pm1_0':       { max: 25,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
-        'pm2_5':       { max: 25,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
-        'pm4_0':       { max: 35,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
-        'pm10_0':      { max: 50,  gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
-        'temperature': { max: 35,  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } }, // Változatlan
-        'humidity':    { max: 100, gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } }, // Változatlan
-        'voc':         { max: 250, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } }, // Max csökkentve
-        'nox':         { max: 100, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } }, // Max csökkentve
-        // CO2 skála 400ppm (0.26) körül indul (légköri alap)
-        'co2':         { max: 1500, gradient: { 0.26: 'blue', 0.5: 'green', 0.8: 'yellow', 1: 'red' } } 
+        'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm2_5':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm10_0':      { max: 40, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'temperature': { max: 35, min: 0, unit: '°C',  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } },
+        'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } },
+        'voc':         { max: 200, min: 0, unit: 'index', gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
+        'nox':         { max: 80,  min: 0, unit: 'index', gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
+        // CO2 skála 400ppm körül indul (légköri alap)
+        'co2':         { max: 1200, min: 400, unit: 'ppm', gradient: { 0.33: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } } 
     };
-    const DEFAULT_CONFIG = { max: 100, gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
+    const DEFAULT_CONFIG = { max: 100, min: 0, unit: '', gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
 
-    // -----------------------------------------------------------------
-    // 3. TÉRKÉP INICIALIZÁLÁS
-    // -----------------------------------------------------------------
     const map = L.map('map').setView([47.95, 20.55], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -140,9 +148,17 @@
     }).addTo(map);
 
     let heatLayer = null;
+    let legendControl = null; // ÚJ: Változó a jelmagyarázat tárolására
     const loadingSpinner = document.getElementById('loading-spinner');
     const periodSelect = document.getElementById('period-select');
     const metricSelect = document.getElementById('metric-select');
+
+    // ÚJ: Helper függvény a CSS színátmenet generálásához
+    function createGradientCSS(gradient) {
+        const stops = Object.entries(gradient).sort(([a], [b]) => a - b);
+        const cssStops = stops.map(([stop, color]) => `${color} ${stop * 100}%`);
+        return `linear-gradient(to top, ${cssStops.join(', ')})`;
+    }
 
     // -----------------------------------------------------------------
     // 4. ADATLEKÉRÉS (▼▼▼ MÓDOSÍTVA ▼▼▼)
@@ -162,6 +178,10 @@
 
             if (error) throw error;
             if (heatLayer) map.removeLayer(heatLayer);
+            
+            // ÚJ: Jelmagyarázat eltávolítása
+            if (legendControl) map.removeControl(legendControl);
+
             if (data.length === 0) {
                 console.log("Nincs adat erre a szűrésre.");
                 return;
@@ -169,14 +189,39 @@
 
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
-            // ▼▼▼ MÓDOSÍTVA: Kisebb sugár (radius) és elmosás (blur) az élesebb pontokért ▼▼▼
+            // ▼▼▼ MÓDOSÍTVA: Élesebb pontok (radius: 12, blur: 8) ▼▼▼
             heatLayer = L.heatLayer(heatData, {
-                radius: 15,
-                blur: 10,
+                radius: 12,
+                blur: 8,
                 maxZoom: 18,
                 max: config.max,
                 gradient: config.gradient
             }).addTo(map);
+
+            // -----------------------------------------------------------------
+            // 5. ÚJ: JELMAGYARÁZAT HOZZÁADÁSA
+            // -----------------------------------------------------------------
+            legendControl = L.control({position: 'bottomright'});
+            legendControl.onAdd = function (map) {
+                const div = L.DomUtil.create('div', 'info legend');
+                const gradientCSS = createGradientCSS(config.gradient);
+                const currentLang = localStorage.getItem('language') || 'hu';
+                const title = translations[currentLang].legendTitle + ` (${config.unit})`;
+
+                div.innerHTML = `
+                    <div class="legend-title">${title}</div>
+                    <div style="display: flex;">
+                        <div class="legend-gradient" style="background: ${gradientCSS};"></div>
+                        <div class="legend-labels">
+                            <span class="max">${config.max}</span>
+                            <span class="mid">${(config.max + config.min) / 2}</span>
+                            <span class="min">${config.min}</span>
+                        </div>
+                    </div>
+                `;
+                return div;
+            };
+            legendControl.addTo(map);
 
         } catch (error) {
             console.error('Hiba a hőtérkép adatok lekérése közben:', error.message);
@@ -206,6 +251,7 @@
         periodSpring: "Tavasz (Már, Ápr, Máj)",
         periodSummer: "Nyár (Jún, Júl, Aug)",
         periodAutumn: "Ősz (Szep, Okt, Nov)",
+        legendTitle: "Jelmagyarázat", // ÚJ
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek."
       },
@@ -224,6 +270,7 @@
         periodSpring: "Spring (Mar, Apr, May)",
         periodSummer: "Summer (Jun, Jul, Aug)",
         periodAutumn: "Autumn (Sep, Oct, Nov)",
+        legendTitle: "Legend", // ÚJ
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified."
       }
@@ -257,6 +304,11 @@
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
+      
+      // ÚJ: Frissítse a jelmagyarázatot is, ha már létezik
+      if (legendControl) {
+          updateHeatmap(); // Egyszerűbb újrahívni a heatmap-et, ami újragenerálja a jelmagyarázatot
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {

@@ -50,6 +50,8 @@
     <div class="container mx-auto px-6 flex justify-center space-x-8">
       <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
       <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Összehasonlítás</a>
       <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Rólunk</a>
     </div>
   </nav>
@@ -174,6 +176,8 @@
         title: "Rólunk - Földrajz - Geoinformatika Intézet",
         navHome: "Kezdőlap",
         navMap: "Térkép",
+        navHeatmap: "Hőtérkép",
+        navComparison: "Összehasonlítás",
         navAbout: "Rólunk",
         heroTitle: "Levegőminőség-kutatás Miskolcon",
         heroSubtitle: "Mobil szenzorokkal végzett hosszútávú mérések a szennyezett levegő és az éghajlatváltozás hatásainak vizsgálatára",
@@ -200,6 +204,8 @@
         title: "About Us - Geography - Institute of Geoinformatics",
         navHome: "Home",
         navMap: "Map",
+        navHeatmap: "Heatmap",
+        navComparison: "Comparison",
         navAbout: "About",
         heroTitle: "Air Quality Research in Miskolc",
         heroSubtitle: "Long-term measurements with mobile sensors to study the effects of polluted air and climate change",
@@ -235,6 +241,8 @@
       document.getElementById('main-title').textContent = langData.title;
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+      document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('hero-title').textContent = langData.heroTitle;
       document.getElementById('hero-subtitle').textContent = langData.heroSubtitle;
