@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Nov  1 18:54:13 2025
+
+@author: szamosiattila
+"""
+
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-R">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title data-lang-hu="Szezonális Hőtérkép - MFKSensor" 
+           data-lang-en="Seasonal Heatmap - MFKSensor">
+           Szezonális Hőtérkép - MFKSensor
+    </title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+         crossorigin=""/>
+
+    <style>
+        body { font-family: sans-serif; margin: 0; }
+        nav { background-color: #333; padding: 10px; }
+        nav a { color: white; padding: 14px 20px; text-decoration: none; display: inline-block; }
+        nav a:hover { background-color: #ddd; color: black; }
+        #map { height: 80vh; width: 100%; }
+        .controls { padding: 10px; background-color: #f4f4f4; text-align: center; }
+        .controls select { margin: 5px; }
+        #loading-spinner {
+            display: none; /* Alapból rejtett */
+            margin-left: 15px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .lang-switcher { float: right; padding: 14px 10px; }
+        .lang-switcher a { color: white; text-decoration: none; padding: 0 5px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="index.html" data-lang-hu="Kezdőlap" data-lang-en="Home">Kezdőlap</a>
+    <a href="map.html" data-lang-hu="Térkép (Napi)" data-lang-en="Map (Daily)">Térkép (Napi)</a>
+    <a href="heatmap.html" data-lang-hu="Hőtérkép" data-lang-en="Heatmap">Hőtérkép</a>
+    <a href="comparison.html" data-lang-hu="Összehasonlítás" data-lang-en="Comparison">Összehasonlítás</a>
+    <a href="analytics.html" data-lang-hu="Statisztikák" data-lang-en="Analytics">Statisztikák</a>
+    <a href="about.html" data-lang-hu="Rólam" data-lang-en="About">Rólam</a>
+    
+    <div class="lang-switcher">
+        <a href="#" onclick="setLanguage('hu')" style="font-weight: bold;">HU</a>
+        <span style="color: white;">|</span>
+        <a href="#" onclick="setLanguage('en')">EN</a>
+    </div>
+</nav>
+
+<div class="controls">
+    <label for="period-select" 
+           data-lang-hu="<strong>Válassz időszakot:</strong>" 
+           data-lang-en="<strong>Select period:</strong>">
+           <strong>Válassz időszakot:</strong>
+    </label>
+    <select id="period-select">
+        <option value="annual" data-lang-hu="Összes (teljes átlag)" data-lang-en="All (total average)">Összes (teljes átlag)</option>
+        <option value="winter" data-lang-hu="Tél (Dec, Jan, Feb)" data-lang-en="Winter (Dec, Jan, Feb)">Tél (Dec, Jan, Feb)</option>
+        <option value="spring" data-lang-hu="Tavasz (Már, Ápr, Máj)" data-lang-en="Spring (Mar, Apr, May)">Tavasz (Már, Ápr, Máj)</option>
+        <option value="summer" data-lang-hu="Nyár (Jún, Júl, Aug)" data-lang-en="Summer (Jun, Jul, Aug)">Nyár (Jún, Júl, Aug)</option>
+        <option value="autumn" data-lang-hu="Ősz (Szep, Okt, Nov)" data-lang-en="Autumn (Sep, Oct, Nov)">Ősz (Szep, Okt, Nov)</option>
+    </select>
+    
+    <label for="metric-select" 
+           style="margin-left: 20px;"
+           data-lang-hu="<strong>Válassz adatot:</strong>" 
+           data-lang-en="<strong>Select metric:</strong>">
+           <strong>Válassz adatot:</strong>
+    </label>
+    <select id="metric-select">
+        <option value="pm2_5">PM2.5</option>
+        <option value="pm10_0">PM10.0</option>
+        <option value="co2">CO2</option> <option value="temperature">Hőmérséklet</option>
+        <option value="humidity">Páratartalom</option>
+        <option value="voc">VOC Index</option>
+        <option value="nox">NOx Index</option>
+        <option value="pm1_0">PM1.0</option>
+        <option value="pm4_0">PM4.0</option>
+    </select>
+    
+    <div id="loading-spinner"></div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // -----------------------------------------------------------------
+    // 1. SUPABASE BEÁLLÍTÁSOK (A TE KULCSAIDDAL)
+    // -----------------------------------------------------------------
+    const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // -----------------------------------------------------------------
+    // 2. METRIKA KONFIGURÁCIÓ (CO2-vel bővítve)
+    // -----------------------------------------------------------------
+    // A kulcsoknak meg kell egyezniük a <select> 'value' értékeivel (és az oszlopnevekkel)
+    const METRIC_CONFIG = {
+        'pm1_0':       { max: 50,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
+        'pm2_5':       { max: 50,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
+        'pm4_0':       { max: 75,  gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
+        'pm10_0':      { max: 100, gradient: { 0.4: 'green', 0.7: 'yellow', 1: 'red' } },
+        'temperature': { max: 35,  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } }, // Kék-Sárga-Piros
+        'humidity':    { max: 100, gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } }, // Sárga-Cián-Kék
+        'voc':         { max: 500, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
+        'nox':         { max: 200, gradient: { 0.2: 'green', 0.6: 'orange', 1: 'red' } },
+        'co2':         { max: 2000, gradient: { 0.2: 'green', 0.5: 'yellow', 1: 'red' } } // ÚJ: 400ppm(zöld) - 2000ppm(piros)
+    };
+    const DEFAULT_CONFIG = { max: 100, gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
+
+    // -----------------------------------------------------------------
+    // 3. TÉRKÉP INICIALIZÁLÁSA
+    // -----------------------------------------------------------------
+    const map = L.map('map').setView([47.95, 20.55], 10); // Eger-Miskolc középre
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    let heatLayer = null;
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const periodSelect = document.getElementById('period-select');
+    const metricSelect = document.getElementById('metric-select');
+
+    // -----------------------------------------------------------------
+    // 4. ADATLEKÉRŐ ÉS TÉRKÉP FRISSÍTŐ FUNKCIÓ
+    // -----------------------------------------------------------------
+    async function updateHeatmap() {
+        const period = periodSelect.value;
+        const metric = metricSelect.value;
+        const config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
+
+        loadingSpinner.style.display = 'inline-block';
+
+        try {
+            // A Supabase adatbázis függvény hívása
+            // Fontos: a függvény neve 'get_heatmap_data' legyen a Supabase-ban!
+            const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
+                period_filter: period,
+                metric: metric,
+                grid_size: 0.001 // kb. 100m-es rács
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+            }
+
+            if (data.length === 0) {
+                console.log("Nincs adat erre a szűrésre.");
+                return;
+            }
+
+            const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
+            
+            heatLayer = L.heatLayer(heatData, {
+                radius: 20,
+                blur: 25,
+                maxZoom: 18,
+                max: config.max,         // Konfigból vett maximum
+                gradient: config.gradient  // Konfigból vett színskála
+            }).addTo(map);
+
+        } catch (error) {
+            console.error('Hiba a hőtérkép adatok lekérése közben:', error.message);
+            alert('Hiba történt az adatok lekérése közben. Lásd a konzolt.');
+        } finally {
+            loadingSpinner.style.display = 'none';
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 5. ESEMÉNYKEZELŐ ÉS INDÍTÁS
+    // -----------------------------------------------------------------
+    periodSelect.addEventListener('change', updateHeatmap);
+    metricSelect.addEventListener('change', updateHeatmap);
+    
+    // Az oldal betöltődésekor azonnal futtassuk le az alapbeállításokkal
+    // A 'DOMContentLoaded' esemény megvárja, míg a nyelvváltó lefut
+    // document.addEventListener('DOMContentLoaded', updateHeatmap);
+    // Módosítás: A nyelvváltó szkript fut le először, és az hívja a 'translatePage'-et.
+    // Az 'updateHeatmap' fusson le a nyelvváltó script *után*.
+</script>
+
+<script>
+    const allTranslatableElements = document.querySelectorAll('[data-lang-hu]');
+    const langLinks = {
+        hu: document.querySelector('.lang-switcher a[onclick*="setLanguage(\'hu\')"]'),
+        en: document.querySelector('.lang-switcher a[onclick*="setLanguage(\'en\')"]')
+    };
+
+    function translatePage(lang) {
+        allTranslatableElements.forEach(el => {
+            const text = el.getAttribute(`data-lang-${lang}`);
+            if (text) {
+                if (el.tagName === 'TITLE') {
+                    document.title = text; // Címsor speciális kezelése
+                } else {
+                    el.innerHTML = text; // Minden más elem
+                }
+            }
+        });
+        
+        if (langLinks.hu && langLinks.en) {
+            langLinks.hu.style.fontWeight = (lang === 'hu') ? 'bold' : 'normal';
+            langLinks.en.style.fontWeight = (lang === 'en') ? 'bold' : 'normal';
+        }
+        localStorage.setItem('preferredLanguage', lang);
+    }
+
+    function setLanguage(lang) {
+        event.preventDefault(); 
+        translatePage(lang);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedLang = localStorage.getItem('preferredLanguage') || 'hu';
+        translatePage(savedLang);
+        
+        // Most, hogy a nyelv beállt, indíthatjuk a térkép betöltését
+        updateHeatmap();
+    });
+</script>
+
+</body>
+</html>

@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Nov  1 19:38:05 2025
+
+@author: szamosiattila
+"""
+
 <!DOCTYPE html>
 <html lang="hu">
 <head>
@@ -24,6 +32,11 @@
     .lang-btn:hover:not(.active) {
       background: rgba(255,255,255,0.2);
     }
+    
+    /* Hozzáadunk egy kis átmenetet a színváltáshoz */
+    #dataTable p {
+      transition: color 0.3s ease-in-out;
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -36,9 +49,12 @@
   </header>
 
   <nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex justify-center space-x-8">
+    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2"> 
       <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
       <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
+      
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
       <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
     </div>
   </nav>
@@ -81,6 +97,8 @@
         title: "Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok",
         navHome: "Kezdőlap",
         navMap: "Térkép",
+        navHeatmap: "Hőtérkép",
+        navComparison: "Összehasonlítás",
         navAbout: "Rólunk",
         sensorLabel: "Válassz szenzort:",
         timestamp: "Időbélyeg",
@@ -101,6 +119,8 @@
         title: "Climate Change Multidisciplinary National Laboratory 7B Subproject Air Quality Sensor Data",
         navHome: "Home",
         navMap: "Map",
+        navHeatmap: "Heatmap",
+        navComparison: "Comparison",
         navAbout: "About",
         sensorLabel: "Select sensor:",
         timestamp: "Timestamp",
@@ -118,6 +138,73 @@
         footer: "© Realized with the support of the Climate Change Multidisciplinary National Laboratory project."
       }
     };
+    
+    // --- ÚJ FUNKCIÓ ---
+    /**
+     * Visszaad egy TailwindCSS szín-osztályt az érték és a típus alapján.
+     * @param {string} key - Az adat típusa (pl. 'PM2,5', 'CO2')
+     * @param {string|number} value - A mért érték
+     * @returns {string} - A TailwindCSS osztály (pl. 'text-green-600')
+     */
+    function getColorForValue(key, value) {
+        const v = parseFloat(value);
+        if (isNaN(v)) return 'text-gray-800'; // Alapértelmezett szín "N/A" esetén
+
+        // A kulcsoknak meg kell egyezniük a 'fields' tömbben lévő 'key' értékekkel
+        switch (key) {
+            // PM2.5 (és társai) AQI szintek (EU)
+            case 'PM1':
+            case 'PM2,5':
+            case 'PM4':
+                if (v <= 10) return 'text-green-600';     // Jó
+                if (v <= 20) return 'text-yellow-600';    // Elfogadható
+                if (v <= 25) return 'text-orange-600';   // Mérsékelt
+                if (v <= 50) return 'text-red-600';       // Rossz
+                return 'text-purple-700';                 // Nagyon rossz
+            
+            // PM10 AQI szintek (EU)
+            case 'PM10':
+                if (v <= 20) return 'text-green-600';     // Jó
+                if (v <= 40) return 'text-yellow-600';    // Elfogadható
+                if (v <= 50) return 'text-orange-600';   // Mérsékelt
+                if (v <= 100) return 'text-red-600';      // Rossz
+                return 'text-purple-700';                 // Nagyon rossz
+
+            // CO2 szintek (beltéri levegő)
+            case 'CO2':
+                if (v <= 1000) return 'text-green-600';   // Ideális
+                if (v <= 2000) return 'text-yellow-600';  // Emelkedett
+                return 'text-red-600';                    // Magas
+
+            // VOC Index (Sensirion)
+            case 'VOC':
+                if (v <= 150) return 'text-green-600';   // Normál
+                if (v <= 250) return 'text-yellow-600';  // Emelkedett
+                return 'text-red-600';                    // Magas
+                
+            // NOx Index (Sensirion)
+            case 'NOx':
+                if (v <= 50) return 'text-green-600';    // Normál
+                if (v <= 100) return 'text-yellow-600';   // Emelkedett
+                return 'text-red-600';                    // Magas
+
+            // Hőmérséklet (komfort)
+            case 'Temp':
+                if (v < 10) return 'text-blue-600';       // Hideg
+                if (v >= 10 && v <= 25) return 'text-green-600'; // Kellemes
+                return 'text-orange-600';                 // Meleg
+
+            // Páratartalom (komfort)
+            case 'Humidity':
+                if (v < 30) return 'text-yellow-600';     // Száraz
+                if (v >= 30 && v <= 60) return 'text-green-600'; // Ideális
+                return 'text-blue-600';                   // Párás
+
+            default:
+                return 'text-gray-800'; // Alapértelmezett (pl. Időbélyeg)
+        }
+    }
+    // --- ÚJ FUNKCIÓ VÉGE ---
 
     // Set and apply language
     function setLanguage(lang) {
@@ -133,6 +220,8 @@
       document.getElementById('main-title').textContent = langData.title;
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+      document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('sensor-label').textContent = langData.sensorLabel;
       document.getElementById('footer-text').textContent = langData.footer;
@@ -152,17 +241,18 @@
 
     function updateDataLabels(lang) {
       const langData = translations[lang];
-      document.querySelectorAll('#dataTable > div').forEach(cell => {
-        const header = cell.querySelector('h3');
-        if (header) {
-          const key = header.textContent.trim();
-          for (const [enKey, huText] of Object.entries(translations.hu)) {
-            if (huText === key) {
-              header.textContent = translations[lang][enKey];
-              break;
-            }
+      const currentFields = [
+          'timestamp', 'pm1', 'pm25', 'pm4', 'pm10', 
+          'humidity', 'temp', 'voc', 'nox', 'co2'
+      ];
+      
+      document.querySelectorAll('#dataTable > div').forEach((cell, index) => {
+          const header = cell.querySelector('h3');
+          if (header && currentFields[index]) {
+              // A 'fields' tömb (lentebb) és ez a tömb alapján fordítunk
+              const key = currentFields[index];
+              header.textContent = langData[key];
           }
-        }
       });
     }
 
@@ -191,34 +281,54 @@
 
             const latestData = results.data[results.data.length - 1];
             dataTable.innerHTML = '';
+            
+            const currentLang = localStorage.getItem('language') || 'hu';
 
             const fields = [
-              { key: 'Timestamp', label: translations[localStorage.getItem('language') || 'hu'].timestamp, unit: '' },
-              { key: 'PM1', label: translations[localStorage.getItem('language') || 'hu'].pm1, unit: 'µg/m³' },
-              { key: 'PM2,5', label: translations[localStorage.getItem('language') || 'hu'].pm25, unit: 'µg/m³' },
-              { key: 'PM4', label: translations[localStorage.getItem('language') || 'hu'].pm4, unit: 'µg/m³' },
-              { key: 'PM10', label: translations[localStorage.getItem('language') || 'hu'].pm10, unit: 'µg/m³' },
-              { key: 'Humidity', label: translations[localStorage.getItem('language') || 'hu'].humidity, unit: '%' },
-              { key: 'Temp', label: translations[localStorage.getItem('language') || 'hu'].temp, unit: '°C' },
-              { key: 'VOC', label: translations[localStorage.getItem('language') || 'hu'].voc, unit: 'index' },
-              { key: 'NOx', label: translations[localStorage.getItem('language') || 'hu'].nox, unit: 'index' },
-              { key: 'CO2', label: translations[localStorage.getItem('language') || 'hu'].co2, unit: 'ppm' }
+              // Figyelem: A 'key' értéknek pontosan meg kell egyeznie a CSV fejlécével!
+              { key: 'Timestamp', label: translations[currentLang].timestamp, unit: '' },
+              { key: 'PM1', label: translations[currentLang].pm1, unit: 'µg/m³' },
+              { key: 'PM2,5', label: translations[currentLang].pm25, unit: 'µg/m³' }, // A CSV-ben 'PM2,5' van
+              { key: 'PM4', label: translations[currentLang].pm4, unit: 'µg/m³' },
+              { key: 'PM10', label: translations[currentLang].pm10, unit: 'µg/m³' },
+              { key: 'Humidity', label: translations[currentLang].humidity, unit: '%' },
+              { key: 'Temp', label: translations[currentLang].temp, unit: '°C' },
+              { key: 'VOC', label: translations[currentLang].voc, unit: 'index' },
+              { key: 'NOx', label: translations[currentLang].nox, unit: 'index' },
+              { key: 'CO2', label: translations[currentLang].co2, unit: 'ppm' }
             ];
 
+            // --- MÓDOSÍTOTT RÉSZ ---
             fields.forEach(field => {
               const value = latestData[field.key] || 'N/A';
+              
+              // 1. Meghívjuk az új színező függvényt
+              const valueColorClass = getColorForValue(field.key, value);
+              
               const cell = document.createElement('div');
               cell.className = `p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
-                field.key === 'Timestamp' ? 'lg:col-span-3' : ''
+                field.key === 'Timestamp' ? 'lg:col-span-3' : '' // 'lg:col-span-3' az 5 oszlopos rácshoz igazítva
               }`;
+              
+              let valueHtml;
+              if (field.key === 'Timestamp') {
+                 // Az időbélyeg ne legyen színes, és nincs mértékegysége
+                valueHtml = `<p class="text-lg font-bold text-gray-800">${value}</p>`;
+              } else {
+                 // A többi adat megkapja a színt és a mértékegységet
+                valueHtml = `<p class="text-2xl font-bold ${valueColorClass}">${value} <span class="text-gray-500 text-sm font-medium">${field.unit}</span></p>`;
+              }
+
               cell.innerHTML = `
                 <h3 class="text-sm font-semibold text-green-700">${field.label}</h3>
-                <p class="text-lg font-bold text-gray-800">${value} <span class="text-gray-500">${field.unit}</span></p>
+                ${valueHtml}
               `;
+              // --- MÓDOSÍTÁS VÉGE ---
+              
               dataTable.appendChild(cell);
             });
 
-            lastUpdated.textContent = `${translations[localStorage.getItem('language') || 'hu'].lastUpdated} ${new Date().toLocaleString(localStorage.getItem('language') === 'en' ? 'en-US' : 'hu-HU')}`;
+            lastUpdated.textContent = `${translations[currentLang].lastUpdated} ${new Date().toLocaleString(currentLang === 'en' ? 'en-US' : 'hu-HU')}`;
           },
           error: function(error) {
             dataTable.innerHTML = '<p class="text-red-500 col-span-full">Hiba az adatok feldolgozásakor. Kérjük, ellenőrizze a Google Sheets megosztási beállításait.</p>';
@@ -233,18 +343,18 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       const savedLang = localStorage.getItem('language') || 'hu';
-      setLanguage(savedLang);
+      setLanguage(savedLang); // Ez beállítja a nyelvet, de még nem frissíti az adatokat
 
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           setLanguage(btn.dataset.lang);
-          fetchAndDisplayData();
+          fetchAndDisplayData(); // Nyelvváltáskor is frissítünk
         });
       });
 
       if (typeof Papa !== 'undefined') {
-        fetchAndDisplayData();
-        setInterval(fetchAndDisplayData, 15000);
+        fetchAndDisplayData(); // Az oldal betöltésekor azonnal lefuttatjuk
+        setInterval(fetchAndDisplayData, 15000); // Majd 15 másodpercenként
         sensorSelect.addEventListener('change', fetchAndDisplayData);
       } else {
         dataTable.innerHTML = '<p class="text-red-500 col-span-full">Hiba: A Papa Parse könyvtár nem töltődött be.</p>';
