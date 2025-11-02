@@ -121,7 +121,9 @@
     <p id="significance-note" class="text-sm font-semibold mt-2"></p>
 </div>
 
-
+<div id="chart-container">
+    <canvas id="correlationChart"></canvas>
+</div>
 <div class="bg-white p-6 rounded-xl shadow-lg max-w-3xl mx-auto my-6 text-sm text-left">
     <h3 id="method-title" class="text-xl font-bold text-green-700 mb-3">Módszertani leírás</h3>
     
@@ -141,9 +143,6 @@
         <li id="method-mode-polluted" class="mb-1"><strong class="text-gray-900">Szennyezett adatsor:</strong> Csak azokat a rácscellákat vizsgálja, ahol az átlagértékek a "tiszta" háttérszennyezettség felett vannak (pl. NOx > 1 és VOC > 100). Ez a "hotspotok" belső korrelációja.</li>
         <li id="method-mode-all" class="mb-1"><strong class="text-gray-900">Teljes adatsor:</strong> Az összes rácscellát figyelembe veszi, beleértve a tiszta területeket is. Ez a teljes rendszer ("rálátás") viselkedését mutatja.</li>
     </ul>
-</div>
-<div id="chart-container">
-    <canvas id="correlationChart"></canvas>
 </div>
 
 <footer class="bg-green-700 text-white text-center py-4 mt-auto">
@@ -184,26 +183,29 @@
     // 2. STATISZTIKAI FÜGGVÉNYEK (Változatlan)
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
-        if (typeof jStat === 'undefined' || typeof jStat.corr !== 'function') {
-            console.error("jStat library or jStat.corr function is not loaded!");
+        if (typeof jStat === 'undefined' || typeof jStat.corrcoeff !== 'function') {
+            console.error("jStat library or jStat.corrcoeff function is not loaded!");
             return { r: NaN, p: NaN, n: 0 };
         }
         if (x.length !== y.length || x.length < 3) { 
             return { r: NaN, p: NaN, n: x.length };
         }
         try {
-            const r = jStat.corr(x, y); // JAVÍTOTT HÍVÁS
+            const r = jStat.corrcoeff(x, y);  // JAVÍTVA: corrcoeff
             const n = x.length;
+        
             if (r === 1 || r === -1) return { r, p: 0, n };
             if (isNaN(r)) {
                 console.warn("Correlation is NaN. Check for zero variance in data.");
                 return { r: NaN, p: NaN, n };
             }
+
             const t = r * Math.sqrt((n - 2) / (1 - r * r));
-            const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2)); 
+            const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2));
+        
             return { r, p, n };
         } catch (e) {
-            console.error("jStat statistical error:", e.message);
+            console.error("jStat error:", e.message);
             return { r: NaN, p: NaN, n: x.length };
         }
     }
