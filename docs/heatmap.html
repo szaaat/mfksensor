@@ -134,6 +134,9 @@
     // -----------------------------------------------------------------
     // 2. METRIKA KONFIG (Frissítve: Szuper-érzékeny NOx skála)
     // -----------------------------------------------------------------
+    // -----------------------------------------------------------------
+    // 2. METRIKA KONFIG (Frissítve: Éles NOx skála 1-nél)
+    // -----------------------------------------------------------------
     const METRIC_CONFIG = {
         // A többi PM, T, H, CO2, VOC beállítás változatlan
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
@@ -150,13 +153,13 @@
 
         // ▼▼▼ EZ A MÓDOSÍTOTT RÉSZ ▼▼▼
         'nox': { 
-            max: 10, min: 0, unit: 'index', // A maximum 10 (a 250 helyett)
+            max: 10, min: 0, unit: 'index', // A maximum 10
             // A skála a 10-es maximumhoz van arányosítva:
             // 1 / 10 = 0.1 (eddig zöld)
-            // 2 / 10 = 0.2 (innentől sárga)
-            // 5 / 10 = 0.5 (innentől narancs)
-            // 8 / 10 = 0.8 (innentől piros)
-            gradient: { 0.1: '#00E400', 0.2: '#FFFF00', 0.5: '#FF9900', 0.8: '#FF0000' } 
+            // 1.1 / 10 = 0.11 (innentől azonnal sárga)
+            // 3 / 10 = 0.3 (innentől narancs)
+            // 6 / 10 = 0.6 (innentől piros)
+            gradient: { 0.1: '#00E400', 0.11: '#FFFF00', 0.3: '#FF9900', 0.6: '#FF0000' } 
         }
         // ▲▲▲ MÓDOSÍTÁS VÉGE ▲▲▲
     };
