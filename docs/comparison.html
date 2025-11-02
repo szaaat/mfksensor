@@ -158,29 +158,30 @@
     // -----------------------------------------------------------------
     // 2. METRIKA KONFIG (Frissítve: Éles NOx skála 1-nél)
     // -----------------------------------------------------------------
+    // -----------------------------------------------------------------
+    // 2. METRIKA KONFIG (Frissítve: Szuper-érzékeny skála)
+    // -----------------------------------------------------------------
     const METRIC_CONFIG = {
-        // PM, T, H - beállítások
-        'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } }, // Min maradhat 0
-        'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, // Min 5-re állítva
-        'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } }, // Min maradhat 0
-        'pm10_0':      { max: 40, min: 10, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, // Min 10-re állítva
-        'temperature': { max: 35, min: 0, unit: '°C',  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } }, // Változatlan
-        'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } }, // Változatlan
+        // PM, T, H, CO2 - Változatlan
+        'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
+        'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
+        'pm10_0':      { max: 40, min: 10, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
+        'temperature': { max: 35, min: 0, unit: '°C',  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } },
+        'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } },
+        'co2':         { max: 1200, min: 500, unit: 'ppm', gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } }, 
 
-        // ▼▼▼ MÓDOSÍTOTT RÉSZ ▼▼▼
-        'co2': { 
-            max: 1200, min: 500, unit: 'ppm', // 'min' most már 500
-            gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } 
-        },
+        // ▼▼▼ EZ A MÓDOSÍTOTT RÉSZ ▼▼▼
         'voc': { 
-            max: 250, min: 100, unit: 'index', // 'min' most már 100, a max-ot 250-re állítjuk
-            // A skála most sárgával indul 100-nál
-            gradient: { 0.1: '#FFFF00', 0.6: '#FF9900', 1: '#FF0000' } 
+            max: 120, min: 100, unit: 'index', // Max: 120 (a 150 helyett)
+            // A skála 100-nál (normál) kezdődik és 120-nál (extrém) végződik
+            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
         },
         'nox': { 
-            max: 10, min: 1, unit: 'index', // 'min' most már 1
-            // A skála most sárgával indul 1-nél (ami 0.1 a 10-es max skálán)
-            gradient: { 0.1: '#FFFF00', 0.3: '#FF9900', 0.6: '#FF0000' } 
+            max: 3, min: 1, unit: 'index', // Max: 3 (a 10 helyett)
+            // A skála 1-nél (normál) kezdődik és 3-nál (extrém) végződik
+            // A "dugó" (2-es érték) pont a narancs és sárga közé esik (0.5)
+            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
         }
         // ▲▲▲ MÓDOSÍTÁS VÉGE ▲▲▲
     };
@@ -232,7 +233,7 @@
         spinnerLeft.style.display = 'inline-block';
         try {
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
-                period_filter: period, metric: metric, grid_size: 0.002
+                period_filter: period, metric: metric, grid_size: 0.001
             });
             if (error) throw error;
             if (heatLayerLeft) mapLeft.removeLayer(heatLayerLeft);
