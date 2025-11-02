@@ -146,9 +146,9 @@
     // 2. STATISZTIKAI FÜGGVÉNYEK (JAVÍTVA a jStat hívás)
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
-        // Ellenőrizzük, hogy a jStat betöltődött-e
-        if (typeof jStat !== 'function') {
-            console.error("jStat library is not loaded!");
+        // Ellenőrizzük, hogy a jStat és a .corr funkció betöltődött-e
+        if (typeof jStat === 'undefined' || typeof jStat.corr !== 'function') {
+            console.error("jStat library or jStat.corr function is not loaded!");
             return { r: NaN, p: NaN, n: 0 };
         }
         
@@ -158,12 +158,16 @@
         
         try {
             // ▼▼▼ JAVÍTOTT jStat HÍVÁS ▼▼▼
-            // Nem jStat.corr(x,y), hanem jStat(x).corr(y)
-            const r = jStat(x).corr(y);
+            // A helyes hívás: jStat.corr(array1, array2)
+            const r = jStat.corr(x, y); 
             const n = x.length;
             
             if (r === 1 || r === -1) return { r, p: 0, n }; // Tökéletes korreláció
-            if (isNaN(r)) return { r: NaN, p: NaN, n };
+            if (isNaN(r)) {
+                // Akkor fordul elő, ha az egyik tömbnek 0 a szórása (minden érték ugyanaz)
+                console.warn("Correlation is NaN. Check for zero variance in data.");
+                return { r: NaN, p: NaN, n };
+            }
 
             // p-érték számítása (Student-t eloszlás alapján)
             const t = r * Math.sqrt((n - 2) / (1 - r * r));
@@ -173,7 +177,6 @@
             return { r, p, n };
         } catch (e) {
             console.error("jStat statistical error:", e.message);
-            // Ez akkor történhet meg, ha pl. minden érték ugyanaz (nincs szórás)
             return { r: NaN, p: NaN, n: x.length };
         }
     }
