@@ -152,6 +152,9 @@
     // -----------------------------------------------------------------
     // 2. METRIKA KONFIG (Frissítve a 'nox' érzékenységgel)
     // -----------------------------------------------------------------
+    // -----------------------------------------------------------------
+    // 2. METRIKA KONFIG (Frissítve: Szuper-érzékeny NOx skála)
+    // -----------------------------------------------------------------
     const METRIC_CONFIG = {
         // A többi PM, T, H, CO2, VOC beállítás változatlan
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
@@ -162,19 +165,19 @@
         'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } },
         'co2':         { max: 1200, min: 400, unit: 'ppm', gradient: { 0.33: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'voc': { 
-            max: 500, min: 0, unit: 'index',
-            gradient: { 0.2: '#00E400', 0.4: '#FFFF00', 0.6: '#FF9900', 1: '#FF0000' } 
+            max: 150, min: 0, unit: 'index',
+            gradient: { 0.66: '#00E400', 0.8: '#FFFF00', 0.9: '#FF9900', 1: '#FF0000' } 
         },
 
         // ▼▼▼ EZ A MÓDOSÍTOTT RÉSZ ▼▼▼
         'nox': { 
-            max: 250, min: 0, unit: 'index', 
-            // A skála a 250-es maximumhoz van arányosítva:
-            // 1 / 250 = 0.004 (itt a zöld)
-            // 2 / 250 = 0.008 (innentől sárga)
-            // 50 / 250 = 0.2 (innentől narancs)
-            // 100 / 250 = 0.4 (innentől piros)
-            gradient: { 0.004: '#00E400', 0.008: '#FFFF00', 0.2: '#FF9900', 0.4: '#FF0000' } 
+            max: 10, min: 0, unit: 'index', // A maximum 10 (a 250 helyett)
+            // A skála a 10-es maximumhoz van arányosítva:
+            // 1 / 10 = 0.1 (eddig zöld)
+            // 2 / 10 = 0.2 (innentől sárga)
+            // 5 / 10 = 0.5 (innentől narancs)
+            // 8 / 10 = 0.8 (innentől piros)
+            gradient: { 0.1: '#00E400', 0.2: '#FFFF00', 0.5: '#FF9900', 0.8: '#FF0000' } 
         }
         // ▲▲▲ MÓDOSÍTÁS VÉGE ▲▲▲
     };
