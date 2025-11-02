@@ -145,24 +145,7 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (▼▼▼ MÓDOSÍTVA ▼▼▼)
-    // -----------------------------------------------------------------
-    // Ugyanazok az érzékenyebb beállítások, mint a heatmap.html-ben
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (Frissítve a 'nox' érzékenységgel)
-    // -----------------------------------------------------------------
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (Frissítve: Szuper-érzékeny NOx skála)
-    // -----------------------------------------------------------------
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (Frissítve: Éles NOx skála 1-nél)
-    // -----------------------------------------------------------------
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (Frissítve: Szuper-érzékeny skála)
-    // -----------------------------------------------------------------
     const METRIC_CONFIG = {
-        // PM, T, H, CO2 - Változatlan
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
         'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
@@ -170,62 +153,41 @@
         'temperature': { max: 35, min: 0, unit: '°C',  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } },
         'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } },
         'co2':         { max: 1200, min: 500, unit: 'ppm', gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } }, 
-
-        // ▼▼▼ EZ A MÓDOSÍTOTT RÉSZ ▼▼▼
-        'voc': { 
-            max: 120, min: 100, unit: 'index', // Max: 120 (a 150 helyett)
-            // A skála 100-nál (normál) kezdődik és 120-nál (extrém) végződik
-            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
-        },
-        'nox': { 
-            max: 3, min: 1, unit: 'index', // Max: 3 (a 10 helyett)
-            // A skála 1-nél (normál) kezdődik és 3-nál (extrém) végződik
-            // A "dugó" (2-es érték) pont a narancs és sárga közé esik (0.5)
-            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
-        }
-        // ▲▲▲ MÓDOSÍTÁS VÉGE ▲▲▲
+        'voc':         { max: 120, min: 100, unit: 'index', gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } },
+        'nox':         { max: 3, min: 1, unit: 'index', gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } }
     };
     const DEFAULT_CONFIG = { max: 100, min: 0, unit: '', gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
 
-    // ÚJ: Helper függvény a CSS színátmenet generálásához
     function createGradientCSS(gradient) {
         const stops = Object.entries(gradient).sort(([a], [b]) => a - b);
         const cssStops = stops.map(([stop, color]) => `${color} ${stop * 100}%`);
         return `linear-gradient(to top, ${cssStops.join(', ')})`;
     }
 
-    // -----------------------------------------------------------------
-    // 3. TÉRKÉP INICIALIZÁLÁS ÉS SZINKRONIZÁLÁS
-    // -----------------------------------------------------------------
+    // Térképek
     const mapLeft = L.map('map-left').setView([47.95, 20.55], 10);
     const mapRight = L.map('map-right').setView([47.95, 20.55], 10);
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapLeft);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapRight);
-
     mapLeft.sync(mapRight);
     mapRight.sync(mapLeft);
 
-    // -----------------------------------------------------------------
-    // 4. DOM ELEMEK ÉS VÁLTOZÓK
-    // -----------------------------------------------------------------
+    // DOM
     const periodLeft = document.getElementById('period-select-left');
     const metricLeft = document.getElementById('metric-select-left');
     const spinnerLeft = document.getElementById('loading-spinner-left');
     let heatLayerLeft = null;
-    let legendLeft = null; // ÚJ
+    let legendLeft = null;
 
     const periodRight = document.getElementById('period-select-right');
     const metricRight = document.getElementById('metric-select-right');
     const spinnerRight = document.getElementById('loading-spinner-right');
     let heatLayerRight = null;
-    let legendRight = null; // ÚJ
+    let legendRight = null;
 
     // -----------------------------------------------------------------
-    // 5. ADATLEKÉRŐ FUNKCIÓK (▼▼▼ MÓDOSÍTVA ▼▼▼)
+    // BAL TÉRKÉP
     // -----------------------------------------------------------------
-
-    // Bal térkép frissítője
     async function updateMapLeft() {
         const period = periodLeft.value;
         const metric = metricLeft.value;
@@ -237,26 +199,29 @@
             });
             if (error) throw error;
             if (heatLayerLeft) mapLeft.removeLayer(heatLayerLeft);
-            if (legendLeft) mapLeft.removeControl(legendLeft); // ÚJ
-            if (data.length === 0) return;
+            if (legendLeft) mapLeft.removeControl(legendLeft);
+            if (!data || data.length === 0) return;
 
-            const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
-            
-            // ▼▼▼ MÓDOSÍTVA: Élesebb pontok ▼▼▼
-            heatLayer = L.heatLayer(heatData, {
+            const heatData = data.map(p => {
+                let intensity = p.intensity;
+
+                // Finom erősítés: csak VOC és NOx
+                if (metric === 'voc') intensity *= 1.3;
+                if (metric === 'nox') intensity *= 1.5;
+
+                intensity = Math.min(intensity, 2.5); // ne legyen túl világos
+                return [p.lat, p.lon, intensity];
+            });
+
+            heatLayerLeft = L.heatLayer(heatData, {
                 radius: 14,
                 blur: 6,
                 maxZoom: 18,
-                max: 1.0,                    // FIX 1.0
+                max: 1.0,                    // FIX: mindig 1.0
                 gradient: config.gradient
-            }).addTo(map);
+            }).addTo(mapLeft);
 
-    intensity = Math.min(intensity, 3.0);  // ne legyen túl világos
-
-    return [p.lat, p.lon, intensity];
-});
-
-            // ÚJ: Jelmagyarázat hozzáadása
+            // Jelmagyarázat
             legendLeft = L.control({position: 'bottomright'});
             legendLeft.onAdd = function (map) {
                 const div = L.DomUtil.create('div', 'info legend');
@@ -269,7 +234,7 @@
                         <div class="legend-gradient" style="background: ${gradientCSS};"></div>
                         <div class="legend-labels">
                             <span class="max">${config.max}</span>
-                            <span class="mid">${(config.max + config.min) / 2}</span>
+                            <span class="mid">${((config.max + config.min) / 2).toFixed(1)}</span>
                             <span class="min">${config.min}</span>
                         </div>
                     </div>
@@ -278,11 +243,16 @@
             };
             legendLeft.addTo(mapLeft);
 
-        } catch (error) { console.error('Hiba (Bal Térkép):', error.message); } 
-        finally { spinnerLeft.style.display = 'none'; }
+        } catch (error) {
+            console.error('Hiba (Bal):', error.message);
+        } finally {
+            spinnerLeft.style.display = 'none';
+        }
     }
 
-    // Jobb térkép frissítője
+    // -----------------------------------------------------------------
+    // JOBB TÉRKÉP
+    // -----------------------------------------------------------------
     async function updateMapRight() {
         const period = periodRight.value;
         const metric = metricRight.value;
@@ -294,21 +264,28 @@
             });
             if (error) throw error;
             if (heatLayerRight) mapRight.removeLayer(heatLayerRight);
-            if (legendRight) mapRight.removeControl(legendRight); // ÚJ
-            if (data.length === 0) return;
+            if (legendRight) mapRight.removeControl(legendRight);
+            if (!data || data.length === 0) return;
 
-            const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
-            
-            // ▼▼▼ MÓDOSÍTVA: Élesebb pontok ▼▼▼
-            heatLayer = L.heatLayer(heatData, {
+            const heatData = data.map(p => {
+                let intensity = p.intensity;
+
+                if (metric === 'voc') intensity *= 1.3;
+                if (metric === 'nox') intensity *= 1.5;
+
+                intensity = Math.min(intensity, 2.5);
+                return [p.lat, p.lon, intensity];
+            });
+
+            heatLayerRight = L.heatLayer(heatData, {
                 radius: 14,
                 blur: 6,
                 maxZoom: 18,
-                max: 1.0,                    // FIX 1.0
+                max: 1.0,                    // FIX: mindig 1.0
                 gradient: config.gradient
-            }).addTo(map);
+            }).addTo(mapRight);
 
-            // ÚJ: Jelmagyarázat hozzáadása
+            // Jelmagyarázat
             legendRight = L.control({position: 'bottomright'});
             legendRight.onAdd = function (map) {
                 const div = L.DomUtil.create('div', 'info legend');
@@ -321,7 +298,7 @@
                         <div class="legend-gradient" style="background: ${gradientCSS};"></div>
                         <div class="legend-labels">
                             <span class="max">${config.max}</span>
-                            <span class="mid">${(config.max + config.min) / 2}</span>
+                            <span class="mid">${((config.max + config.min) / 2).toFixed(1)}</span>
                             <span class="min">${config.min}</span>
                         </div>
                     </div>
@@ -330,14 +307,24 @@
             };
             legendRight.addTo(mapRight);
 
-        } catch (error) { console.error('Hiba (Jobb Térkép):', error.message); } 
-        finally { spinnerRight.style.display = 'none'; }
+        } catch (error) {
+            console.error('Hiba (Jobb):', error.message);
+        } finally {
+            spinnerRight.style.display = 'none';
+        }
     }
 
+    // Események
     periodLeft.addEventListener('change', updateMapLeft);
     metricLeft.addEventListener('change', updateMapLeft);
     periodRight.addEventListener('change', updateMapRight);
     metricRight.addEventListener('change', updateMapRight);
+
+    // Indítás
+    document.addEventListener('DOMContentLoaded', () => {
+        updateMapLeft();
+        updateMapRight();
+    });
 </script>
 
 <script>
