@@ -169,29 +169,32 @@
     // 2. STATISZTIKAI FÜGGVÉNYEK (A javított jStat hívással)
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
-        if (typeof jStat === 'undefined' || typeof jStat.corr !== 'function') {
-            console.error("jStat library or jStat.corr function is not loaded!");
-            return { r: NaN, p: NaN, n: 0 };
-        }
-        if (x.length !== y.length || x.length < 3) { 
-            return { r: NaN, p: NaN, n: x.length };
-        }
-        try {
-            const r = jStat.corr(x, y); // JAVÍTOTT HÍVÁS
-            const n = x.length;
-            if (r === 1 || r === -1) return { r, p: 0, n };
-            if (isNaN(r)) {
-                console.warn("Correlation is NaN. Check for zero variance in data.");
-                return { r: NaN, p: NaN, n };
-            }
-            const t = r * Math.sqrt((n - 2) / (1 - r * r));
-            const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2)); 
-            return { r, p, n };
-        } catch (e) {
-            console.error("jStat statistical error:", e.message);
-            return { r: NaN, p: NaN, n: x.length };
-        }
+    if (typeof jStat === 'undefined' || typeof jStat.corrcoeff !== 'function') {
+        console.error("jStat library or jStat.corrcoeff function is not loaded!");
+        return { r: NaN, p: NaN, n: 0 };
     }
+    if (x.length !== y.length || x.length < 3) { 
+        return { r: NaN, p: NaN, n: x.length };
+    }
+    try {
+        const r = jStat.corrcoeff(x, y);  // JAVÍTVA: corrcoeff
+        const n = x.length;
+        
+        if (r === 1 || r === -1) return { r, p: 0, n };
+        if (isNaN(r)) {
+            console.warn("Correlation is NaN. Check for zero variance in data.");
+            return { r: NaN, p: NaN, n };
+        }
+
+        const t = r * Math.sqrt((n - 2) / (1 - r * r));
+        const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2));
+        
+        return { r, p, n };
+    } catch (e) {
+        console.error("jStat error:", e.message);
+        return { r: NaN, p: NaN, n: x.length };
+    }
+}
 
     // -----------------------------------------------------------------
     // 3. FŐ FÜGGVÉNY (AZ ÚJ RPC-VEL ÉS MÓD VÁLTÓVAL)
