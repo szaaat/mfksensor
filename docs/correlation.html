@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Korreláció Elemzés - MFKSensor</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+         crossorigin=""/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+
+    <style>
+        .controls {
+            padding: 10px; background-color: #f4f4f4;
+            text-align: center; border-bottom: 1px solid #ccc;
+        }
+        .controls select, .controls button { margin: 5px; }
+        
+        /* A Chart konténer magassága */
+        #chart-container {
+            width: 90%;
+            max-width: 800px;
+            height: 60vh;
+            margin: 20px auto;
+            position: relative;
+        }
+        
+        #loading-spinner {
+            display: none; margin-left: 15px; border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db; border-radius: 50%;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .lang-btn {
+          padding: 2px 10px; border: 1px solid white; border-radius: 4px;
+          background: transparent; color: white; cursor: pointer; transition: all 0.3s;
+        }
+        .lang-btn.active { background: white; color: green; font-weight: bold; }
+        .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+
+<header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
+    <div class="absolute top-4 right-4 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
+      <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Korreláció Elemzés</h1>
+</header>
+
+<nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
+      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
+      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
+      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Korreláció</a>
+      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
+    </div>
+</nav>
+
+<div class="controls">
+    <select id="period-select" class="p-2 rounded border border-gray-300">
+        <option id="period-all" value="annual">Összes</option>
+        <option id="period-winter" value="winter" selected>Tél</option>
+        <option id="period-spring" value="spring">Tavasz</option>
+        <option id="period-summer" value="summer">Nyár</option>
+        <option id="period-autumn" value="autumn">Ősz</option>
+    </select>
+    
+    <label id="metric1-label" for="metric-select-1" class="font-semibold">X tengely:</label>
+    <select id="metric-select-1" class="p-2 rounded border border-gray-300">
+        <option value="nox" selected>NOx</option>
+        <option value="voc">VOC</option>
+        <option value="pm2_5">PM2.5</option>
+        <option value="pm10_0">PM10.0</option>
+        <option value="co2">CO2</option>
+        <option value="temperature">Hőmérséklet</option>
+        <option value="humidity">Páratartalom</option>
+    </select>
+    
+    <label id="metric2-label" for="metric-select-2" class="font-semibold">Y tengely:</label>
+    <select id="metric-select-2" class="p-2 rounded border border-gray-300">
+        <option value="nox">NOx</option>
+        <option value="voc" selected>VOC</option>
+        <option value="pm2_5">PM2.5</option>
+        <option value="pm10_0">PM10.0</option>
+        <option value="co2">CO2</option>
+        <option value="temperature">Hőmérséklet</option>
+        <option value="humidity">Páratartalom</option>
+    </select>
+    
+    <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
+    <div id="loading-spinner"></div>
+</div>
+
+<div class="text-center p-4 bg-white shadow-md max-w-lg mx-auto rounded-lg">
+    <h3 id="results-title" class="text-xl font-bold text-green-700">Korrelációs Eredmények</h3>
+    <p class="text-lg">Pearson's <span class="font-bold">r = <span id="r-value" class="text-blue-600">...</span></span></p>
+    <p class="text-lg"><span class="font-bold">p-value = <span id="p-value" class="text-red-600">...</span></span></p>
+    <p class="text-sm text-gray-600"><span id="n-value">N=...</span> (<span id="n-value-label">rácscella pár</span>)</p>
+    <p id="significance-note" class="text-sm font-semibold mt-2"></p>
+</div>
+
+<div id="chart-container">
+    <canvas id="correlationChart"></canvas>
+</div>
+
+<footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    // -----------------------------------------------------------------
+    // 1. SUPABASE ÉS GLOBÁLIS VÁLTOZÓK
+    // -----------------------------------------------------------------
+    const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const periodSelect = document.getElementById('period-select');
+    const metricSelect1 = document.getElementById('metric-select-1');
+    const metricSelect2 = document.getElementById('metric-select-2');
+    const exportBtn = document.getElementById('export-btn');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    
+    const rValueEl = document.getElementById('r-value');
+    const pValueEl = document.getElementById('p-value');
+    const nValueEl = document.getElementById('n-value');
+    const sigNoteEl = document.getElementById('significance-note');
+    
+    const ctx = document.getElementById('correlationChart').getContext('2d');
+    let correlationChart; // Globális változó a diagramnak
+    let currentData = { x: [], y: [] }; // Globális változó az exportáláshoz
+
+    // -----------------------------------------------------------------
+    // 2. STATISZTIKAI FÜGGVÉNYEK (jStat használatával)
+    // -----------------------------------------------------------------
+    function pearsonCorrelation(x, y) {
+        if (x.length !== y.length || x.length === 0) {
+            return { r: NaN, p: NaN, n: 0 };
+        }
+        
+        const r = jStat.corr(x, y);
+        const n = x.length;
+        
+        // p-érték számítása (Student-t eloszlás alapján)
+        const t = r * Math.sqrt((n - 2) / (1 - r * r));
+        const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2));
+        
+        return { r, p, n };
+    }
+
+    // -----------------------------------------------------------------
+    // 3. FŐ FÜGGVÉNY (AZ ÚJ RPC-VEL)
+    // -----------------------------------------------------------------
+    async function updateCorrelationChart() {
+        loadingSpinner.style.display = 'inline-block';
+        rValueEl.textContent = "...";
+        pValueEl.textContent = "...";
+        nValueEl.textContent = "N=...";
+        sigNoteEl.textContent = "";
+
+        const m1 = metricSelect1.value;
+        const m2 = metricSelect2.value;
+        const period = periodSelect.value;
+        const currentLang = localStorage.getItem('language') || 'hu';
+
+        if (m1 === m2) {
+            alert(translations[currentLang].alertSameMetric);
+            loadingSpinner.style.display = 'none';
+            return;
+        }
+
+        try {
+            // ▼▼▼ ITT A JAVÍTÁS: Egyetlen hívás az új RPC-vel ▼▼▼
+            const { data, error } = await supabaseClient.rpc('get_correlation_pairs', {
+                metric1: m1,
+                metric2: m2,
+                period_filter: period,
+                grid_size: 0.002 // Ugyanaz a rács, mint a heatmapen
+            });
+
+            if (error) throw error;
+
+            if (data.length < 10) { // Túl kevés adat a korrelációhoz
+                console.warn("Túl kevés adatpár a korrelációhoz:", data.length);
+                sigNoteEl.textContent = translations[currentLang].alertNotEnoughData;
+                currentData = { x: [], y: [] }; // Kiürítjük
+                if (correlationChart) correlationChart.destroy(); // Töröljük a régi chartot
+                return;
+            }
+
+            // Helyesen párosított tömbök
+            const xValues = data.map(p => p.intensity1);
+            const yValues = data.map(p => p.intensity2);
+            currentData = { x: xValues, y: yValues }; // Mentés az exporthoz
+
+            // 4. Statisztika számítása
+            const { r, p, n } = pearsonCorrelation(xValues, yValues);
+            
+            rValueEl.textContent = r.toFixed(3);
+            pValueEl.textContent = p.toExponential(2); // Tudományos formátum
+            nValueEl.textContent = `N=${n}`;
+            
+            if (p < 0.001) sigNoteEl.textContent = translations[currentLang].sigVeryHigh;
+            else if (p < 0.01) sigNoteEl.textContent = translations[currentLang].sigHigh;
+            else if (p < 0.05) sigNoteEl.textContent = translations[currentLang].sigMedium;
+            else sigNoteEl.textContent = translations[currentLang].sigNone;
+
+            // 5. Diagram frissítése
+            const scatterData = xValues.map((x, i) => ({ x, y: yValues[i] }));
+            
+            if (correlationChart) {
+                correlationChart.destroy(); // Régi chart törlése
+            }
+            
+            correlationChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: `${m1} vs ${m2}`,
+                        data: scatterData,
+                        backgroundColor: 'rgba(22, 101, 52, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: m1.toUpperCase() }
+                        },
+                        y: {
+                            title: { display: true, text: m2.toUpperCase() }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `(${context.raw.x.toFixed(2)}, ${context.raw.y.toFixed(2)})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Hiba a korrelációs adatok lekérésekor:', error.message);
+            sigNoteEl.textContent = `Hiba: ${error.message}`;
+        } finally {
+            loadingSpinner.style.display = 'none';
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 4. EXPORT FUNKCIÓ (JAVÍTVA)
+    // -----------------------------------------------------------------
+    function exportData() {
+        const m1 = metricSelect1.value;
+        const m2 = metricSelect2.value;
+        const period = periodSelect.value;
+        
+        if (currentData.x.length === 0) {
+            alert("Nincs mit exportálni.");
+            return;
+        }
+
+        let csvContent = `data:text/csv;charset=utf-8,${m1},${m2}\n`;
+        for (let i = 0; i < currentData.x.length; i++) {
+            csvContent += `${currentData.x[i]},${currentData.y[i]}\n`;
+        }
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `correlation_${m1}_vs_${m2}_${period}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // -----------------------------------------------------------------
+    // 5. NYELVVÁLTÓ ÉS INDÍTÁS
+    // -----------------------------------------------------------------
+    const translations = {
+      hu: {
+        title: "Korreláció Elemzés - MFKSensor",
+        mainTitle: "Korreláció Elemzés",
+        navHome: "Kezdőlap", navMap: "PM2.5 Térkép", navMapCO2: "CO₂ Térkép", navHeatmap: "Hőtérkép",
+        navComparison: "Összehasonlítás", navCorrelation: "Korreláció", navAbout: "Rólunk",
+        periodAll: "Összes", periodWinter: "Tél", periodSpring: "Tavasz", periodSummer: "Nyár", periodAutumn: "Ősz",
+        metric1Label: "X tengely:", metric2Label: "Y tengely:",
+        exportBtn: "Export CSV",
+        resultsTitle: "Korrelációs Eredmények",
+        nValueLabel: "rácscella pár",
+        alertSameMetric: "Kérlek válassz két különböző metrikát!",
+        alertNotEnoughData: "Túl kevés adatpár (N < 10) a megbízható korrelációhoz.",
+        sigVeryHigh: "Rendkívül erős szignifikancia (p < 0.001)",
+        sigHigh: "Erős szignifikancia (p < 0.01)",
+        sigMedium: "Szignifikáns (p < 0.05)",
+        sigNone: "Nem szignifikáns (p >= 0.05)",
+        footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
+        disclaimer: "A mérési adatok nem hitelesítettek."
+      },
+      en: {
+        title: "Correlation Analysis - MFKSensor",
+        mainTitle: "Correlation Analysis",
+        navHome: "Home", navMap: "PM2.5 Map", navMapCO2: "CO₂ Map", navHeatmap: "Heatmap",
+        navComparison: "Comparison", navCorrelation: "Correlation", navAbout: "About",
+        periodAll: "All", periodWinter: "Winter", periodSpring: "Spring", periodSummer: "Summer", periodAutumn: "Autumn",
+        metric1Label: "X-Axis:", metric2Label: "Y-Axis:",
+        exportBtn: "Export CSV",
+        resultsTitle: "Correlation Results",
+        nValueLabel: "grid cell pairs",
+        alertSameMetric: "Please select two different metrics!",
+        alertNotEnoughData: "Too few data pairs (N < 10) for reliable correlation.",
+        sigVeryHigh: "Extremely High Significance (p < 0.001)",
+        sigHigh: "High Significance (p < 0.01)",
+        sigMedium: "Significant (p < 0.05)",
+        sigNone: "Not Significant (p >= 0.05)",
+        footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
+        disclaimer: "Measurement data is not verified."
+      }
+    };
+
+    function setLanguage(lang) {
+      localStorage.setItem('language', lang);
+      applyLanguage(lang);
+    }
+
+    function applyLanguage(lang) {
+      const langData = translations[lang];
+      document.title = langData.title;
+      document.getElementById('main-title').textContent = langData.mainTitle;
+      document.getElementById('nav-home').textContent = langData.navHome;
+      document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
+      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+      document.getElementById('nav-comparison').textContent = langData.navComparison;
+      document.getElementById('nav-correlation').textContent = langData.navCorrelation;
+      document.getElementById('nav-about').textContent = langData.navAbout;
+      document.getElementById('period-all').textContent = langData.periodAll;
+      document.getElementById('period-winter').textContent = langData.periodWinter;
+      document.getElementById('period-spring').textContent = langData.periodSpring;
+      document.getElementById('period-summer').textContent = langData.periodSummer;
+      document.getElementById('period-autumn').textContent = langData.periodAutumn;
+      document.getElementById('metric1-label').textContent = langData.metric1Label;
+      document.getElementById('metric2-label').textContent = langData.metric2Label;
+      document.getElementById('export-btn').textContent = langData.exportBtn;
+      document.getElementById('results-title').textContent = langData.resultsTitle;
+      document.getElementById('n-value-label').textContent = langData.nValueLabel;
+      document.getElementById('footer-text').textContent = langData.footer;
+      document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      document.documentElement.lang = lang;
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+      
+      // Frissítsük a chartot és az eredményeket nyelvváltáskor
+      if (correlationChart) {
+          updateCorrelationChart();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedLang = localStorage.getItem('language') || 'hu';
+      setLanguage(savedLang);
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+      });
+      
+      // Eseményfigyelők
+      periodSelect.addEventListener('change', updateCorrelationChart);
+      metricSelect1.addEventListener('change', updateCorrelationChart);
+      metricSelect2.addEventListener('change', updateCorrelationChart);
+      exportBtn.addEventListener('click', exportData);
+      
+      // Indítás
+      updateCorrelationChart();
+    });
+</script>
+
+</body>
+</html>
