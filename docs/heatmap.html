@@ -216,10 +216,10 @@
             
             // ▼▼▼ MÓDOSÍTVA: Élesebb pontok (radius: 12, blur: 8) ▼▼▼
             heatLayer = L.heatLayer(heatData, {
-                radius: 12,
-                blur: 8,
+                radius: 14,
+                blur: 6,
                 maxZoom: 18,
-                max: config.max,
+                max: 1.0,                    // FIX 1.0
                 gradient: config.gradient
             }).addTo(map);
 
