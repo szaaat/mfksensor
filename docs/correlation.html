@@ -143,21 +143,39 @@
     let currentData = { x: [], y: [] }; // Globális változó az exportáláshoz
 
     // -----------------------------------------------------------------
-    // 2. STATISZTIKAI FÜGGVÉNYEK (jStat használatával)
+    // 2. STATISZTIKAI FÜGGVÉNYEK (JAVÍTVA a jStat hívás)
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
-        if (x.length !== y.length || x.length === 0) {
+        // Ellenőrizzük, hogy a jStat betöltődött-e
+        if (typeof jStat !== 'function') {
+            console.error("jStat library is not loaded!");
             return { r: NaN, p: NaN, n: 0 };
         }
         
-        const r = jStat.corr(x, y);
-        const n = x.length;
+        if (x.length !== y.length || x.length < 3) { // Legalább 3 pont kell a t-teszthez
+            return { r: NaN, p: NaN, n: x.length };
+        }
         
-        // p-érték számítása (Student-t eloszlás alapján)
-        const t = r * Math.sqrt((n - 2) / (1 - r * r));
-        const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2));
-        
-        return { r, p, n };
+        try {
+            // ▼▼▼ JAVÍTOTT jStat HÍVÁS ▼▼▼
+            // Nem jStat.corr(x,y), hanem jStat(x).corr(y)
+            const r = jStat(x).corr(y);
+            const n = x.length;
+            
+            if (r === 1 || r === -1) return { r, p: 0, n }; // Tökéletes korreláció
+            if (isNaN(r)) return { r: NaN, p: NaN, n };
+
+            // p-érték számítása (Student-t eloszlás alapján)
+            const t = r * Math.sqrt((n - 2) / (1 - r * r));
+            // p-érték a kétoldali cdf
+            const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2)); 
+            
+            return { r, p, n };
+        } catch (e) {
+            console.error("jStat statistical error:", e.message);
+            // Ez akkor történhet meg, ha pl. minden érték ugyanaz (nincs szórás)
+            return { r: NaN, p: NaN, n: x.length };
+        }
     }
 
     // -----------------------------------------------------------------
@@ -182,7 +200,7 @@
         }
 
         try {
-            // ▼▼▼ ITT A JAVÍTÁS: Egyetlen hívás az új RPC-vel ▼▼▼
+            // ▼▼▼ JAVÍTÁS: Egyetlen hívás az új 'get_correlation_pairs' RPC-vel ▼▼▼
             const { data, error } = await supabaseClient.rpc('get_correlation_pairs', {
                 metric1: m1,
                 metric2: m2,
@@ -228,7 +246,7 @@
                 type: 'scatter',
                 data: {
                     datasets: [{
-                        label: `${m1} vs ${m2}`,
+                        label: `${m1.toUpperCase()} vs ${m2.toUpperCase()}`,
                         data: scatterData,
                         backgroundColor: 'rgba(22, 101, 52, 0.6)'
                     }]
