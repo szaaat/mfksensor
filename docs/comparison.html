@@ -232,7 +232,7 @@
         spinnerLeft.style.display = 'inline-block';
         try {
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
-                period_filter: period, metric: metric, grid_size: 0.001
+                period_filter: period, metric: metric, grid_size: 0.002
             });
             if (error) throw error;
             if (heatLayerLeft) mapLeft.removeLayer(heatLayerLeft);
@@ -243,7 +243,7 @@
             
             // ▼▼▼ MÓDOSÍTVA: Élesebb pontok ▼▼▼
             heatLayerLeft = L.heatLayer(heatData, {
-                radius: 12, blur: 8, maxZoom: 18, 
+                radius: 25, blur: 15, maxZoom: 18, 
                 max: config.max, 
                 gradient: config.gradient
             }).addTo(mapLeft);
