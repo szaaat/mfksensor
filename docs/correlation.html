@@ -32,7 +32,6 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* A .lang-btn stílust használjuk az új gombokhoz is */
         .lang-btn {
           padding: 2px 10px; border: 1px solid white; border-radius: 4px;
           background: transparent; color: white; cursor: pointer; transition: all 0.3s;
@@ -40,7 +39,6 @@
         .lang-btn.active { background: white; color: green; font-weight: bold; }
         .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
         
-        /* Stílus az adatmód-váltó gomboknak */
         .mode-btn {
             padding: 5px 12px; border-radius: 5px; border: 1px solid #aaa;
             background-color: #fff; color: #555; cursor: pointer;
@@ -90,7 +88,6 @@
             <option id="period-summer" value="summer">Nyár</option>
             <option id="period-autumn" value="autumn">Ősz</option>
         </select>
-        
         <label id="metric1-label" for="metric-select-1" class="font-semibold">X tengely:</label>
         <select id="metric-select-1" class="p-2 rounded border border-gray-300">
             <option value="nox" selected>NOx</option>
@@ -101,7 +98,6 @@
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
         </select>
-        
         <label id="metric2-label" for="metric-select-2" class="font-semibold">Y tengely:</label>
         <select id="metric-select-2" class="p-2 rounded border border-gray-300">
             <option value="nox">NOx</option>
@@ -112,7 +108,6 @@
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
         </select>
-        
         <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
         <div id="loading-spinner"></div>
     </div>
@@ -126,6 +121,27 @@
     <p id="significance-note" class="text-sm font-semibold mt-2"></p>
 </div>
 
+
+<div class="bg-white p-6 rounded-xl shadow-lg max-w-3xl mx-auto my-6 text-sm text-left">
+    <h3 id="method-title" class="text-xl font-bold text-green-700 mb-3">Módszertani leírás</h3>
+    
+    <p id="method-intro" class="mb-4 text-gray-700">Ez az oldal két kiválasztott szenzoradat (pl. NOx és VOC) közötti statisztikai összefüggést vizsgálja, a térben aggregált adatok alapján.</p>
+    
+    <strong id="method-scatter-title" class="font-semibold text-gray-800">A pontdiagram (Scatter Plot):</strong>
+    <p id="method-scatter-desc" class="mb-4 text-gray-700">A diagram nem a nyers méréseket, hanem a két adatpár területi átlagait ábrázolja (kb. 200x200m-es rácsra aggregálva). Minden egyes pont a diagramon egy-egy rácscella átlagos értékpárját (X, Y) jelöli.</p>
+    
+    <strong id="method-r-title" class="font-semibold text-gray-800">Korrelációs Együttható (r):</strong>
+    <p id="method-r-desc" class="mb-4 text-gray-700">A Pearson-féle `r` érték azt méri, milyen erős *lineáris* kapcsolat van a két változó között (-1 és +1 között). Az `r=1` tökéletes pozitív (együtt mozognak), az `r=-1` tökéletes negatív kapcsolatot (ellentétesen mozognak), az `r=0` pedig a lineáris kapcsolat hiányát jelzi.</p>
+    
+    <strong id="method-p-title" class="font-semibold text-gray-800">Szignifikancia (p-érték):</strong>
+    <p id="method-p-desc" class="mb-4 text-gray-700">A `p-érték` mutatja meg, hogy a látott összefüggés mennyire statisztikailag szignifikáns (azaz, mennyire valószínű, hogy nem a véletlen műve). Általánosan elfogadott, hogy ha `p < 0.05`, az összefüggést szignifikánsnak tekintjük.</p>
+
+    <strong id="method-mode-title" class="font-semibold text-gray-800">Elemzési Módok:</strong>
+    <ul class="list-disc list-inside text-gray-700 mt-1">
+        <li id="method-mode-polluted" class="mb-1"><strong class="text-gray-900">Szennyezett adatsor:</strong> Csak azokat a rácscellákat vizsgálja, ahol az átlagértékek a "tiszta" háttérszennyezettség felett vannak (pl. NOx > 1 és VOC > 100). Ez a "hotspotok" belső korrelációja.</li>
+        <li id="method-mode-all" class="mb-1"><strong class="text-gray-900">Teljes adatsor:</strong> Az összes rácscellát figyelembe veszi, beleértve a tiszta területeket is. Ez a teljes rendszer ("rálátás") viselkedését mutatja.</li>
+    </ul>
+</div>
 <div id="chart-container">
     <canvas id="correlationChart"></canvas>
 </div>
@@ -139,7 +155,7 @@
 
 <script>
     // -----------------------------------------------------------------
-    // 1. SUPABASE ÉS GLOBÁLIS VÁLTOZÓK
+    // 1. SUPABASE ÉS GLOBÁLIS VÁLTOZÓK (Változatlan)
     // -----------------------------------------------------------------
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
@@ -151,10 +167,9 @@
     const exportBtn = document.getElementById('export-btn');
     const loadingSpinner = document.getElementById('loading-spinner');
     
-    // ▼ ÚJ GOMBOK ▼
     const pollutedBtn = document.getElementById('mode-btn-polluted');
     const allBtn = document.getElementById('mode-btn-all');
-    let currentAnalysisMode = 'polluted'; // 'polluted' vagy 'all'
+    let currentAnalysisMode = 'polluted';
     
     const rValueEl = document.getElementById('r-value');
     const pValueEl = document.getElementById('p-value');
@@ -166,38 +181,35 @@
     let currentData = { x: [], y: [] }; 
 
     // -----------------------------------------------------------------
-    // 2. STATISZTIKAI FÜGGVÉNYEK (A javított jStat hívással)
+    // 2. STATISZTIKAI FÜGGVÉNYEK (Változatlan)
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
-    if (typeof jStat === 'undefined' || typeof jStat.corrcoeff !== 'function') {
-        console.error("jStat library or jStat.corrcoeff function is not loaded!");
-        return { r: NaN, p: NaN, n: 0 };
-    }
-    if (x.length !== y.length || x.length < 3) { 
-        return { r: NaN, p: NaN, n: x.length };
-    }
-    try {
-        const r = jStat.corrcoeff(x, y);  // JAVÍTVA: corrcoeff
-        const n = x.length;
-        
-        if (r === 1 || r === -1) return { r, p: 0, n };
-        if (isNaN(r)) {
-            console.warn("Correlation is NaN. Check for zero variance in data.");
-            return { r: NaN, p: NaN, n };
+        if (typeof jStat === 'undefined' || typeof jStat.corr !== 'function') {
+            console.error("jStat library or jStat.corr function is not loaded!");
+            return { r: NaN, p: NaN, n: 0 };
         }
-
-        const t = r * Math.sqrt((n - 2) / (1 - r * r));
-        const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2));
-        
-        return { r, p, n };
-    } catch (e) {
-        console.error("jStat error:", e.message);
-        return { r: NaN, p: NaN, n: x.length };
+        if (x.length !== y.length || x.length < 3) { 
+            return { r: NaN, p: NaN, n: x.length };
+        }
+        try {
+            const r = jStat.corr(x, y); // JAVÍTOTT HÍVÁS
+            const n = x.length;
+            if (r === 1 || r === -1) return { r, p: 0, n };
+            if (isNaN(r)) {
+                console.warn("Correlation is NaN. Check for zero variance in data.");
+                return { r: NaN, p: NaN, n };
+            }
+            const t = r * Math.sqrt((n - 2) / (1 - r * r));
+            const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n - 2)); 
+            return { r, p, n };
+        } catch (e) {
+            console.error("jStat statistical error:", e.message);
+            return { r: NaN, p: NaN, n: x.length };
+        }
     }
-}
 
     // -----------------------------------------------------------------
-    // 3. FŐ FÜGGVÉNY (AZ ÚJ RPC-VEL ÉS MÓD VÁLTÓVAL)
+    // 3. FŐ FÜGGVÉNY (Változatlan)
     // -----------------------------------------------------------------
     async function updateCorrelationChart() {
         loadingSpinner.style.display = 'inline-block';
@@ -218,13 +230,13 @@
         }
 
         try {
-            // ▼▼▼ ITT A JAVÍTÁS: Az új 'get_correlation_pairs_flexible' hívása ▼▼▼
+            // A 'get_correlation_pairs_flexible' hívása (ez már a helyes RPC-t hívja)
             const { data, error } = await supabaseClient.rpc('get_correlation_pairs_flexible', {
                 metric1: m1,
                 metric2: m2,
                 period_filter: period,
-                grid_size: 0.002, // Ugyanaz a rács, mint a heatmapen
-                filter_mode: currentAnalysisMode // Átadjuk az új paramétert
+                grid_size: 0.002, 
+                filter_mode: currentAnalysisMode 
             });
 
             if (error) throw error;
@@ -241,7 +253,6 @@
             const yValues = data.map(p => p.intensity2);
             currentData = { x: xValues, y: yValues };
 
-            // 4. Statisztika számítása
             const { r, p, n } = pearsonCorrelation(xValues, yValues);
             
             rValueEl.textContent = r.toFixed(3);
@@ -253,7 +264,6 @@
             else if (p < 0.05) sigNoteEl.textContent = translations[currentLang].sigMedium;
             else sigNoteEl.textContent = translations[currentLang].sigNone;
 
-            // 5. Diagram frissítése
             const scatterData = xValues.map((x, i) => ({ x, y: yValues[i] }));
             
             if (correlationChart) {
@@ -321,7 +331,7 @@
     }
 
     // -----------------------------------------------------------------
-    // 5. NYELVVÁLTÓ ÉS INDÍTÁS
+    // 5. NYELVVÁLTÓ ÉS INDÍTÁS (▼▼▼ MÓDOSÍTVA ▼▼▼)
     // -----------------------------------------------------------------
     const translations = {
       hu: {
@@ -334,8 +344,21 @@
         exportBtn: "Export CSV",
         resultsTitle: "Korrelációs Eredmények",
         nValueLabel: "rácscella pár",
-        modePolluted: "Szennyezett adatsor", // ÚJ
-        modeAll: "Teljes adatsor",           // ÚJ
+        // ▼▼▼ ÚJ FORDÍTÁSOK ▼▼▼
+        methodTitle: "Módszertani leírás",
+        methodIntro: "Ez az oldal két kiválasztott szenzoradat (pl. NOx és VOC) közötti statisztikai összefüggést vizsgálja, a térben aggregált adatok alapján.",
+        methodScatterTitle: "A pontdiagram (Scatter Plot):",
+        methodScatterDesc: "A diagram nem a nyers méréseket, hanem a két adatpár területi átlagait ábrázolja (kb. 200x200m-es rácsra aggregálva). Minden egyes pont a diagramon egy-egy rácscella átlagos értékpárját (X, Y) jelöli.",
+        methodRTitle: "Korrelációs Együttható (r):",
+        methodRDesc: "A Pearson-féle `r` érték azt méri, milyen erős *lineáris* kapcsolat van a két változó között (-1 és +1 között). Az `r=1` tökéletes pozitív (együtt mozognak), az `r=-1` tökéletes negatív kapcsolatot (ellentétesen mozognak), az `r=0` pedig a lineáris kapcsolat hiányát jelzi.",
+        methodPTitle: "Szignifikancia (p-érték):",
+        methodPDesc: "A `p-érték` mutatja meg, hogy a látott összefüggés mennyire statisztikailag szignifikáns (azaz, mennyire valószínű, hogy nem a véletlen műve). Általánosan elfogadott, hogy ha `p < 0.05`, az összefüggést szignifikánsnak tekintjük.",
+        methodModeTitle: "Elemzési Módok:",
+        methodModePolluted: "<strong class=\"text-gray-900\">Szennyezett adatsor:</strong> Csak azokat a rácscellákat vizsgálja, ahol az átlagértékek a \"tiszta\" háttérszennyezettség felett vannak (pl. NOx > 1 és VOC > 100). Ez a \"hotspotok\" belső korrelációja.",
+        methodModeAll: "<strong class=\"text-gray-900\">Teljes adatsor:</strong> Az összes rácscellát figyelembe veszi, beleértve a tiszta területeket is. Ez a teljes rendszer (\"rálátás\") viselkedését mutatja.",
+        // ▲▲▲ VÉGE ▲▲▲
+        modePolluted: "Szennyezett adatsor", 
+        modeAll: "Teljes adatsor",
         alertSameMetric: "Kérlek válassz két különböző metrikát!",
         alertNotEnoughData: "Túl kevés adatpár (N < 10) a megbízható korrelációhoz.",
         sigVeryHigh: "Rendkívül erős szignifikancia (p < 0.001)",
@@ -355,8 +378,21 @@
         exportBtn: "Export CSV",
         resultsTitle: "Correlation Results",
         nValueLabel: "grid cell pairs",
-        modePolluted: "Polluted Data", // ÚJ
-        modeAll: "Full Data",           // ÚJ
+        // ▼▼▼ ÚJ FORDÍTÁSOK ▼▼▼
+        methodTitle: "Methodology Explained",
+        methodIntro: "This page analyzes the statistical relationship between two selected sensor metrics (e.g., NOx and VOC), based on spatially aggregated data.",
+        methodScatterTitle: "The Scatter Plot:",
+        methodScatterDesc: "The chart displays the spatial averages of the data pairs (aggregated onto an approx. 200x200m grid), not the raw measurements. Each point on the chart represents the average value pair (X, Y) for one grid cell.",
+        methodRTitle: "Correlation Coefficient (r):",
+        methodRDesc: "The Pearson's `r` value measures the strength of the *linear* relationship between the two variables (between -1 and +1). `r=1` indicates a perfect positive (move together), `r=-1` a perfect negative (move opposite), and `r=0` indicates no linear relationship.",
+        methodPTitle: "Significance (p-value):",
+        methodPDesc: "The `p-value` indicates how statistically significant the relationship is (i.e., how likely it is not due to random chance). It is generally accepted that if `p < 0.05`, the correlation is considered significant.",
+        methodModeTitle: "Analysis Modes:",
+        methodModePolluted: "<strong class=\"text-gray-900\">Polluted Data:</strong> Analyzes only those grid cells where the average values are above the \"clean\" background levels (e.g., NOx > 1 and VOC > 100). This is the internal correlation of \"hotspots\".",
+        methodModeAll: "<strong class=\"text-gray-900\">Full Data:</strong> Includes all grid cells, including clean areas. This shows the behavior of the entire system (\"overview\").",
+        // ▲▲▲ VÉGE ▲▲▲
+        modePolluted: "Polluted Data", 
+        modeAll: "Full Data",
         alertSameMetric: "Please select two different metrics!",
         alertNotEnoughData: "Too few data pairs (N < 10) for reliable correlation.",
         sigVeryHigh: "Extremely High Significance (p < 0.001)",
@@ -394,11 +430,26 @@
       document.getElementById('metric1-label').textContent = langData.metric1Label;
       document.getElementById('metric2-label').textContent = langData.metric2Label;
       document.getElementById('export-btn').textContent = langData.exportBtn;
-      document.getElementById('mode-btn-polluted').textContent = langData.modePolluted; // ÚJ
-      document.getElementById('mode-btn-all').textContent = langData.modeAll;           // ÚJ
+      document.getElementById('mode-btn-polluted').textContent = langData.modePolluted; 
+      document.getElementById('mode-btn-all').textContent = langData.modeAll;
       // Eredmények
       document.getElementById('results-title').textContent = langData.resultsTitle;
       document.getElementById('n-value-label').textContent = langData.nValueLabel;
+      
+      // ▼▼▼ ÚJ FORDÍTÁSI SOROK ▼▼▼
+      document.getElementById('method-title').innerHTML = langData.methodTitle;
+      document.getElementById('method-intro').innerHTML = langData.methodIntro;
+      document.getElementById('method-scatter-title').innerHTML = langData.methodScatterTitle;
+      document.getElementById('method-scatter-desc').innerHTML = langData.methodScatterDesc;
+      document.getElementById('method-r-title').innerHTML = langData.methodRTitle;
+      document.getElementById('method-r-desc').innerHTML = langData.methodRDesc;
+      document.getElementById('method-p-title').innerHTML = langData.methodPTitle;
+      document.getElementById('method-p-desc').innerHTML = langData.methodPDesc;
+      document.getElementById('method-mode-title').innerHTML = langData.methodModeTitle;
+      document.getElementById('method-mode-polluted').innerHTML = langData.methodModePolluted;
+      document.getElementById('method-mode-all').innerHTML = langData.methodModeAll;
+      // ▲▲▲ VÉGE ▲▲▲
+
       // Lábléc
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
@@ -408,13 +459,11 @@
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
       
-      // Frissítsük a chartot és az eredményeket nyelvváltáskor
       if (correlationChart) {
           updateCorrelationChart();
       }
     }
 
-    // ▼ ÚJ: Eseményfigyelők a módváltó gombokhoz ▼
     function setAnalysisMode(mode) {
         currentAnalysisMode = mode;
         if (mode === 'polluted') {
@@ -424,7 +473,6 @@
             pollutedBtn.classList.remove('active');
             allBtn.classList.add('active');
         }
-        // Frissítsük a diagramot az új móddal
         updateCorrelationChart();
     }
 
@@ -436,7 +484,6 @@
         btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
       });
       
-      // Eseményfigyelők
       pollutedBtn.addEventListener('click', () => setAnalysisMode('polluted'));
       allBtn.addEventListener('click', () => setAnalysisMode('all'));
       periodSelect.addEventListener('change', updateCorrelationChart);
@@ -444,7 +491,6 @@
       metricSelect2.addEventListener('change', updateCorrelationChart);
       exportBtn.addEventListener('click', exportData);
       
-      // Indítás (alapértelmezett 'polluted' móddal)
       setAnalysisMode('polluted');
     });
 </script>
