@@ -9,7 +9,7 @@
          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
          crossorigin=""/>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
 
     <style>
@@ -230,28 +230,33 @@
         const period = periodSelect.value;
         const lang = localStorage.getItem('language') || 'hu';
         const langData = translations[lang];
-        
+    
         if (m1 === m2) {
             alert(langData.alertSameMetric);
             return;
         }
-        
+    
         loadingSpinner.style.display = 'inline-block';
-        
+    
         try {
-            const { data, error } = await supabaseClient.rpc('get_correlation_data', {
-                metric1: m1, metric2: m2, period_filter: period, mode: currentAnalysisMode
+            // JAVÍTVA: helyes függvényhívás + paraméterek
+            const { data, error } = await supabaseClient.rpc('get_correlation_pairs_flexible', {
+                metric1: m1,
+                metric2: m2,
+                period_filter: period,
+                grid_size: 0.001,
+                filter_mode: currentAnalysisMode  // 'all' vagy 'polluted'
             });
-            
+        
             if (error) throw error;
-            
+        
             if (!data || data.length === 0) {
                 throw new Error("Nincs adat erre a szűrésre.");
             }
-            
+        
             currentData.x = data.map(p => p.intensity1);
             currentData.y = data.map(p => p.intensity2);
-            
+        
             if (currentData.x.length < 10) {
                 alert(langData.alertNotEnoughData);
                 rValueEl.textContent = 'N/A';
@@ -261,18 +266,18 @@
                 if (correlationChart) correlationChart.destroy();
                 return;
             }
-            
+        
             const { r, p, n } = pearsonCorrelation(currentData.x, currentData.y);
-            
+        
             rValueEl.textContent = isNaN(r) ? 'N/A' : r.toFixed(3);
             pValueEl.textContent = isNaN(p) ? 'N/A' : (p < 0.001 ? '<0.001' : p.toFixed(3));
             nValueEl.textContent = n;
             sigNoteEl.textContent = isNaN(p) ? '' : getSignificanceNote(p, lang);
-            
+        
             const scatterData = currentData.x.map((xVal, i) => ({ x: xVal, y: currentData.y[i] }));
-            
+        
             if (correlationChart) correlationChart.destroy();
-            
+        
             correlationChart = new Chart(ctx, {
                 type: 'scatter',
                 data: {
@@ -286,12 +291,8 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: {
-                            title: { display: true, text: m1.toUpperCase() }
-                        },
-                        y: {
-                            title: { display: true, text: m2.toUpperCase() }
-                        }
+                        x: { title: { display: true, text: m1.toUpperCase() } },
+                        y: { title: { display: true, text: m2.toUpperCase() } }
                     },
                     plugins: {
                         tooltip: {
