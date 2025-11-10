@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     .loading-overlay {
       position: absolute; inset: 0;
@@ -36,7 +39,7 @@
     .stats-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1rem;
+      margin-top: 1.5rem; /* Nagyobb távolság a diagramoktól */
     }
     .stats-table th, .stats-table td {
       padding: 0.75rem;
@@ -52,6 +55,32 @@
     .stats-table td:first-child {
       text-align: left;
     }
+    .stats-table tr.no-data td {
+      opacity: 0.5;
+      color: #6b7280;
+    }
+    
+    /* === ÚJ: Diagram konténer stílus === */
+    .chart-wrapper {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    @media (min-width: 768px) {
+      .chart-wrapper {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    .chart-container {
+        position: relative;
+        height: 300px; /* Magasság beállítása */
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+    }
+    /* ==================================== */
+
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -77,9 +106,20 @@
       <div class="loading-spinner"></div>
       <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
+    
     <div id="statsContainer" class="stats-container hidden">
       <h2 class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
       
+      <div class="chart-wrapper">
+        <div class="chart-container">
+          <h3 class="text-center font-semibold text-gray-700">Délelőtti ingázás</h3>
+          <canvas id="morningChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3 class="text-center font-semibold text-gray-700">Délutáni ingázás</h3>
+          <canvas id="afternoonChart"></canvas>
+        </div>
+      </div>
       <table id="statsTable" class="stats-table">
         <thead>
           <tr>
@@ -105,7 +145,13 @@
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  
   <script>
+    // === ÚJ: Globális változók a diagramok tárolására ===
+    let morningChartInstance = null;
+    let afternoonChartInstance = null;
+    // ===============================================
+
     document.addEventListener('DOMContentLoaded', async () => {
       const supabaseClient = supabase.createClient(
         'https://yuamroqhxrflusxeyylp.supabase.co',
@@ -199,7 +245,6 @@
         return stats;
       }
 
-      // === MÓDOSÍTOTT fetchData FÜGGVÉNY ===
       async function fetchData(date) {
         const loading = document.getElementById('loading');
         loading.classList.remove('hidden');
@@ -210,20 +255,18 @@
 
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            // 'location' eltávolítva a select-ből, mert nincs rá szükség ezen az oldalon
+            // 'location'-t továbbra sem kérjük le, majd a térképnél fogjuk!
             .select('id, timestamp, pm2_5, temperature, humidity, co2')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true });
             
           if (error) throw error;
-          if (!data || data.length === 0) throw new Error('Nincs adat a megadott dátumra.');
+          if (!data || data.length === 0) {
+            console.warn('Nincs adat a megadott dátumra.');
+            return []; 
+          }
           console.log(`Lekérdezett adatok száma (${date}):`, data.length);
-
-          // A 'data.forEach' blokk, ami a location-t
-          // próbálta feldolgozni (és a WKT hibát okozta),
-          // el lett távolítva, mert felesleges volt.
-
           return data;
         } catch (err) {
           console.error('Hiba az adatok lekérdezésekor:', err);
@@ -232,13 +275,120 @@
           loading.classList.add('hidden');
         }
       }
-      // === VÉGE: MÓDOSÍTOTT fetchData FÜGGVÉNY ===
+
+      // === ÚJ: Diagramokat kirajzoló függvény ===
+      function updateCharts(data) {
+        // 1. Régi diagramok törlése (memóriaszivárgás elkerülése)
+        if (morningChartInstance) morningChartInstance.destroy();
+        if (afternoonChartInstance) afternoonChartInstance.destroy();
+
+        // 2. Adatok szétválasztása
+        const morningData = data.filter(item => new Date(item.timestamp).getUTCHours() < 12);
+        const afternoonData = data.filter(item => new Date(item.timestamp).getUTCHours() >= 12);
+
+        // 3. Egy segédfüggvény a diagram létrehozásához
+        const createChart = (canvasId, chartInstanceVar, chartData, title) => {
+          const ctx = document.getElementById(canvasId);
+          if (!ctx) return null;
+
+          // Adatok kinyerése
+          const labels = chartData.map(d => new Date(d.timestamp));
+          const pm25Data = chartData.map(d => d.pm2_5);
+          const tempData = chartData.map(d => d.temperature);
+
+          // Ha nincs adat, nem csinálunk semmit
+          if (chartData.length === 0) {
+             return null;
+          }
+
+          // Chart.js konfiguráció
+          return new Chart(ctx, {
+            type: 'line', // Vonaldiagram
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'PM2.5 (µg/m³)',
+                  data: pm25Data,
+                  borderColor: 'rgb(234, 88, 12)', // narancs
+                  backgroundColor: 'rgba(234, 88, 12, 0.5)',
+                  yAxisID: 'yPM', // Bal oldali Y tengely
+                  tension: 0.1
+                },
+                {
+                  label: 'Hőmérséklet (°C)',
+                  data: tempData,
+                  borderColor: 'rgb(37, 99, 235)', // kék
+                  backgroundColor: 'rgba(37, 99, 235, 0.5)',
+                  yAxisID: 'yTemp', // Jobb oldali Y tengely
+                  tension: 0.1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: 'index',
+                intersect: false,
+              },
+              scales: {
+                x: {
+                  type: 'time', // Idő alapú tengely
+                  time: {
+                    unit: 'minute',
+                    tooltipFormat: 'HH:mm:ss',
+                    displayFormats: {
+                      minute: 'HH:mm'
+                    }
+                  },
+                  title: {
+                    display: true,
+                    text: 'Időpont'
+                  }
+                },
+                yPM: { // Bal oldali Y tengely (PM2.5)
+                  type: 'linear',
+                  display: true,
+                  position: 'left',
+                  title: {
+                    display: true,
+                    text: 'PM2.5 (µg/m³)'
+                  }
+                },
+                yTemp: { // Jobb oldali Y tengely (Hőm.)
+                  type: 'linear',
+                  display: true,
+                  position: 'right',
+                  title: {
+                    display: true,
+                    text: 'Hőmérséklet (°C)'
+                  },
+                  grid: { // A jobb tengely rácsát kikapcsoljuk a tisztább nézetért
+                    drawOnChartArea: false,
+                  },
+                }
+              }
+            }
+          });
+        };
+
+        // 4. Diagramok létrehozása és eltárolása
+        morningChartInstance = createChart('morningChart', morningChartInstance, morningData, 'Délelőtti ingázás');
+        afternoonChartInstance = createChart('afternoonChart', afternoonChartInstance, afternoonData, 'Délutáni ingázás');
+      }
+      // === VÉGE: Diagram kirajzoló függvény ===
 
 
+      // === MÓDOSÍTOTT updateStats ===
       function updateStats(data) {
+        // 1. ÚJ: Diagramok frissítése a nyers adatokkal
+        updateCharts(data);
+
+        // 2. A statisztikák számítása (ez a régi kód)
         const statsContainer = document.getElementById('statsContainer');
         const statsBody = document.getElementById('statsBody');
-        const stats = calculateStats(data);
+        const stats = calculateStats(data); 
 
         statsBody.innerHTML = ''; 
 
@@ -267,13 +417,26 @@
                 <td>${statData.max.toFixed(1)}</td>
                 <td>${statData.p95.toFixed(1)}</td>
               `;
-              statsBody.appendChild(row);
+            } else {
+              row.classList.add('no-data');
+              row.innerHTML = `
+                <td><strong>${displayName}</strong></td>
+                <td>${periodName}</td>
+                <td>0</td>
+                <td>N/A</td>
+                <td>N/A</td>
+                <td>N/A</td>
+                <td>N/A</td>
+                <td>N/A</td>
+              `;
             }
+            statsBody.appendChild(row);
           });
         }
-
-        statsContainer.classList.remove('hidden');
+        
+        statsContainer.classList.remove('hidden'); 
       }
+      // === VÉGE: MÓDOSÍTOTT updateStats ===
 
 
       async function initializeAnalytics() {
@@ -286,13 +449,9 @@
           onChange: async (selectedDates) => {
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
-              document.getElementById('statsContainer').classList.add('hidden'); // Táblázat elrejtése töltéskor
+              document.getElementById('statsContainer').classList.add('hidden');
               const data = await fetchData(date);
-              if (data.length > 0) {
-                updateStats(data);
-              } else {
-                alert("Nincs adat a kiválasztott dátumra.");
-              }
+              updateStats(data); 
             }
           }
         });
@@ -301,11 +460,9 @@
           const latestDate = validDates[validDates.length - 1];
           datePicker._flatpickr.setDate(latestDate);
           const data = await fetchData(latestDate);
-           if (data.length > 0) {
-              updateStats(data);
-           } else {
-              console.warn("Nincs adat a legutóbbi dátumra.");
-           }
+          updateStats(data);
+        } else {
+          updateStats([]);
         }
       }
 
@@ -357,6 +514,11 @@
                 }
              });
           }
+          
+          if (csvRows.length <= 1) {
+             alert('Nincs exportálható adat a kiválasztott dátumra!');
+             return;
+          }
 
           const csvContent = csvRows.join('\n');
           const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -373,9 +535,6 @@
         });
       });
 
-      // A WKT könyvtár betöltése (wicket.js) el lett távolítva,
-      // mivel felesleges volt és hibát okozott.
-      // Az analitika azonnal elindul.
       initializeAnalytics();
     });
   </script>
