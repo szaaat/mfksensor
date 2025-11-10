@@ -79,7 +79,6 @@
         border-radius: 0.5rem;
         padding: 0.5rem;
     }
-    /* === ÚJ: Diagram vezérlők === */
     .chart-controls {
       display: flex;
       gap: 0.5rem;
@@ -99,49 +98,72 @@
       border: 1px solid #d1d5db;
       background-color: #f9fafb;
     }
-    /* ============================ */
-
+    .lang-btn {
+      padding: 2px 10px;
+      border: 1px solid white;
+      border-radius: 4px;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .lang-btn.active {
+      background: white;
+      color: green;
+      font-weight: bold;
+    }
+    .lang-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.2);
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <header class="bg-green-700 text-white text-center py-8 shadow-lg">
-    <h1 class="text-2xl md:text-3xl font-bold">ÉMNL 7B alprojekt – Levegőminőségi Analitika</h1>
-    <nav class="mt-2">
-      <a href="/mfksensor/" class="underline text-sm hover:text-green-300">← Vissza a kezdőlapra</a>
-    </nav>
+  <header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
+    <div class="absolute top-4 right-4 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
+      <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Levegőminőségi Analitika</h1>
   </header>
+
   <nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex justify-center space-x-8">
-      <a href="/mfksensor/" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-      <a href="/mfksensor/map.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Térkép</a>
-      <a href="/mfksensor/analytics.html" class="text-lg font-semibold hover:text-green-200 transition-colors">Analitika</a>
+    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
+      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
+      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
+      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors">Korreláció</a>
+      <a href="/mfksensor/analytics.html" id="nav-analytics" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Analitika</a>
+      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
     </div>
   </nav>
+
   <div class="container mx-auto p-6 flex-grow relative">
     <div class="mb-4 flex justify-center items-center gap-2">
-      <label for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
+      <label for="datePicker" id="date-label" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
       <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
     </div>
     <div id="loading" class="loading-overlay hidden">
       <div class="loading-spinner"></div>
-      <span class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
+      <span id="loading-text" class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     
     <div id="statsContainer" class="stats-container hidden">
-      <h2 class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
+      <h2 id="stats-title" class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
       
       <div class="chart-wrapper">
         <div>
-          <h3 class="text-center font-semibold text-gray-700">Délelőtti ingázás</h3>
+          <h3 id="morning-title" class="text-center font-semibold text-gray-700">Délelőtti ingázás</h3>
           <div class="chart-controls">
-            <label for="morning-y1">Bal Y:</label>
+            <label for="morning-y1" id="morning-y1-label">Bal Y:</label>
             <select id="morning-y1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
             </select>
-            <label for="morning-y2">Jobb Y:</label>
+            <label for="morning-y2" id="morning-y2-label">Jobb Y:</label>
             <select id="morning-y2">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
@@ -154,16 +176,16 @@
           </div>
         </div>
         <div>
-          <h3 class="text-center font-semibold text-gray-700">Délutáni ingázás</h3>
+          <h3 id="afternoon-title" class="text-center font-semibold text-gray-700">Délutáni ingázás</h3>
           <div class="chart-controls">
-            <label for="afternoon-y1">Bal Y:</label>
+            <label for="afternoon-y1" id="afternoon-y1-label">Bal Y:</label>
             <select id="afternoon-y1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
             </select>
-            <label for="afternoon-y2">Jobb Y:</label>
+            <label for="afternoon-y2" id="afternoon-y2-label">Jobb Y:</label>
             <select id="afternoon-y2">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
@@ -180,14 +202,14 @@
       <table id="statsTable" class="stats-table">
         <thead>
           <tr>
-            <th>Metrika</th>
-            <th>Időszak</th>
-            <th>Adatpont (N)</th>
-            <th>Átlag</th>
-            <th>Medián</th>
-            <th>Min</th>
-            <th>Max</th>
-            <th>P95 Percentilis</th>
+            <th id="metric-header">Metrika</th>
+            <th id="period-header">Időszak</th>
+            <th id="datapoint-header">Adatpont (N)</th>
+            <th id="average-header">Átlag</th>
+            <th id="median-header">Medián</th>
+            <th id="min-header">Min</th>
+            <th id="max-header">Max</th>
+            <th id="p95-header">P95 Percentilis</th>
           </tr>
         </thead>
         <tbody id="statsBody"></tbody>
@@ -196,9 +218,12 @@
     </div>
     <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
   </div>
-  <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
-    <p class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium</p>
+
+  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
   </footer>
+
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -206,9 +231,8 @@
   <script>
     let morningChartInstance = null;
     let afternoonChartInstance = null;
-    let currentDayData = []; // ÚJ: Globális változó az adatok tárolására
+    let currentDayData = [];
 
-    // ÚJ: Metrika adatok (címkék, színek)
     const metricsDetails = {
       'pm2_5': { label: 'PM2.5 (µg/m³)', color: 'rgb(234, 88, 12)' },
       'temperature': { label: 'Hőmérséklet (°C)', color: 'rgb(37, 99, 235)' },
@@ -216,7 +240,111 @@
       'co2': { label: 'CO₂ (ppm)', color: 'rgb(88, 28, 135)' }
     };
 
+    // Fordítási adatok
+    const translations = {
+      hu: {
+        title: "Levegőminőségi Analitika",
+        mainTitle: "Levegőminőségi Analitika",
+        navHome: "Kezdőlap", navMap: "PM2.5 Térkép", navMapCO2: "CO₂ Térkép", navHeatmap: "Hőtérkép",
+        navComparison: "Összehasonlítás", navCorrelation: "Korreláció", navAnalytics: "Analitika", navAbout: "Rólunk",
+        dateLabel: "Válassz dátumot:",
+        loadingText: "Adatok betöltése...",
+        statsTitle: "Levegőminőségi Statisztikák",
+        morningTitle: "Délelőtti ingázás",
+        afternoonTitle: "Délutáni ingázás",
+        morningY1Label: "Bal Y:", morningY2Label: "Jobb Y:",
+        afternoonY1Label: "Bal Y:", afternoonY2Label: "Jobb Y:",
+        metricHeader: "Metrika", periodHeader: "Időszak", datapointHeader: "Adatpont (N)",
+        averageHeader: "Átlag", medianHeader: "Medián", minHeader: "Min", maxHeader: "Max", p95Header: "P95 Percentilis",
+        exportButton: "Export CSV",
+        footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
+        disclaimer: "A mérési adatok nem hitelesítettek."
+      },
+      en: {
+        title: "Air Quality Analytics",
+        mainTitle: "Air Quality Analytics",
+        navHome: "Home", navMap: "PM2.5 Map", navMapCO2: "CO₂ Map", navHeatmap: "Heatmap",
+        navComparison: "Comparison", navCorrelation: "Correlation", navAnalytics: "Analytics", navAbout: "About",
+        dateLabel: "Select date:",
+        loadingText: "Loading data...",
+        statsTitle: "Air Quality Statistics",
+        morningTitle: "Morning Commute",
+        afternoonTitle: "Afternoon Commute",
+        morningY1Label: "Left Y:", morningY2Label: "Right Y:",
+        afternoonY1Label: "Left Y:", afternoonY2Label: "Right Y:",
+        metricHeader: "Metric", periodHeader: "Period", datapointHeader: "Data Points (N)",
+        averageHeader: "Average", medianHeader: "Median", minHeader: "Min", maxHeader: "Max", p95Header: "P95 Percentile",
+        exportButton: "Export CSV",
+        footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
+        disclaimer: "Measurement data is not verified."
+      }
+    };
+
+    function setLanguage(lang) {
+      localStorage.setItem('language', lang);
+      applyLanguage(lang);
+    }
+
+    function applyLanguage(lang) {
+      const langData = translations[lang];
+      document.title = langData.title;
+      document.getElementById('main-title').textContent = langData.mainTitle;
+      
+      // Navigáció
+      document.getElementById('nav-home').textContent = langData.navHome;
+      document.getElementById('nav-map').textContent = langData.navMap;
+      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
+      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+      document.getElementById('nav-comparison').textContent = langData.navComparison;
+      document.getElementById('nav-correlation').textContent = langData.navCorrelation;
+      document.getElementById('nav-analytics').textContent = langData.navAnalytics;
+      document.getElementById('nav-about').textContent = langData.navAbout;
+      
+      // Fő tartalom
+      document.getElementById('date-label').textContent = langData.dateLabel;
+      document.getElementById('loading-text').textContent = langData.loadingText;
+      document.getElementById('stats-title').textContent = langData.statsTitle;
+      document.getElementById('morning-title').textContent = langData.morningTitle;
+      document.getElementById('afternoon-title').textContent = langData.afternoonTitle;
+      document.getElementById('morning-y1-label').textContent = langData.morningY1Label;
+      document.getElementById('morning-y2-label').textContent = langData.morningY2Label;
+      document.getElementById('afternoon-y1-label').textContent = langData.afternoonY1Label;
+      document.getElementById('afternoon-y2-label').textContent = langData.afternoonY2Label;
+      
+      // Táblázat fejlécek
+      document.getElementById('metric-header').textContent = langData.metricHeader;
+      document.getElementById('period-header').textContent = langData.periodHeader;
+      document.getElementById('datapoint-header').textContent = langData.datapointHeader;
+      document.getElementById('average-header').textContent = langData.averageHeader;
+      document.getElementById('median-header').textContent = langData.medianHeader;
+      document.getElementById('min-header').textContent = langData.minHeader;
+      document.getElementById('max-header').textContent = langData.maxHeader;
+      document.getElementById('p95-header').textContent = langData.p95Header;
+      
+      // Gombok
+      document.getElementById('exportButton').textContent = langData.exportButton;
+      
+      // Lábléc
+      document.getElementById('footer-text').textContent = langData.footer;
+      document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      
+      document.documentElement.lang = lang;
+      
+      // Nyelv gombok aktív állapota
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
+      // Nyelv beállítás
+      const savedLang = localStorage.getItem('language') || 'hu';
+      setLanguage(savedLang);
+
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+      });
+
       const supabaseClient = supabase.createClient(
         'https://yuamroqhxrflusxeyylp.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
@@ -231,17 +359,14 @@
           return dates;
         } catch (err) {
           console.error('Hiba a dátumok lekérdezésekor (get_distinct_dates):', err);
-          return []; // Fontos: üres tömbbel térünk vissza hiba esetén
+          return [];
         }
       }
 
-      // === MÓDOSÍTOTT calculateStats: getHours() ===
       function calculateStats(data) {
-        // JAVÍTÁS: getHours() használata a getUTCHours() helyett a HELYI időzóna szerinti vágáshoz
         const morning = data.filter(item => new Date(item.timestamp).getHours() < 12);
         const afternoon = data.filter(item => new Date(item.timestamp).getHours() >= 12);
 
-        // ... a többi statisztikai segédfüggvény (getMedian, getMin, stb.) változatlan ...
         const getMedian = arr => {
           if (!arr.length) return 0;
           const sorted = [...arr].sort((a, b) => a - b);
@@ -308,8 +433,6 @@
         
         return stats;
       }
-      // === VÉGE: MÓDOSÍTOTT calculateStats ===
-
 
       async function fetchData(date) {
         const loading = document.getElementById('loading');
@@ -329,32 +452,29 @@
           
           if (!data || data.length === 0) {
             console.warn('Nincs adat a megadott dátumra.');
-            currentDayData = []; // Globális változó ürítése
+            currentDayData = [];
             return []; 
           }
           
           console.log(`Lekérdezett adatok száma (${date}):`, data.length);
-          currentDayData = data; // Globális változó feltöltése
+          currentDayData = data;
           return data;
         } catch (err) {
           console.error('Hiba az adatok lekérdezésekor:', err);
-          currentDayData = []; // Globális változó ürítése hiba esetén is
+          currentDayData = [];
           return [];
         } finally {
           loading.classList.add('hidden');
         }
       }
 
-      // === MÓDOSÍTOTT updateCharts: Dinamikus tengelyek + getHours() ===
       function updateCharts(data) {
         if (morningChartInstance) morningChartInstance.destroy();
         if (afternoonChartInstance) afternoonChartInstance.destroy();
 
-        // JAVÍTÁS: getHours() használata a getUTCHours() helyett
         const morningData = data.filter(item => new Date(item.timestamp).getHours() < 12);
         const afternoonData = data.filter(item => new Date(item.timestamp).getHours() >= 12);
 
-        // Dinamikus tengelyválasztók értékeinek kiolvasása
         const mY1 = document.getElementById('morning-y1').value;
         const mY2 = document.getElementById('morning-y2').value;
         const aY1 = document.getElementById('afternoon-y1').value;
@@ -380,7 +500,7 @@
                   label: y1Metric.label,
                   data: y1Data,
                   borderColor: y1Metric.color,
-                  backgroundColor: y1Metric.color.replace(')', ', 0.5)'), // Szín áttetszővé tétele
+                  backgroundColor: y1Metric.color.replace(')', ', 0.5)'),
                   yAxisID: 'y1',
                   tension: 0.1
                 },
@@ -425,9 +545,7 @@
         morningChartInstance = createChart('morningChart', morningData, mY1, mY2);
         afternoonChartInstance = createChart('afternoonChart', afternoonData, aY1, aY2);
       }
-      // === VÉGE: MÓDOSÍTOTT updateCharts ===
 
-      // updateStats átnevezve updateStatsTable-re, hogy egyértelműbb legyen
       function updateStatsTable(data) {
         const statsContainer = document.getElementById('statsContainer');
         const statsBody = document.getElementById('statsBody');
@@ -489,9 +607,9 @@
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
               document.getElementById('statsContainer').classList.add('hidden');
-              const data = await fetchData(date); // Ez már feltölti a currentDayData-t
-              updateCharts(data); // Diagram frissítése
-              updateStatsTable(data); // Táblázat frissítése
+              const data = await fetchData(date);
+              updateCharts(data);
+              updateStatsTable(data);
             }
           }
         });
@@ -499,25 +617,23 @@
         if (validDates.length > 0) {
           const latestDate = validDates[validDates.length - 1];
           datePicker._flatpickr.setDate(latestDate);
-          const data = await fetchData(latestDate); // Ez már feltölti a currentDayData-t
-          updateCharts(data); // Diagram frissítése
-          updateStatsTable(data); // Táblázat frissítése
+          const data = await fetchData(latestDate);
+          updateCharts(data);
+          updateStatsTable(data);
         } else {
           console.warn("Nem töltődtek be elérhető dátumok. Az oldal üres marad.");
-          updateCharts([]); // Üres diagramok
-          updateStatsTable([]); // Üres táblázat
+          updateCharts([]);
+          updateStatsTable([]);
         }
 
-        // === ÚJ: Eseményfigyelők a diagram választókra ===
+        // Eseményfigyelők a diagram választókra
         document.getElementById('morning-y1').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('morning-y2').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('afternoon-y1').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('afternoon-y2').addEventListener('change', () => updateCharts(currentDayData));
-        // ============================================
       }
 
       document.getElementById('exportButton').addEventListener('click', () => {
-        // Az export logika változatlan
         console.log('Export gomb megnyomva');
         const datePicker = document.getElementById('datePicker');
         const selectedDate = datePicker.value;
@@ -526,7 +642,6 @@
           return;
         }
 
-        // Újra lekérjük az adatot az exportáláshoz, hogy biztosan meglegyen
         fetchData(selectedDate).then(data => {
           if (data.length === 0) {
             alert('Nincs exportálható adat a kiválasztott dátumra!');
