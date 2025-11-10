@@ -257,7 +257,7 @@
 
         // Térkép inicializálása
         function initMap() {
-            map = L.map('map').setView([47.4979, 19.0402], 11);
+            map = L.map('map').setView([48.1034, 20.7784], 12);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
@@ -295,21 +295,92 @@ async function analyzeArea(areaLayer) {
     showLoading(true);
 
     try {
-        // Használd a get_route_data_simple függvényt, mert az biztos működik
+        // Közvetlen lekérdezés a air_quality_view-ból - EZT HASZNÁLD
         const { data, error } = await supabaseClient
-            .rpc('get_route_data_simple', {
-                min_lat: bounds.getSouth(),
-                max_lat: bounds.getNorth(),
-                min_lon: bounds.getWest(),
-                max_lon: bounds.getEast(),
-                analysis_date: date,
-                direction: direction
-            });
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', `${date}T00:00:00`)
+            .lte('timestamp', `${date}T23:59:59`)
+            .order('timestamp', { ascending: true });
 
         if (error) throw error;
 
+        console.log('Lekérdezett adatok száma:', data ? data.length : 0);
+
+        // Szűrés kliens oldalon a területre
+        let filteredData = (data || []).filter(item => {
+            if (!item.location) {
+                console.log('Nincs location adat:', item);
+                return false;
+            }
+            
+            // Location adatok kinyerése - próbáld meg mindkét formátumot
+            let itemLat, itemLon;
+            
+            if (item.location.lat !== undefined && item.location.lng !== undefined) {
+                // {lat, lng} formátum
+                itemLat = item.location.lat;
+                itemLon = item.location.lng;
+            } else if (Array.isArray(item.location)) {
+                // [lng, lat] formátum (GeoJSON)
+                itemLon = item.location[0];
+                itemLat = item.location[1];
+            } else if (item.location.x !== undefined && item.location.y !== undefined) {
+                // {x, y} formátum
+                itemLon = item.location.x;
+                itemLat = item.location.y;
+            } else {
+                console.log('Ismeretlen location formátum:', item.location);
+                return false;
+            }
+            
+            const hour = new Date(item.timestamp).getHours();
+            
+            const inBounds = itemLat >= bounds.getSouth() && 
+                           itemLat <= bounds.getNorth() &&
+                           itemLon >= bounds.getWest() && 
+                           itemLon <= bounds.getEast();
+            
+            const inTime = direction === 'both' || 
+                          (direction === 'morning' && hour < 12) ||
+                          (direction === 'afternoon' && hour >= 12);
+            
+            return inBounds && inTime;
+        });
+
+        console.log('Szűrt adatok száma:', filteredData.length);
+
+        // Átalakítás a route_analytics formátumára
+        let processedData = filteredData.map(item => {
+            let itemLat, itemLon;
+            
+            if (item.location.lat !== undefined && item.location.lng !== undefined) {
+                itemLat = item.location.lat;
+                itemLon = item.location.lng;
+            } else if (Array.isArray(item.location)) {
+                itemLon = item.location[0];
+                itemLat = item.location[1];
+            } else if (item.location.x !== undefined && item.location.y !== undefined) {
+                itemLon = item.location.x;
+                itemLat = item.location.y;
+            }
+            
+            return {
+                timestamp: item.timestamp,
+                latitude: itemLat,
+                longitude: itemLon,
+                pm2_5: item.pm2_5,
+                co2: item.co2,
+                voc: item.voc,
+                nox: item.nox,
+                temperature: item.temperature,
+                humidity: item.humidity
+            };
+        }).filter(item => item.latitude && item.longitude);
+
+        console.log('Feldolgozott adatok száma:', processedData.length);
+
         // Sebesség számítás kliens oldalon
-        let processedData = data || [];
         processedData = calculateSpeeds(processedData);
         
         // Korridór típusok hozzáadása
@@ -319,16 +390,23 @@ async function analyzeArea(areaLayer) {
         }));
 
         currentData = processedData;
-        displayRouteData(currentData);
-        updateStatistics(currentData, primaryMetric);
-        createCharts(currentData);
-        updateHotspots(currentData, primaryMetric);
-        updateCorridorComparison(currentData);
-        updateDataTable(currentData);
+        
+        if (currentData.length === 0) {
+            alert('Nincsenek adatok a kiválasztott dátumra és területre!');
+            document.getElementById('no-data-message').classList.remove('hidden');
+            document.getElementById('statsContainer').classList.add('hidden');
+        } else {
+            displayRouteData(currentData);
+            updateStatistics(currentData, primaryMetric);
+            createCharts(currentData);
+            updateHotspots(currentData, primaryMetric);
+            updateCorridorComparison(currentData);
+            updateDataTable(currentData);
+        }
 
     } catch (error) {
         console.error('Hiba:', error);
-        alert('Hiba történt az adatok lekérése során');
+        alert('Hiba történt az adatok lekérése során: ' + error.message);
     } finally {
         showLoading(false);
     }
