@@ -96,8 +96,8 @@
             <option value="pm2_5">PM2.5</option>
             <option value="pm10_0">PM10.0</option>
             <option value="co2">CO2</option>
-            <option value="temperature" data-lang-key="temp">Hőmérséklet</option>
-            <option value="humidity" data-lang-key="humidity">Páratartalom</option>
+            <option value="temperature">Hőmérséklet</option>
+            <option value="humidity">Páratartalom</option>
         </select>
         
         <label id="metric2-label" for="metric-select-2" class="font-semibold">Y tengely:</label>
@@ -107,8 +107,8 @@
             <option value="pm2_5">PM2.5</option>
             <option value="pm10_0">PM10.0</option>
             <option value="co2">CO2</option>
-            <option value="temperature" data-lang-key="temp">Hőmérséklet</option>
-            <option value="humidity" data-lang-key="humidity">Páratartalom</option>
+            <option value="temperature">Hőmérséklet</option>
+            <option value="humidity">Páratartalom</option>
         </select>
         
         <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
@@ -373,9 +373,7 @@
         methodPDesc: "A `p-érték` mutatja, mennyire statisztikailag szignifikáns a kapcsolat (vagyis mennyire valószínű, hogy nem véletlen). Általában `p < 0.05` esetén a korrelációt szignifikánsnak tekintjük.",
         methodModeTitle: "Elemzési Módok:",
         methodModePolluted: "<strong class=\"text-gray-900\">Szennyezett Adatsor:</strong> Csak azok a rácscellák szerepelnek, ahol az átlagértékek a \"tiszta\" háttérszint fölött vannak (pl. NOx > 1 és VOC > 100). Ez a \"hotspotok\" belső korrelációja.",
-        methodModeAll: "<strong class=\"text-gray-900\">Teljes Adatsor:</strong> Minden rácscella szerepel, beleértve a tiszta területeket is. Ez a teljes rendszer viselkedését mutatja (\"áttekintő\").",
-        temp: "Hőmérséklet",
-        humidity: "Páratartalom"
+        methodModeAll: "<strong class=\"text-gray-900\">Teljes Adatsor:</strong> Minden rácscella szerepel, beleértve a tiszta területeket is. Ez a teljes rendszer viselkedését mutatja (\"áttekintő\")."
       },
       en: {
         title: "Correlation Analysis - MFKSensor",
@@ -408,9 +406,7 @@
         methodPDesc: "The `p-value` indicates how statistically significant the relationship is (i.e., how likely it is not due to random chance). It is generally accepted that if `p < 0.05`, the correlation is considered significant.",
         methodModeTitle: "Analysis Modes:",
         methodModePolluted: "<strong class=\"text-gray-900\">Polluted Data:</strong> Analyzes only those grid cells where the average values are above the \"clean\" background levels (e.g., NOx > 1 and VOC > 100). This is the internal correlation of \"hotspots\".",
-        methodModeAll: "<strong class=\"text-gray-900\">Full Data:</strong> Includes all grid cells, including clean areas. This shows the behavior of the entire system (\"overview\").",
-        temp: "Temperature",
-        humidity: "Humidity"
+        methodModeAll: "<strong class=\"text-gray-900\">Full Data:</strong> Includes all grid cells, including clean areas. This shows the behavior of the entire system (\"overview\")."
       }
     };
 
@@ -462,12 +458,6 @@
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
       document.documentElement.lang = lang;
       
-      document.querySelectorAll('select option[data-lang-key]').forEach(option => {
-          const key = option.dataset.langKey; // Kiolvassa a kulcsot (pl. "temp")
-          if (langData[key]) {
-              option.textContent = langData[key]; // Beállítja a fordítást (pl. "Temperature")
-          }
-      });
 
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
