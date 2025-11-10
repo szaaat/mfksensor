@@ -442,7 +442,7 @@
             .from('air_quality_view')
             .select('timestamp')
             .order('timestamp', { ascending: false })
-            .limit(1000);
+            .limit(10000);
 
           if (error) throw error;
           
