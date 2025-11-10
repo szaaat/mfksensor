@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Útvonal Analitika - MFKSensor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    
+    <style>
+        #map { height: 500px; }
+        .analysis-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 350px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #22c55e;
+        }
+        .analysis-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: #f5f5f5;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .tab-btn.active {
+            background: #22c55e;
+            color: white;
+            border-color: #22c55e;
+        }
+        .comparison-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .speed-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .speed-low { background: #ef4444; }
+        .speed-medium { background: #f59e0b; }
+        .speed-high { background: #22c55e; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <header class="bg-green-700 text-white py-4">
+        <div class="container mx-auto px-4">
+            <h1 class="text-2xl font-bold">Útvonal Analitika</h1>
+            <p class="text-sm">Mozgó szenzor adatok elemzése a 65 km-es útvonalon</p>
+        </div>
+    </header>
+
+    <nav class="bg-green-600 text-white py-3">
+        <div class="container mx-auto px-4 flex flex-wrap gap-4">
+            <a href="/mfksensor/" class="hover:text-green-200">Kezdőlap</a>
+            <a href="/mfksensor/analytics.html" class="hover:text-green-200">Napi Analitika</a>
+            <a href="/mfksensor/route_analytics.html" class="font-bold underline">Útvonal Analitika</a>
+            <a href="/mfksensor/correlation.html" class="hover:text-green-200">Korreláció</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4">
+        <!-- Vezérlők -->
+        <div class="bg-white p-4 rounded-lg shadow-md mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Dátum</label>
+                    <input type="date" id="analysis-date" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Irány</label>
+                    <select id="direction" class="w-full p-2 border rounded">
+                        <option value="morning">Délelőtt (munkába)</option>
+                        <option value="afternoon">Délután (hazafelé)</option>
+                        <option value="both">Mindkét irány</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Fő metrika</label>
+                    <select id="primary-metric" class="w-full p-2 border rounded">
+                        <option value="pm2_5">PM2.5</option>
+                        <option value="co2">CO₂</option>
+                        <option value="voc">VOC</option>
+                        <option value="nox">NOx</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Másodlagos metrika</label>
+                    <select id="secondary-metric" class="w-full p-2 border rounded">
+                        <option value="temperature">Hőmérséklet</option>
+                        <option value="humidity">Páratartalom</option>
+                        <option value="pm2_5">PM2.5</option>
+                        <option value="co2">CO₂</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Elemzés mód</label>
+                    <select id="analysis-mode" class="w-full p-2 border rounded">
+                        <option value="hotspots">Forró pontok</option>
+                        <option value="corridors">Korridór elemzés</option>
+                        <option value="temporal">Időbeli változás</option>
+                        <option value="speed">Sebesség hatás</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <button id="analyze-btn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Elemzés indítása
+                </button>
+                <button id="export-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Exportálás
+                </button>
+            </div>
+        </div>
+
+        <!-- Elemzési lapok -->
+        <div class="analysis-tabs">
+            <button class="tab-btn active" data-tab="map">Térkép</button>
+            <button class="tab-btn" data-tab="corridors">Korridórok</button>
+            <button class="tab-btn" data-tab="temporal">Időbeli elemzés</button>
+            <button class="tab-btn" data-tab="speed">Sebesség hatás</button>
+        </div>
+
+        <!-- Tartalom -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <!-- Bal oldali panel -->
+            <div class="lg:col-span-1 space-y-4">
+                <!-- Összegző statisztikák -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-3">Útvonal összegzés</h3>
+                    <div id="route-summary" class="stats-grid">
+                        <!-- Statisztikák jönnek ide -->
+                    </div>
+                </div>
+
+                <!-- Forró pontok listája -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-2">Top 5 forró pont</h3>
+                    <div id="hotspots-list"></div>
+                </div>
+
+                <!-- Korridór összehasonlítás -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-2">Korridór összehasonlítás</h3>
+                    <div id="corridor-comparison"></div>
+                </div>
+            </div>
+
+            <!-- Középső térkép -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-md">
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <!-- Jobb oldali diagramok -->
+            <div class="lg:col-span-1 space-y-4">
+                <!-- Szennyezés profil -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-2">Szennyezés profil</h3>
+                    <canvas id="profile-chart" height="200"></canvas>
+                </div>
+
+                <!-- Időbeli trend -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-2">Időbeli trend</h3>
+                    <canvas id="trend-chart" height="200"></canvas>
+                </div>
+
+                <!-- Sebesség hatás -->
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-semibold mb-2">Sebesség hatás</h3>
+                    <canvas id="speed-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Részletes adattáblázat -->
+        <div class="mt-6 bg-white rounded-lg shadow-md">
+            <div class="p-4">
+                <h3 class="font-semibold mb-3">Részletes mérési adatok</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Időpont</th>
+                                <th class="px-4 py-2 text-left">Hely</th>
+                                <th class="px-4 py-2 text-right">PM2.5</th>
+                                <th class="px-4 py-2 text-right">CO₂</th>
+                                <th class="px-4 py-2 text-right">VOC</th>
+                                <th class="px-4 py-2 text-right">NOx</th>
+                                <th class="px-4 py-2 text-right">Sebesség</th>
+                                <th class="px-4 py-2 text-left">Korridór</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        const supabaseClient = supabase.createClient(
+            'https://yuamroqhxrflusxeyylp.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
+        );
+
+        let map;
+        let routeLayer;
+        let hotspotsLayer;
+        let corridorsLayer;
+        let profileChart, trendChart, speedChart;
+        let currentData = [];
+
+        // Térkép inicializálása
+        function initMap() {
+            map = L.map('map').setView([47.4979, 19.0402], 11);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Rajzolási eszközök
+            const drawControl = new L.Control.Draw({
+                draw: {
+                    polygon: true,
+                    polyline: true,
+                    rectangle: true,
+                    circle: false,
+                    marker: false
+                },
+                edit: {
+                    featureGroup: new L.FeatureGroup()
+                }
+            });
+            map.addControl(drawControl);
+
+            map.on(L.Draw.Event.CREATED, function (e) {
+                const layer = e.layer;
+                analyzeArea(layer);
+            });
+        }
+
+        // Terület elemzése
+        // A analyzeArea függvény frissítése - EZT CSERÉLD KI A TELJESEN
+async function analyzeArea(areaLayer) {
+    const bounds = areaLayer.getBounds();
+    const date = document.getElementById('analysis-date').value;
+    const direction = document.getElementById('direction').value;
+    const primaryMetric = document.getElementById('primary-metric').value;
+    
+    showLoading(true);
+
+    try {
+        // Használd a get_route_data_simple függvényt, mert az biztos működik
+        const { data, error } = await supabaseClient
+            .rpc('get_route_data_simple', {
+                min_lat: bounds.getSouth(),
+                max_lat: bounds.getNorth(),
+                min_lon: bounds.getWest(),
+                max_lon: bounds.getEast(),
+                analysis_date: date,
+                direction: direction
+            });
+
+        if (error) throw error;
+
+        // Sebesség számítás kliens oldalon
+        let processedData = data || [];
+        processedData = calculateSpeeds(processedData);
+        
+        // Korridór típusok hozzáadása
+        processedData = processedData.map(point => ({
+            ...point,
+            corridor_type: classifyCorridor(point)
+        }));
+
+        currentData = processedData;
+        displayRouteData(currentData);
+        updateStatistics(currentData, primaryMetric);
+        createCharts(currentData);
+        updateHotspots(currentData, primaryMetric);
+        updateCorridorComparison(currentData);
+        updateDataTable(currentData);
+
+    } catch (error) {
+        console.error('Hiba:', error);
+        alert('Hiba történt az adatok lekérése során');
+    } finally {
+        showLoading(false);
+    }
+}
+
+        // Betöltés indikátor
+        function showLoading(show) {
+            const btn = document.getElementById('analyze-btn');
+            if (show) {
+                btn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Betöltés...';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Elemzés indítása';
+                btn.disabled = false;
+            }
+        }
+
+        // Útvonal adatok megjelenítése
+        function displayRouteData(data) {
+            // Régi rétegek eltávolítása
+            if (routeLayer) map.removeLayer(routeLayer);
+            if (hotspotsLayer) map.removeLayer(hotspotsLayer);
+            if (corridorsLayer) map.removeLayer(corridorsLayer);
+
+            if (data.length === 0) return;
+
+            // Útvonal megjelenítése
+            const routePoints = data.map(d => [d.latitude, d.longitude]);
+            routeLayer = L.polyline(routePoints, {
+                color: '#3b82f6',
+                weight: 4,
+                opacity: 0.8
+            }).addTo(map);
+
+            // Forró pontok megjelenítése
+            const primaryMetric = document.getElementById('primary-metric').value;
+            hotspotsLayer = L.layerGroup().addTo(map);
+            
+            data.filter(d => d[primaryMetric] > getThreshold(primaryMetric)).forEach(point => {
+                const intensity = Math.min((point[primaryMetric] / getThreshold(primaryMetric)) * 15, 25);
+                
+                L.circleMarker([point.latitude, point.longitude], {
+                    radius: intensity,
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.7
+                }).bindPopup(`
+                    <strong>${getMetricName(primaryMetric)}:</strong> ${point[primaryMetric].toFixed(1)}<br>
+                    <strong>Idő:</strong> ${new Date(point.timestamp).toLocaleTimeString()}<br>
+                    <strong>Korridór:</strong> ${point.corridor_type || 'Ismeretlen'}
+                `).addTo(hotspotsLayer);
+            });
+
+            // Korridórok megjelenítése
+            corridorsLayer = L.layerGroup().addTo(map);
+            const corridors = groupByCorridors(data);
+            
+            Object.entries(corridors).forEach(([type, points]) => {
+                if (points.length > 1) {
+                    const corridorColor = getCorridorColor(type);
+                    L.polyline(points.map(p => [p.latitude, p.longitude]), {
+                        color: corridorColor,
+                        weight: 6,
+                        opacity: 0.6
+                    }).bindPopup(`<strong>${getCorridorName(type)}</strong>`).addTo(corridorsLayer);
+                }
+            });
+
+            map.fitBounds(routeLayer.getBounds());
+        }
+
+        // Korridórok csoportosítása - EZT IS FRISSÍTSD
+function groupByCorridors(data) {
+    const corridors = {
+        'urban': [],
+        'suburban': [],
+        'highway': [],
+        'rural': []
+    };
+
+    data.forEach(point => {
+        const type = point.corridor_type || classifyCorridor(point);
+        if (corridors[type]) {
+            corridors[type].push(point);
+        }
+    });
+
+    return corridors;
+}
+
+        // Korridór besorolás (egyszerűsített)
+        function classifyCorridor(point) {
+    const speed = point.speed || 0;
+    if (speed < 20) return 'urban';
+    if (speed < 50) return 'suburban';
+    if (speed >= 50) return 'highway';
+    return 'rural';
+}
+
+        // Korridór színek
+        function getCorridorColor(type) {
+            const colors = {
+                'urban': '#ef4444',
+                'suburban': '#f59e0b',
+                'highway': '#10b981',
+                'rural': '#6b7280'
+            };
+            return colors[type] || '#000000';
+        }
+
+        function getCorridorName(type) {
+            const names = {
+                'urban': 'Városi',
+                'suburban': 'Elővárosi',
+                'highway': 'Autópálya',
+                'rural': 'Vidéki'
+            };
+            return names[type] || type;
+        }
+
+        // Statisztikák frissítése
+        function updateStatistics(data, metric) {
+            if (data.length === 0) return;
+
+            const values = data.map(d => d[metric]).filter(v => v != null);
+            const speeds = data.map(d => d.speed).filter(v => v != null);
+            
+            const stats = {
+                distance: calculateDistance(data).toFixed(1),
+                duration: calculateDuration(data),
+                avgValue: values.reduce((a, b) => a + b, 0) / values.length,
+                maxValue: Math.max(...values),
+                hotspots: values.filter(v => v > getThreshold(metric)).length,
+                avgSpeed: speeds.length ? (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1) : 'N/A'
+            };
+
+            document.getElementById('route-summary').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.distance} km</div>
+                    <div class="text-xs">Távolság</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.duration}</div>
+                    <div class="text-xs">Időtartam</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.avgValue.toFixed(1)}</div>
+                    <div class="text-xs">Átlag ${getMetricName(metric)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.hotspots}</div>
+                    <div class="text-xs">Forró pontok</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.avgSpeed}</div>
+                    <div class="text-xs">Átlag sebesség</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.maxValue.toFixed(1)}</div>
+                    <div class="text-xs">Max ${getMetricName(metric)}</div>
+                </div>
+            `;
+        }
+
+        // Távolság számítás
+        function calculateDistance(data) {
+            let total = 0;
+            for (let i = 1; i < data.length; i++) {
+                const prev = data[i-1];
+                const curr = data[i];
+                total += calculateHaversineDistance(
+                    prev.latitude, prev.longitude,
+                    curr.latitude, curr.longitude
+                );
+            }
+            return total;
+        }
+
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Föld sugara km-ben
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Időtartam számítás
+        function calculateDuration(data) {
+            if (data.length < 2) return '0:00';
+            const start = new Date(data[0].timestamp);
+            const end = new Date(data[data.length - 1].timestamp);
+            const diff = (end - start) / 1000 / 60; // percben
+            const hours = Math.floor(diff / 60);
+            const minutes = Math.floor(diff % 60);
+            return `${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        // Diagramok létrehozása
+        function createCharts(data) {
+            createProfileChart(data);
+            createTrendChart(data);
+            createSpeedChart(data);
+        }
+
+        function createProfileChart(data) {
+            const ctx = document.getElementById('profile-chart').getContext('2d');
+            const primaryMetric = document.getElementById('primary-metric').value;
+            const secondaryMetric = document.getElementById('secondary-metric').value;
+            
+            if (profileChart) profileChart.destroy();
+
+            // Adatok távolság szerinti sorrendbe állítása
+            const sortedData = [...data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const distances = calculateCumulativeDistances(sortedData);
+            
+            profileChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: distances.map((d, i) => `${d.toFixed(1)} km`),
+                    datasets: [
+                        {
+                            label: getMetricName(primaryMetric),
+                            data: sortedData.map(d => d[primaryMetric]),
+                            borderColor: 'rgb(234, 88, 12)',
+                            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: getMetricName(secondaryMetric),
+                            data: sortedData.map(d => d[secondaryMetric]),
+                            borderColor: 'rgb(37, 99, 235)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Távolság' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: getMetricName(primaryMetric) }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: getMetricName(secondaryMetric) },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTrendChart(data) {
+            const ctx = document.getElementById('trend-chart').getContext('2d');
+            const metric = document.getElementById('primary-metric').value;
+            
+            if (trendChart) trendChart.destroy();
+
+            const timeData = data.map(d => new Date(d.timestamp));
+            const values = data.map(d => d[metric]);
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeData,
+                    datasets: [{
+                        label: getMetricName(metric),
+                        data: values,
+                        borderColor: 'rgb(22, 163, 74)',
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: { minute: 'HH:mm' }
+                            },
+                            title: { display: true, text: 'Idő' }
+                        },
+                        y: {
+                            title: { display: true, text: getMetricName(metric) }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Haversine formula távolság számításra (km-ben) - EZT SZÚRD BE A MEGLÉVŐ FÜGGVÉNYEK ELÉ
+            function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371; // Föld sugara km-ben
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            // Sebesség számítás kliens oldalon - EZT IS SZÚRD BE
+        function calculateSpeeds(data) {
+    if (data.length < 2) return data;
+    
+    const dataWithSpeeds = [...data];
+    
+    for (let i = 1; i < dataWithSpeeds.length; i++) {
+        const prev = dataWithSpeeds[i-1];
+        const curr = dataWithSpeeds[i];
+        
+        // Idő különbség másodpercben
+        const timeDiff = (new Date(curr.timestamp) - new Date(prev.timestamp)) / 1000;
+        
+        if (timeDiff > 0) {
+            // Távolság számítás Haversine formula alapján
+            const distance = calculateHaversineDistance(
+                prev.latitude, prev.longitude,
+                curr.latitude, curr.longitude
+            );
+            
+            // Sebesség km/h-ban
+            const speed = (distance / timeDiff) * 3600;
+            dataWithSpeeds[i].speed = speed;
+        }
+    }
+    
+    // Az első pont sebessége 0
+    if (dataWithSpeeds.length > 0) {
+        dataWithSpeeds[0].speed = 0;
+    }
+    
+    return dataWithSpeeds;
+}
+
+        function createSpeedChart(data) {
+            const ctx = document.getElementById('speed-chart').getContext('2d');
+            const metric = document.getElementById('primary-metric').value;
+            
+            if (speedChart) speedChart.destroy();
+
+            // Csoportosítás sebesség szerint
+            const speedRanges = {
+                '0-20 km/h': { sum: 0, count: 0 },
+                '20-40 km/h': { sum: 0, count: 0 },
+                '40-60 km/h': { sum: 0, count: 0 },
+                '60+ km/h': { sum: 0, count: 0 }
+            };
+
+            data.forEach(point => {
+                const speed = point.speed || 0;
+                const value = point[metric];
+                
+                if (speed <= 20) {
+                    speedRanges['0-20 km/h'].sum += value;
+                    speedRanges['0-20 km/h'].count++;
+                } else if (speed <= 40) {
+                    speedRanges['20-40 km/h'].sum += value;
+                    speedRanges['20-40 km/h'].count++;
+                } else if (speed <= 60) {
+                    speedRanges['40-60 km/h'].sum += value;
+                    speedRanges['40-60 km/h'].count++;
+                } else {
+                    speedRanges['60+ km/h'].sum += value;
+                    speedRanges['60+ km/h'].count++;
+                }
+            });
+
+            const labels = Object.keys(speedRanges);
+            const averages = labels.map(range => {
+                const rangeData = speedRanges[range];
+                return rangeData.count > 0 ? rangeData.sum / rangeData.count : 0;
+            });
+
+            speedChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Átlagos ${getMetricName(metric)}`,
+                        data: averages,
+                        backgroundColor: 'rgba(139, 69, 19, 0.8)',
+                        borderColor: 'rgb(139, 69, 19)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: getMetricName(metric) }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Egyéb segéd függvények
+        function calculateCumulativeDistances(data) {
+            const distances = [0];
+            for (let i = 1; i < data.length; i++) {
+                const prev = data[i-1];
+                const curr = data[i];
+                const segmentDistance = calculateHaversineDistance(
+                    prev.latitude, prev.longitude,
+                    curr.latitude, curr.longitude
+                );
+                distances.push(distances[i-1] + segmentDistance);
+            }
+            return distances;
+        }
+
+        function getThreshold(metric) {
+            const thresholds = {
+                'pm2_5': 25,
+                'co2': 800,
+                'voc': 200,
+                'nox': 50,
+                'temperature': 30
+            };
+            return thresholds[metric] || 0;
+        }
+
+        function getMetricName(metric) {
+            const names = {
+                'pm2_5': 'PM2.5',
+                'co2': 'CO₂',
+                'voc': 'VOC',
+                'nox': 'NOx',
+                'temperature': 'Hőmérséklet',
+                'humidity': 'Páratartalom'
+            };
+            return names[metric] || metric;
+        }
+
+        function updateHotspots(data, metric) {
+            const threshold = getThreshold(metric);
+            const hotspots = data
+                .filter(d => d[metric] > threshold)
+                .sort((a, b) => b[metric] - a[metric])
+                .slice(0, 5);
+
+            document.getElementById('hotspots-list').innerHTML = hotspots.length > 0 
+                ? hotspots.map((spot, index) => `
+                    <div class="flex justify-between items-center p-2 border-b">
+                        <div>
+                            <div class="font-medium">${index + 1}. ${getMetricName(metric)}: ${spot[metric].toFixed(1)}</div>
+                            <div class="text-xs text-gray-500">
+                                ${new Date(spot.timestamp).toLocaleTimeString()}
+                                <span class="speed-indicator ${getSpeedClass(spot.speed)}"></span>
+                                ${spot.speed ? spot.speed.toFixed(0) + ' km/h' : 'Ismeretlen'}
+                            </div>
+                        </div>
+                        <button onclick="zoomToPoint(${spot.latitude}, ${spot.longitude})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm">
+                            Megtekintés
+                        </button>
+                    </div>
+                `).join('')
+                : '<div class="text-gray-500 text-center p-2">Nincsenek forró pontok</div>';
+        }
+
+        function getSpeedClass(speed) {
+            if (!speed) return 'speed-unknown';
+            if (speed < 20) return 'speed-low';
+            if (speed < 50) return 'speed-medium';
+            return 'speed-high';
+        }
+
+        function updateCorridorComparison(data) {
+            const metric = document.getElementById('primary-metric').value;
+            const corridors = groupByCorridors(data);
+            
+            let comparisonHTML = '';
+            Object.entries(corridors).forEach(([type, points]) => {
+                if (points.length > 0) {
+                    const values = points.map(p => p[metric]).filter(v => v != null);
+                    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                    
+                    comparisonHTML += `
+                        <div class="mb-2 p-2 border rounded">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium">${getCorridorName(type)}</span>
+                                <span class="text-sm ${avg > getThreshold(metric) ? 'text-red-600' : 'text-green-600'}">
+                                    ${avg.toFixed(1)}
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                ${points.length} mérés • ${values.length > 0 ? 'Átlag: ' + avg.toFixed(1) : 'Nincs adat'}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('corridor-comparison').innerHTML = comparisonHTML || 
+                '<div class="text-gray-500 text-center">Nincs elég adat a korridórok összehasonlításához</div>';
+        }
+
+        function updateDataTable(data) {
+            const tbody = document.getElementById('data-table-body');
+            const limitedData = data.slice(0, 50); // Csak az első 50 sor
+            
+            tbody.innerHTML = limitedData.map(point => `
+                <tr>
+                    <td class="px-4 py-2">${new Date(point.timestamp).toLocaleTimeString()}</td>
+                    <td class="px-4 py-2">${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}</td>
+                    <td class="px-4 py-2 text-right">${point.pm2_5 ? point.pm2_5.toFixed(1) : '-'}</td>
+                    <td class="px-4 py-2 text-right">${point.co2 ? point.co2.toFixed(0) : '-'}</td>
+                    <td class="px-4 py-2 text-right">${point.voc ? point.voc.toFixed(0) : '-'}</td>
+                    <td class="px-4 py-2 text-right">${point.nox ? point.nox.toFixed(1) : '-'}</td>
+                    <td class="px-4 py-2 text-right">
+                        ${point.speed ? `
+                            <span class="speed-indicator ${getSpeedClass(point.speed)}"></span>
+                            ${point.speed.toFixed(0)} km/h
+                        ` : '-'}
+                    </td>
+                    <td class="px-4 py-2">${getCorridorName(classifyCorridor(point))}</td>
+                </tr>
+            `).join('');
+        }
+
+        function zoomToPoint(lat, lon) {
+            map.setView([lat, lon], 16);
+        }
+
+        // Lapváltás
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                // Itt lehetne lap specifikus tartalom megjelenítése
+            });
+        });
+
+        // Oldal betöltése
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            
+            document.getElementById('analyze-btn').addEventListener('click', function() {
+                const bounds = map.getBounds();
+                analyzeArea({ getBounds: () => bounds });
+            });
+
+            document.getElementById('export-btn').addEventListener('click', function() {
+                if (currentData.length === 0) {
+                    alert('Nincsenek exportálható adatok!');
+                    return;
+                }
+
+                const headers = ['Időbélyeg', 'Szélesség', 'Hosszúság', 'PM2.5', 'CO2', 'VOC', 'NOx', 'Hőmérséklet', 'Páratartalom', 'Sebesség', 'Korridór'];
+                const csvContent = [
+                    headers.join(','),
+                    ...currentData.map(row => [
+                        row.timestamp,
+                        row.latitude,
+                        row.longitude,
+                        row.pm2_5 || '',
+                        row.co2 || '',
+                        row.voc || '',
+                        row.nox || '',
+                        row.temperature || '',
+                        row.humidity || '',
+                        row.speed || '',
+                        classifyCorridor(row)
+                    ].map(field => `"${field}"`).join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `utvonal_adatok_${document.getElementById('analysis-date').value}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            });
+
+            // Alapértelmezett dátum mai dátum
+            document.getElementById('analysis-date').value = new Date().toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>
