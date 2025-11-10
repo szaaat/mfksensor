@@ -72,10 +72,11 @@
     }
     .chart-container {
         position: relative;
-        height: 300px;
+        height: 400px;
         border: 1px solid #e5e7eb;
         border-radius: 0.5rem;
         padding: 0.5rem;
+        background: white;
     }
     .chart-controls {
       display: flex;
@@ -83,12 +84,12 @@
       justify-content: center;
       margin-bottom: 0.5rem;
       flex-wrap: wrap;
+      align-items: center;
     }
     .chart-controls label {
       font-size: 0.875rem;
       font-weight: 500;
       color: #374151;
-      align-self: center;
     }
     .chart-controls select {
       font-size: 0.875rem;
@@ -118,13 +119,39 @@
       text-align: center;
       margin-bottom: 1rem;
       font-style: italic;
-      color: #666;
     }
     .no-data-message {
       text-align: center;
-      padding: 2rem;
+      padding: 3rem;
       color: #666;
       font-size: 1.1rem;
+      background: white;
+      border-radius: 0.5rem;
+      margin: 2rem auto;
+      max-width: 500px;
+    }
+    .data-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .summary-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .summary-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #16a34a;
+    }
+    .summary-label {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
     }
   </style>
 </head>
@@ -151,6 +178,7 @@
   </nav>
 
   <div class="container mx-auto p-6 flex-grow relative">
+    <!-- Dátum választó -->
     <div class="mb-6 bg-white p-4 rounded-lg shadow-md">
       <div class="flex flex-col md:flex-row justify-between items-center gap-4">
         <div class="flex items-center gap-2">
@@ -158,53 +186,80 @@
           <input type="text" id="datePicker" class="border rounded px-3 py-2 w-40" placeholder="ÉÉÉÉ-HH-NN" />
         </div>
         <div class="flex gap-2">
-          <button id="prev-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">← Előző nap</button>
-          <button id="next-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Következő nap →</button>
+          <button id="prev-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition-colors">← Előző nap</button>
+          <button id="next-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition-colors">Következő nap →</button>
         </div>
       </div>
-      <div id="date-info" class="date-info mt-2"></div>
+      <div id="date-info" class="date-info mt-2 text-gray-600"></div>
     </div>
 
+    <!-- Betöltés indikátor -->
     <div id="loading" class="loading-overlay hidden">
       <div class="loading-spinner"></div>
       <span id="loading-text" class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     
+    <!-- Nincs adat üzenet -->
     <div id="no-data-message" class="no-data-message hidden">
-      <p>Nincsenek adatok a kiválasztott dátumra.</p>
-      <p class="text-sm mt-2">Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.</p>
+      <div class="text-4xl mb-4">📊</div>
+      <p id="no-data-text" class="font-semibold">Nincsenek adatok a kiválasztott dátumra.</p>
+      <p id="select-other-date" class="text-sm mt-2 text-gray-500">Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.</p>
     </div>
     
+    <!-- Fő tartalom -->
     <div id="statsContainer" class="stats-container hidden">
+      <!-- Adat összegzés -->
+      <div id="data-summary" class="data-summary hidden">
+        <div class="summary-card">
+          <div class="summary-value" id="total-measurements">0</div>
+          <div class="summary-label">Összes mérés</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="morning-count">0</div>
+          <div class="summary-label">Délelőtti mérések</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="afternoon-count">0</div>
+          <div class="summary-label">Délutáni mérések</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="time-range">0 óra</div>
+          <div class="summary-label">Időtartam</div>
+        </div>
+      </div>
+
       <h2 id="stats-title" class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
       
-      <div class="mb-6 bg-blue-50 p-4 rounded-lg">
-        <h3 class="font-semibold text-blue-800 mb-2">Diagram beállítások</h3>
+      <!-- Diagram beállítások -->
+      <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <h3 class="font-semibold text-blue-800 mb-3 text-center">Diagram beállítások</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label for="chart-type" class="block text-sm font-medium text-gray-700">Diagram típusa:</label>
-            <select id="chart-type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
+            <label for="chart-type" class="block text-sm font-medium text-gray-700 mb-1">Diagram típusa:</label>
+            <select id="chart-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
               <option value="line">Vonalas diagram</option>
               <option value="bar">Oszlopdiagram</option>
             </select>
           </div>
           <div>
-            <label for="time-period" class="block text-sm font-medium text-gray-700">Időszak megjelenítése:</label>
-            <select id="time-period" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
-              <option value="full-day">Egész nap (0-24 óra)</option>
-              <option value="morning-afternoon" selected>Délelőtt/Délután (0-12 / 12-24 óra)</option>
-              <option value="custom">Egyéni időintervallum</option>
+            <label for="time-aggregation" class="block text-sm font-medium text-gray-700 mb-1">Idő aggregálás:</label>
+            <select id="time-aggregation" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+              <option value="raw">Eredeti mérések</option>
+              <option value="5min">5 perces átlag</option>
+              <option value="15min">15 perces átlag</option>
+              <option value="hourly">Órás átlag</option>
             </select>
           </div>
         </div>
       </div>
 
+      <!-- Diagramok -->
       <div class="chart-wrapper">
-        <div>
-          <h3 id="morning-title" class="text-center font-semibold text-gray-700">Délelőtt (0-12 óra)</h3>
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 id="morning-title" class="text-center font-semibold text-gray-700 mb-3">Délelőtt (0-12 óra)</h3>
           <div class="chart-controls">
-            <label for="morning-y1" id="morning-y1-label">Metrika 1:</label>
-            <select id="morning-y1">
+            <label for="morning-y1" id="morning-y1-label" class="whitespace-nowrap">Metrika 1:</label>
+            <select id="morning-y1" class="flex-1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
@@ -212,8 +267,8 @@
               <option value="voc">VOC</option>
               <option value="nox">NOx</option>
             </select>
-            <label for="morning-y2" id="morning-y2-label">Metrika 2:</label>
-            <select id="morning-y2">
+            <label for="morning-y2" id="morning-y2-label" class="whitespace-nowrap">Metrika 2:</label>
+            <select id="morning-y2" class="flex-1">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
@@ -226,11 +281,12 @@
             <canvas id="morningChart"></canvas>
           </div>
         </div>
-        <div>
-          <h3 id="afternoon-title" class="text-center font-semibold text-gray-700">Délután (12-24 óra)</h3>
+        
+        <div class="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 id="afternoon-title" class="text-center font-semibold text-gray-700 mb-3">Délután (12-24 óra)</h3>
           <div class="chart-controls">
-            <label for="afternoon-y1" id="afternoon-y1-label">Metrika 1:</label>
-            <select id="afternoon-y1">
+            <label for="afternoon-y1" id="afternoon-y1-label" class="whitespace-nowrap">Metrika 1:</label>
+            <select id="afternoon-y1" class="flex-1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
@@ -238,8 +294,8 @@
               <option value="voc">VOC</option>
               <option value="nox">NOx</option>
             </select>
-            <label for="afternoon-y2" id="afternoon-y2-label">Metrika 2:</label>
-            <select id="afternoon-y2">
+            <label for="afternoon-y2" id="afternoon-y2-label" class="whitespace-nowrap">Metrika 2:</label>
+            <select id="afternoon-y2" class="flex-1">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
@@ -254,27 +310,31 @@
         </div>
       </div>
 
-      <div class="mt-8">
-        <h3 class="text-lg font-semibold mb-4 text-center">Összegző statisztikák</h3>
-        <table id="statsTable" class="stats-table">
-          <thead>
-            <tr>
-              <th id="metric-header">Metrika</th>
-              <th id="period-header">Időszak</th>
-              <th id="datapoint-header">Mérések</th>
-              <th id="average-header">Átlag</th>
-              <th id="median-header">Medián</th>
-              <th id="min-header">Minimum</th>
-              <th id="max-header">Maximum</th>
-            </tr>
-          </thead>
-          <tbody id="statsBody"></tbody>
-        </table>
+      <!-- Statisztikai táblázat -->
+      <div class="mt-8 bg-white p-6 rounded-lg shadow-sm border">
+        <h3 class="text-lg font-semibold mb-4 text-center">Részletes statisztikák</h3>
+        <div class="overflow-x-auto">
+          <table id="statsTable" class="stats-table w-full">
+            <thead>
+              <tr>
+                <th id="metric-header">Metrika</th>
+                <th id="period-header">Időszak</th>
+                <th id="datapoint-header">Mérések</th>
+                <th id="average-header">Átlag</th>
+                <th id="median-header">Medián</th>
+                <th id="min-header">Minimum</th>
+                <th id="max-header">Maximum</th>
+              </tr>
+            </thead>
+            <tbody id="statsBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
+    <!-- Export gomb -->
     <div class="text-center mt-6">
-      <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">Adatok exportálása CSV-ként</button>
+      <button id="exportButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition-colors shadow-md">Adatok exportálása CSV-ként</button>
     </div>
   </div>
 
@@ -325,10 +385,11 @@
         noData: "Nincsenek adatok a kiválasztott dátumra.",
         selectOtherDate: "Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.",
         chartType: "Diagram típusa:",
-        timePeriod: "Időszak megjelenítése:",
-        fullDay: "Egész nap (0-24 óra)",
-        morningAfternoon: "Délelőtt/Délután (0-12 / 12-24 óra)",
-        custom: "Egyéni időintervallum"
+        timeAggregation: "Idő aggregálás:",
+        timeRaw: "Eredeti mérések",
+        time5min: "5 perces átlag",
+        time15min: "15 perces átlag",
+        timeHourly: "Órás átlag"
       },
       en: {
         title: "Air Quality Analytics",
@@ -350,10 +411,11 @@
         noData: "No data available for selected date.",
         selectOtherDate: "Please select another date or check if there are measurements for this day.",
         chartType: "Chart type:",
-        timePeriod: "Display period:",
-        fullDay: "Full day (0-24 hours)",
-        morningAfternoon: "Morning/Afternoon (0-12 / 12-24 hours)",
-        custom: "Custom time interval"
+        timeAggregation: "Time aggregation:",
+        timeRaw: "Raw measurements",
+        time5min: "5-minute average",
+        time15min: "15-minute average",
+        timeHourly: "Hourly average"
       }
     };
 
@@ -406,11 +468,15 @@
       
       // Diagram beállítások
       document.querySelector('label[for="chart-type"]').textContent = langData.chartType;
-      document.querySelector('label[for="time-period"]').textContent = langData.timePeriod;
-      document.querySelector('#chart-type option[value="line"]').textContent = langData.chartType === 'Diagram típusa:' ? 'Vonalas diagram' : 'Line chart';
-      document.querySelector('#time-period option[value="full-day"]').textContent = langData.fullDay;
-      document.querySelector('#time-period option[value="morning-afternoon"]').textContent = langData.morningAfternoon;
-      document.querySelector('#time-period option[value="custom"]').textContent = langData.custom;
+      document.querySelector('label[for="time-aggregation"]').textContent = langData.timeAggregation;
+      document.querySelector('#time-aggregation option[value="raw"]').textContent = langData.timeRaw;
+      document.querySelector('#time-aggregation option[value="5min"]').textContent = langData.time5min;
+      document.querySelector('#time-aggregation option[value="15min"]').textContent = langData.time15min;
+      document.querySelector('#time-aggregation option[value="hourly"]').textContent = langData.timeHourly;
+      
+      // Nincs adat üzenet
+      document.getElementById('no-data-text').textContent = langData.noData;
+      document.getElementById('select-other-date').textContent = langData.selectOtherDate;
       
       document.documentElement.lang = lang;
       
@@ -434,25 +500,18 @@
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
       );
 
-      // Javított dátumkezelés
+      // Dátumok betöltése a meglévő RPC függvénnyel
       async function loadAvailableDates() {
         try {
-          // Használjuk a korrelációs oldalon használt függvényt vagy egy általános lekérdezést
-          const { data, error } = await supabaseClient
-            .from('air_quality_view')
-            .select('timestamp')
-            .order('timestamp', { ascending: false })
-            .limit(10000);
-
+          const { data, error } = await supabaseClient.rpc('get_distinct_dates');
           if (error) throw error;
           
-          // Egyedi dátumok kinyerése
-          const dates = [...new Set(data.map(item => item.timestamp.split('T')[0]))].sort().reverse();
-          console.log('Elérhető dátumok:', dates);
-          return dates;
+          console.log('Elérhető dátumok:', data);
+          // A dátumok már string formátumban jönnek, pl: "2025-01-10"
+          return data.map(item => item.date); 
         } catch (err) {
           console.error('Hiba a dátumok lekérdezésekor:', err);
-          // Visszaállás az aktuális dátumra és néhány előző napra
+          // Visszaállás az aktuális dátumra
           const today = new Date();
           const dates = [];
           for (let i = 0; i < 7; i++) {
@@ -464,15 +523,240 @@
         }
       }
 
+      // Adatlekérdezés egy adott napra
+      async function fetchData(date) {
+        const loading = document.getElementById('loading');
+        loading.classList.remove('hidden');
+        try {
+          // Használjuk a dátum stringet közvetlenül
+          const start = `${date}T00:00:00`;
+          const end = `${date}T23:59:59`;
+
+          console.log(`Lekérdezés: ${start} - ${end}`);
+
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('*')
+            .gte('timestamp', start)
+            .lte('timestamp', end)
+            .order('timestamp', { ascending: true });
+            
+          if (error) throw error;
+          
+          console.log(`Lekérdezett adatok száma (${date}):`, data ? data.length : 0);
+          
+          return data || [];
+        } catch (err) {
+          console.error('Hiba az adatok lekérdezésekor:', err);
+          return [];
+        } finally {
+          loading.classList.add('hidden');
+        }
+      }
+
+      // Idő aggregálás függvény
+      function aggregateData(data, interval) {
+        if (interval === 'raw' || !data.length) return data;
+
+        const aggregated = [];
+        const intervalMs = {
+          '5min': 5 * 60 * 1000,
+          '15min': 15 * 60 * 1000,
+          'hourly': 60 * 60 * 1000
+        }[interval];
+
+        let currentGroup = [];
+        let groupStart = null;
+
+        data.forEach((point, index) => {
+          const timestamp = new Date(point.timestamp).getTime();
+          
+          if (!groupStart) {
+            groupStart = timestamp;
+            currentGroup = [point];
+            return;
+          }
+
+          if (timestamp - groupStart < intervalMs) {
+            currentGroup.push(point);
+          } else {
+            // Átlag számítása a csoportra
+            const avgPoint = calculateAverage(currentGroup);
+            aggregated.push(avgPoint);
+            
+            // Új csoport kezdése
+            groupStart = timestamp;
+            currentGroup = [point];
+          }
+
+          // Utolsó pont feldolgozása
+          if (index === data.length - 1 && currentGroup.length > 0) {
+            const avgPoint = calculateAverage(currentGroup);
+            aggregated.push(avgPoint);
+          }
+        });
+
+        return aggregated;
+      }
+
+      function calculateAverage(points) {
+        const avgPoint = { ...points[0] };
+        const metrics = ['pm2_5', 'temperature', 'humidity', 'co2', 'voc', 'nox'];
+        
+        metrics.forEach(metric => {
+          const values = points.map(p => p[metric]).filter(v => v != null);
+          if (values.length > 0) {
+            avgPoint[metric] = values.reduce((sum, val) => sum + val, 0) / values.length;
+          }
+        });
+
+        // Az első pont időbélyegét használjuk
+        avgPoint.timestamp = points[0].timestamp;
+        return avgPoint;
+      }
+
+      function updateDataSummary(data) {
+        if (!data || data.length === 0) {
+          document.getElementById('data-summary').classList.add('hidden');
+          return;
+        }
+
+        const morningData = data.filter(item => new Date(item.timestamp).getHours() < 12);
+        const afternoonData = data.filter(item => new Date(item.timestamp).getHours() >= 12);
+        
+        // Időtartam számítás
+        const timestamps = data.map(d => new Date(d.timestamp).getTime());
+        const minTime = Math.min(...timestamps);
+        const maxTime = Math.max(...timestamps);
+        const hoursDiff = (maxTime - minTime) / (1000 * 60 * 60);
+
+        document.getElementById('total-measurements').textContent = data.length;
+        document.getElementById('morning-count').textContent = morningData.length;
+        document.getElementById('afternoon-count').textContent = afternoonData.length;
+        document.getElementById('time-range').textContent = `${hoursDiff.toFixed(1)} óra`;
+
+        document.getElementById('data-summary').classList.remove('hidden');
+      }
+
+      function updateCharts(data) {
+        if (morningChartInstance) morningChartInstance.destroy();
+        if (afternoonChartInstance) afternoonChartInstance.destroy();
+
+        if (!data || data.length === 0) {
+          document.getElementById('no-data-message').classList.remove('hidden');
+          document.getElementById('statsContainer').classList.add('hidden');
+          document.getElementById('data-summary').classList.add('hidden');
+          return;
+        }
+
+        document.getElementById('no-data-message').classList.add('hidden');
+        document.getElementById('statsContainer').classList.remove('hidden');
+
+        // Idő aggregálás alkalmazása
+        const aggregation = document.getElementById('time-aggregation').value;
+        const aggregatedData = aggregateData(data, aggregation);
+
+        const morningData = aggregatedData.filter(item => new Date(item.timestamp).getHours() < 12);
+        const afternoonData = aggregatedData.filter(item => new Date(item.timestamp).getHours() >= 12);
+
+        const mY1 = document.getElementById('morning-y1').value;
+        const mY2 = document.getElementById('morning-y2').value;
+        const aY1 = document.getElementById('afternoon-y1').value;
+        const aY2 = document.getElementById('afternoon-y2').value;
+        const chartType = document.getElementById('chart-type').value;
+
+        const createChart = (canvasId, chartData, y1Key, y2Key) => {
+          const ctx = document.getElementById(canvasId);
+          if (!ctx) return null;
+
+          const y1Metric = metricsDetails[y1Key];
+          const y2Metric = metricsDetails[y2Key];
+
+          const labels = chartData.map(d => new Date(d.timestamp));
+          const y1Data = chartData.map(d => d[y1Key]);
+          const y2Data = chartData.map(d => d[y2Key]);
+
+          return new Chart(ctx, {
+            type: chartType,
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: y1Metric.label,
+                  data: y1Data,
+                  borderColor: y1Metric.color,
+                  backgroundColor: chartType === 'bar' ? 
+                    y1Metric.color.replace(')', ', 0.7)') : 
+                    y1Metric.color.replace(')', ', 0.1)'),
+                  yAxisID: 'y1',
+                  tension: 0.4,
+                  fill: chartType === 'line'
+                },
+                {
+                  label: y2Metric.label,
+                  data: y2Data,
+                  borderColor: y2Metric.color,
+                  backgroundColor: chartType === 'bar' ? 
+                    y2Metric.color.replace(')', ', 0.7)') : 
+                    y2Metric.color.replace(')', ', 0.1)'),
+                  yAxisID: 'y2',
+                  tension: 0.4,
+                  fill: chartType === 'line'
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                },
+                tooltip: {
+                  mode: 'index',
+                  intersect: false
+                }
+              },
+              scales: {
+                x: {
+                  type: 'time',
+                  time: { 
+                    unit: aggregation === 'hourly' ? 'hour' : 'minute',
+                    tooltipFormat: 'HH:mm',
+                    displayFormats: { 
+                      hour: 'HH:mm',
+                      minute: 'HH:mm'
+                    }
+                  },
+                  title: { display: true, text: 'Időpont' }
+                },
+                y1: {
+                  type: 'linear',
+                  display: true,
+                  position: 'left',
+                  title: { display: true, text: y1Metric.label }
+                },
+                y2: {
+                  type: 'linear',
+                  display: true,
+                  position: 'right',
+                  title: { display: true, text: y2Metric.label },
+                  grid: { drawOnChartArea: false },
+                }
+              }
+            }
+          });
+        };
+
+        morningChartInstance = createChart('morningChart', morningData, mY1, mY2);
+        afternoonChartInstance = createChart('afternoonChart', afternoonData, aY1, aY2);
+      }
+
       function calculateStats(data) {
-        const morning = data.filter(item => {
-          const hour = new Date(item.timestamp).getHours();
-          return hour < 12;
-        });
-        const afternoon = data.filter(item => {
-          const hour = new Date(item.timestamp).getHours();
-          return hour >= 12;
-        });
+        const morning = data.filter(item => new Date(item.timestamp).getHours() < 12);
+        const afternoon = data.filter(item => new Date(item.timestamp).getHours() >= 12);
 
         const getMedian = arr => {
           if (!arr.length) return 0;
@@ -541,158 +825,6 @@
         return stats;
       }
 
-      // Javított adatlekérdezés - rugalmasabb dátumkezeléssel
-      async function fetchData(date) {
-        const loading = document.getElementById('loading');
-        loading.classList.remove('hidden');
-        try {
-          // Egyszerű dátumformátum használata
-          const start = `${date}T00:00:00`;
-          const end = `${date}T23:59:59`;
-
-          console.log(`Lekérdezés: ${start} - ${end}`);
-
-          const { data, error } = await supabaseClient
-            .from('air_quality_view')
-            .select('*')
-            .gte('timestamp', start)
-            .lte('timestamp', end)
-            .order('timestamp', { ascending: true });
-            
-          if (error) throw error;
-          
-          console.log(`Lekérdezett adatok száma (${date}):`, data ? data.length : 0);
-          
-          if (!data || data.length === 0) {
-            currentDayData = [];
-            return []; 
-          }
-          
-          currentDayData = data;
-          return data;
-        } catch (err) {
-          console.error('Hiba az adatok lekérdezésekor:', err);
-          currentDayData = [];
-          return [];
-        } finally {
-          loading.classList.add('hidden');
-        }
-      }
-
-      function updateCharts(data) {
-        if (morningChartInstance) morningChartInstance.destroy();
-        if (afternoonChartInstance) afternoonChartInstance.destroy();
-
-        if (!data || data.length === 0) {
-          document.getElementById('no-data-message').classList.remove('hidden');
-          document.getElementById('statsContainer').classList.add('hidden');
-          return;
-        }
-
-        document.getElementById('no-data-message').classList.add('hidden');
-        document.getElementById('statsContainer').classList.remove('hidden');
-
-        const morningData = data.filter(item => {
-          const hour = new Date(item.timestamp).getHours();
-          return hour < 12;
-        });
-        const afternoonData = data.filter(item => {
-          const hour = new Date(item.timestamp).getHours();
-          return hour >= 12;
-        });
-
-        const mY1 = document.getElementById('morning-y1').value;
-        const mY2 = document.getElementById('morning-y2').value;
-        const aY1 = document.getElementById('afternoon-y1').value;
-        const aY2 = document.getElementById('afternoon-y2').value;
-        const chartType = document.getElementById('chart-type').value;
-
-        const createChart = (canvasId, chartData, y1Key, y2Key) => {
-          const ctx = document.getElementById(canvasId);
-          if (!ctx || chartData.length === 0) {
-            // Ha nincs adat, üres diagram
-            return new Chart(ctx, {
-              type: chartType,
-              data: { datasets: [] },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  x: { title: { display: true, text: 'Időpont' } },
-                  y: { title: { display: true, text: 'Érték' } }
-                }
-              }
-            });
-          }
-
-          const y1Metric = metricsDetails[y1Key];
-          const y2Metric = metricsDetails[y2Key];
-
-          const labels = chartData.map(d => new Date(d.timestamp));
-          const y1Data = chartData.map(d => d[y1Key]);
-          const y2Data = chartData.map(d => d[y2Key]);
-
-          return new Chart(ctx, {
-            type: chartType,
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: y1Metric.label,
-                  data: y1Data,
-                  borderColor: y1Metric.color,
-                  backgroundColor: chartType === 'bar' ? y1Metric.color.replace(')', ', 0.7)') : y1Metric.color.replace(')', ', 0.1)'),
-                  yAxisID: 'y1',
-                  tension: 0.1,
-                  fill: chartType === 'line'
-                },
-                {
-                  label: y2Metric.label,
-                  data: y2Data,
-                  borderColor: y2Metric.color,
-                  backgroundColor: chartType === 'bar' ? y2Metric.color.replace(')', ', 0.7)') : y2Metric.color.replace(')', ', 0.1)'),
-                  yAxisID: 'y2',
-                  tension: 0.1,
-                  fill: chartType === 'line'
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
-              scales: {
-                x: {
-                  type: 'time',
-                  time: { 
-                    unit: 'hour',
-                    tooltipFormat: 'HH:mm',
-                    displayFormats: { hour: 'HH:mm' }
-                  },
-                  title: { display: true, text: 'Időpont' }
-                },
-                y1: {
-                  type: 'linear',
-                  display: true,
-                  position: 'left',
-                  title: { display: true, text: y1Metric.label }
-                },
-                y2: {
-                  type: 'linear',
-                  display: true,
-                  position: 'right',
-                  title: { display: true, text: y2Metric.label },
-                  grid: { drawOnChartArea: false },
-                }
-              }
-            }
-          });
-        };
-
-        morningChartInstance = createChart('morningChart', morningData, mY1, mY2);
-        afternoonChartInstance = createChart('afternoonChart', afternoonData, aY1, aY2);
-      }
-
       function updateStatsTable(data) {
         const statsBody = document.getElementById('statsBody');
         const stats = calculateStats(data); 
@@ -745,12 +877,14 @@
         const lang = localStorage.getItem('language') || 'hu';
         
         if (dataCount > 0) {
-          dateInfo.textContent = `${date} - ${dataCount} mérési adat`;
+          dateInfo.textContent = lang === 'hu' 
+            ? `${date} - ${dataCount} mérési adat`
+            : `${date} - ${dataCount} measurements`;
           dateInfo.style.color = '#16a34a';
         } else {
           dateInfo.textContent = lang === 'hu' 
-            ? `${date} - Nincsenek adatok ezen a napon`
-            : `${date} - No data available for this day`;
+            ? `${date} - Nincsenek adatok`
+            : `${date} - No data`;
           dateInfo.style.color = '#dc2626';
         }
       }
@@ -758,7 +892,10 @@
       async function loadDate(date) {
         currentDate = date;
         const data = await fetchData(date);
+        currentDayData = data;
+        
         updateDateInfo(date, data.length);
+        updateDataSummary(data);
         updateCharts(data);
         updateStatsTable(data);
       }
@@ -806,7 +943,7 @@
 
         // Diagram beállítások változásai
         document.getElementById('chart-type').addEventListener('change', () => updateCharts(currentDayData));
-        document.getElementById('time-period').addEventListener('change', () => updateCharts(currentDayData));
+        document.getElementById('time-aggregation').addEventListener('change', () => updateCharts(currentDayData));
 
         // Metrika választók változásai
         document.getElementById('morning-y1').addEventListener('change', () => updateCharts(currentDayData));
@@ -828,7 +965,8 @@
       // Export funkció
       document.getElementById('exportButton').addEventListener('click', () => {
         if (!currentDate || currentDayData.length === 0) {
-          alert('Nincsenek exportálható adatok!');
+          const lang = localStorage.getItem('language') || 'hu';
+          alert(lang === 'hu' ? 'Nincsenek exportálható adatok!' : 'No data available for export!');
           return;
         }
 
