@@ -95,15 +95,17 @@
     </select>
     <label for="metric-select" id="metric-label" class="ml-4 font-semibold text-gray-700">Válassz adatot:</label>
     <select id="metric-select" class="mx-2 p-2 rounded border border-gray-300">
-        <option value="pm2_5">PM2.5</option>
-        <option value="pm10_0">PM10.0</option>
-        <option value="co2">CO2</option>
-        <option value="temperature">Hőmérséklet</option>
-        <option value="humidity">Páratartalom</option>
-        <option value="voc">VOC Index</option>
-        <option value="nox">NOx Index</option>
         <option value="pm1_0">PM1.0</option>
+        <option value="pm2_5">PM2.5</option>
         <option value="pm4_0">PM4.0</option>
+        <option value="pm10_0">PM10.0</option>
+         <option value="voc">VOC Index</option>
+         <option value="nox">NOx Index</option>
+        <option value="co2">CO2</option>
+        <option value="temperature" data-lang-key="temp">Hőmérséklet</option>
+        <option value="humidity" data-lang-key="humidity">Páratartalom</option>
+       
+        
     </select>
     <div id="loading-spinner"></div>
 </div>
@@ -282,6 +284,8 @@
         legendTitle: "Jelmagyarázat", // ÚJ
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek."
+        temp: "Hőmérséklet",
+        humidity: "Páratartalom"
       },
       en: {
         title: "Seasonal Heatmap - MFKSensor",
@@ -303,6 +307,8 @@
         legendTitle: "Legend", // ÚJ
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified."
+        temp: "Temperature",
+        humidity: "Humidity"
       }
     };
 
@@ -332,6 +338,13 @@
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
       document.documentElement.lang = lang;
+      
+      document.querySelectorAll('select option[data-lang-key]').forEach(option => {
+        const key = option.dataset.langKey; // Kiolvassa a kulcsot (pl. "temp")
+        if (langData[key]) {
+            option.textContent = langData[key]; // Beállítja a fordítást (pl. "Temperature")
+        }
+    });
 
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
