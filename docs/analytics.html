@@ -26,7 +26,7 @@
       100% { transform: rotate(360deg); }
     }
     .stats-container {
-      max-width: 900px; /* Szélesített konténer az új oszlopoknak */
+      max-width: 900px;
       margin: 0 auto;
       padding: 1rem;
       background-color: #fff;
@@ -42,12 +42,12 @@
       padding: 0.75rem;
       text-align: center;
       border-bottom: 1px solid #e5e7eb;
-      font-size: 0.875rem; /* Kisebb betűméret, hogy elférjen */
+      font-size: 0.875rem;
     }
     .stats-table th {
       background-color: #f3f4f6;
       font-weight: 600;
-      white-space: nowrap; /* Ne törjön sort a fejléc */
+      white-space: nowrap;
     }
     .stats-table td:first-child {
       text-align: left;
@@ -125,7 +125,6 @@
         }
       }
 
-      // === MÓDOSÍTOTT calculateStats FÜGGVÉNY ===
       function calculateStats(data) {
         const morning = data.filter(item => new Date(item.timestamp).getUTCHours() < 12);
         const afternoon = data.filter(item => new Date(item.timestamp).getUTCHours() >= 12);
@@ -137,26 +136,20 @@
           const mid = Math.floor(sorted.length / 2);
           return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
         };
-
         const getMin = arr => {
           if (!arr.length) return 0;
           return Math.min(...arr);
         };
-
         const getMax = arr => {
           if (!arr.length) return 0;
           return Math.max(...arr);
         };
-
-        // 95. percentilis (P95) számítása
         const getPercentile = (arr, p) => {
           if (!arr.length) return 0;
           const sorted = [...arr].sort((a, b) => a - b);
-          // Egyszerűsített számítás: a sorba rendezett tömb N*p/100-adik elemét vesszük
           const k = Math.ceil((p / 100) * sorted.length);
-          return sorted[k > 0 ? k - 1 : 0]; // Biztonsági ellenőrzés, ha k=0
+          return sorted[k > 0 ? k - 1 : 0];
         };
-
         const getAvg = arr => {
           if (!arr.length) return 0;
           return arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -173,7 +166,6 @@
           co2: { morning: createStatBlock(), afternoon: createStatBlock() }
         };
 
-        // Kulcsok leképezése az adatbázis oszlopneveiről a stats objektum kulcsaira
         const metricMap = {
           'pm2_5': 'pm25',
           'temperature': 'temp',
@@ -182,38 +174,32 @@
         };
 
         // --- Számítás ---
-        // (Javítva az eredeti hiba, és bővítve az új statisztikákkal)
         for (const [metricKey, statKey] of Object.entries(metricMap)) {
-          // Csak a valós, numerikus értékeket vesszük figyelembe
           const morningValues = morning.map(item => item[metricKey]).filter(v => v != null && !isNaN(v));
           const afternoonValues = afternoon.map(item => item[metricKey]).filter(v => v != null && !isNaN(v));
 
-          // Délelőtti statisztikák
           stats[statKey].morning = {
             count: morningValues.length,
             avg: getAvg(morningValues),
             median: getMedian(morningValues),
             min: getMin(morningValues),
             max: getMax(morningValues),
-            p95: getPercentile(morningValues, 95) // 95. percentilis
+            p95: getPercentile(morningValues, 95)
           };
-
-          // Délutáni statisztikák
           stats[statKey].afternoon = {
             count: afternoonValues.length,
             avg: getAvg(afternoonValues),
             median: getMedian(afternoonValues),
             min: getMin(afternoonValues),
             max: getMax(afternoonValues),
-            p95: getPercentile(afternoonValues, 95) // 95. percentilis
+            p95: getPercentile(afternoonValues, 95)
           };
         }
         
         return stats;
       }
-      // === VÉGE: MÓDOSÍTOTT calculateStats FÜGGVÉNY ===
 
-
+      // === MÓDOSÍTOTT fetchData FÜGGVÉNY ===
       async function fetchData(date) {
         const loading = document.getElementById('loading');
         loading.classList.remove('hidden');
@@ -224,38 +210,19 @@
 
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('id, timestamp, pm2_5, temperature, humidity, co2, location')
+            // 'location' eltávolítva a select-ből, mert nincs rá szükség ezen az oldalon
+            .select('id, timestamp, pm2_5, temperature, humidity, co2')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true });
+            
           if (error) throw error;
           if (!data || data.length === 0) throw new Error('Nincs adat a megadott dátumra.');
           console.log(`Lekérdezett adatok száma (${date}):`, data.length);
 
-          // Koordináták kinyerése WKT-ből kliens oldalon
-          data.forEach(item => {
-            if (item.location) {
-              // Ellenőrizzük, hogy a Wkt könyvtár be van-e töltve
-              if (typeof Wkt !== 'undefined') { 
-                try {
-                  const geom = new Wkt.Wkt().read(item.location).toObject();
-                  item.long = geom.x;
-                  item.lat = geom.y;
-                } catch (e) {
-                  console.warn("Hiba a WKT feldolgozásakor:", e, item.location);
-                  item.long = null;
-                  item.lat = null;
-                }
-              } else {
-                console.warn("Wicket könyvtár (Wkt) nem található.");
-                item.long = null;
-                item.lat = null;
-              }
-            } else {
-              item.long = null;
-              item.lat = null;
-            }
-          });
+          // A 'data.forEach' blokk, ami a location-t
+          // próbálta feldolgozni (és a WKT hibát okozta),
+          // el lett távolítva, mert felesleges volt.
 
           return data;
         } catch (err) {
@@ -265,16 +232,16 @@
           loading.classList.add('hidden');
         }
       }
+      // === VÉGE: MÓDOSÍTOTT fetchData FÜGGVÉNY ===
 
-      // === MÓDOSÍTOTT updateStats FÜGGVÉNY ===
+
       function updateStats(data) {
         const statsContainer = document.getElementById('statsContainer');
         const statsBody = document.getElementById('statsBody');
         const stats = calculateStats(data);
 
-        statsBody.innerHTML = ''; // Táblázat kiürítése
+        statsBody.innerHTML = ''; 
 
-        // Megjelenítendő nevek és mértékegységek
         const metricDisplayNames = {
           pm25: 'PM2.5 (µg/m³)',
           temp: 'Hőmérséklet (°C)',
@@ -282,7 +249,6 @@
           co2: 'CO₂ (ppm)'
         };
 
-        // Iterálás a metrikákon és időszakokon, majd a táblázat feltöltése
         for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
           ['morning', 'afternoon'].forEach(period => {
             const periodName = period === 'morning' ? 'Délelőtt' : 'Délután';
@@ -290,7 +256,6 @@
             
             const row = document.createElement('tr');
             
-            // Csak akkor adjuk hozzá a sort, ha volt adat (count > 0)
             if (statData.count > 0) {
               row.innerHTML = `
                 <td><strong>${displayName}</strong></td>
@@ -309,7 +274,6 @@
 
         statsContainer.classList.remove('hidden');
       }
-      // === VÉGE: MÓDOSÍTOTT updateStats FÜGGVÉNY ===
 
 
       async function initializeAnalytics() {
@@ -322,12 +286,11 @@
           onChange: async (selectedDates) => {
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
+              document.getElementById('statsContainer').classList.add('hidden'); // Táblázat elrejtése töltéskor
               const data = await fetchData(date);
               if (data.length > 0) {
                 updateStats(data);
               } else {
-                // Kezeljük le, ha nincs adat
-                document.getElementById('statsContainer').classList.add('hidden');
                 alert("Nincs adat a kiválasztott dátumra.");
               }
             }
@@ -364,7 +327,6 @@
           }
 
           const csvRows = [];
-          // Az export fejlécét is frissítjük az új statisztikáknak megfelelően
           const headers = ['Dátum', 'Metrika', 'Időszak', 'Adatpont (N)', 'Átlag', 'Medián', 'Min', 'Max', 'P95 Percentilis'];
           csvRows.push(headers.join(','));
 
@@ -379,7 +341,7 @@
           for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
              ['morning', 'afternoon'].forEach(period => {
                 const statData = stats[metricKey][period];
-                if (statData.count > 0) { // Csak a létező adatokat exportáljuk
+                if (statData.count > 0) {
                   const row = [
                     selectedDate,
                     displayName,
@@ -397,7 +359,7 @@
           }
 
           const csvContent = csvRows.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); // UTF-8 BOM hozzáadása
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -411,15 +373,10 @@
         });
       });
 
-      // WKT könyvtár betöltése a koordináták konvertálásához
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/wicket@1.3.7/wicket.js';
-      script.onload = initializeAnalytics; // Az analitika indítása a script betöltése után
-      script.onerror = () => {
-        console.error("Hiba a Wicket (WKT) könyvtár betöltésekor.");
-        initializeAnalytics(); // Próbáljuk meg WKT nélkül is, hátha nincs rá szükség
-      }
-      document.head.appendChild(script);
+      // A WKT könyvtár betöltése (wicket.js) el lett távolítva,
+      // mivel felesleges volt és hibát okozott.
+      // Az analitika azonnal elindul.
+      initializeAnalytics();
     });
   </script>
 </body>
