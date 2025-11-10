@@ -26,7 +26,7 @@
       100% { transform: rotate(360deg); }
     }
     .stats-container {
-      max-width: 600px;
+      max-width: 900px; /* Szélesített konténer az új oszlopoknak */
       margin: 0 auto;
       padding: 1rem;
       background-color: #fff;
@@ -42,10 +42,15 @@
       padding: 0.75rem;
       text-align: center;
       border-bottom: 1px solid #e5e7eb;
+      font-size: 0.875rem; /* Kisebb betűméret, hogy elférjen */
     }
     .stats-table th {
       background-color: #f3f4f6;
       font-weight: 600;
+      white-space: nowrap; /* Ne törjön sort a fejléc */
+    }
+    .stats-table td:first-child {
+      text-align: left;
     }
   </style>
 </head>
@@ -74,22 +79,23 @@
     </div>
     <div id="statsContainer" class="stats-container hidden">
       <h2 class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
+      
       <table id="statsTable" class="stats-table">
         <thead>
           <tr>
+            <th>Metrika</th>
             <th>Időszak</th>
-            <th>PM2.5 Átlag (µg/m³)</th>
-            <th>PM2.5 Medián (µg/m³)</th>
-            <th>Hőm. Átlag (°C)</th>
-            <th>Hőm. Medián (°C)</th>
-            <th>Párat. Átlag (%)</th>
-            <th>Párat. Medián (%)</th>
-            <th>CO₂ Átlag (ppm)</th>
-            <th>CO₂ Medián (ppm)</th>
+            <th>Adatpont (N)</th>
+            <th>Átlag</th>
+            <th>Medián</th>
+            <th>Min</th>
+            <th>Max</th>
+            <th>P95 Percentilis</th>
           </tr>
         </thead>
         <tbody id="statsBody"></tbody>
       </table>
+      
     </div>
     <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
   </div>
@@ -119,50 +125,94 @@
         }
       }
 
+      // === MÓDOSÍTOTT calculateStats FÜGGVÉNY ===
       function calculateStats(data) {
         const morning = data.filter(item => new Date(item.timestamp).getUTCHours() < 12);
         const afternoon = data.filter(item => new Date(item.timestamp).getUTCHours() >= 12);
 
+        // --- Statisztikai segédfüggvények ---
         const getMedian = arr => {
+          if (!arr.length) return 0;
           const sorted = [...arr].sort((a, b) => a - b);
           const mid = Math.floor(sorted.length / 2);
           return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
         };
 
-        const stats = {
-          pm25: { morning: { avg: 0, median: 0 }, afternoon: { avg: 0, median: 0 } },
-          temp: { morning: { avg: 0, median: 0 }, afternoon: { avg: 0, median: 0 } },
-          hum: { morning: { avg: 0, median: 0 }, afternoon: { avg: 0, median: 0 } },
-          co2: { morning: { avg: 0, median: 0 }, afternoon: { avg: 0, median: 0 } }
+        const getMin = arr => {
+          if (!arr.length) return 0;
+          return Math.min(...arr);
         };
 
-        ['pm2_5', 'temperature', 'humidity', 'co2'].forEach(metric => {
-          const morningValues = morning.map(item => item[metric] || 0).filter(v => !isNaN(v));
-          const afternoonValues = afternoon.map(item => item[metric] || 0).filter(v => !isNaN(v));
+        const getMax = arr => {
+          if (!arr.length) return 0;
+          return Math.max(...arr);
+        };
 
-          stats.pm25.morning.avg = morningValues.length ? morningValues.reduce((a, b) => a + b, 0) / morningValues.length : 0;
-          stats.pm25.morning.median = morningValues.length ? getMedian(morningValues) : 0;
-          stats.pm25.afternoon.avg = afternoonValues.length ? afternoonValues.reduce((a, b) => a + b, 0) / afternoonValues.length : 0;
-          stats.pm25.afternoon.median = afternoonValues.length ? getMedian(afternoonValues) : 0;
+        // 95. percentilis (P95) számítása
+        const getPercentile = (arr, p) => {
+          if (!arr.length) return 0;
+          const sorted = [...arr].sort((a, b) => a - b);
+          // Egyszerűsített számítás: a sorba rendezett tömb N*p/100-adik elemét vesszük
+          const k = Math.ceil((p / 100) * sorted.length);
+          return sorted[k > 0 ? k - 1 : 0]; // Biztonsági ellenőrzés, ha k=0
+        };
 
-          stats.temp.morning.avg = morningValues.length ? morningValues.reduce((a, b) => a + b, 0) / morningValues.length : 0;
-          stats.temp.morning.median = morningValues.length ? getMedian(morningValues) : 0;
-          stats.temp.afternoon.avg = afternoonValues.length ? afternoonValues.reduce((a, b) => a + b, 0) / afternoonValues.length : 0;
-          stats.temp.afternoon.median = afternoonValues.length ? getMedian(afternoonValues) : 0;
-
-          stats.hum.morning.avg = morningValues.length ? morningValues.reduce((a, b) => a + b, 0) / morningValues.length : 0;
-          stats.hum.morning.median = morningValues.length ? getMedian(morningValues) : 0;
-          stats.hum.afternoon.avg = afternoonValues.length ? afternoonValues.reduce((a, b) => a + b, 0) / afternoonValues.length : 0;
-          stats.hum.afternoon.median = afternoonValues.length ? getMedian(afternoonValues) : 0;
-
-          stats.co2.morning.avg = morningValues.length ? morningValues.reduce((a, b) => a + b, 0) / morningValues.length : 0;
-          stats.co2.morning.median = morningValues.length ? getMedian(morningValues) : 0;
-          stats.co2.afternoon.avg = afternoonValues.length ? afternoonValues.reduce((a, b) => a + b, 0) / afternoonValues.length : 0;
-          stats.co2.afternoon.median = afternoonValues.length ? getMedian(afternoonValues) : 0;
+        const getAvg = arr => {
+          if (!arr.length) return 0;
+          return arr.reduce((a, b) => a + b, 0) / arr.length;
+        };
+        // --- Készenléti statisztikai objektum ---
+        const createStatBlock = () => ({
+          count: 0, avg: 0, median: 0, min: 0, max: 0, p95: 0
         });
 
+        const stats = {
+          pm25: { morning: createStatBlock(), afternoon: createStatBlock() },
+          temp: { morning: createStatBlock(), afternoon: createStatBlock() },
+          hum: { morning: createStatBlock(), afternoon: createStatBlock() },
+          co2: { morning: createStatBlock(), afternoon: createStatBlock() }
+        };
+
+        // Kulcsok leképezése az adatbázis oszlopneveiről a stats objektum kulcsaira
+        const metricMap = {
+          'pm2_5': 'pm25',
+          'temperature': 'temp',
+          'humidity': 'hum',
+          'co2': 'co2'
+        };
+
+        // --- Számítás ---
+        // (Javítva az eredeti hiba, és bővítve az új statisztikákkal)
+        for (const [metricKey, statKey] of Object.entries(metricMap)) {
+          // Csak a valós, numerikus értékeket vesszük figyelembe
+          const morningValues = morning.map(item => item[metricKey]).filter(v => v != null && !isNaN(v));
+          const afternoonValues = afternoon.map(item => item[metricKey]).filter(v => v != null && !isNaN(v));
+
+          // Délelőtti statisztikák
+          stats[statKey].morning = {
+            count: morningValues.length,
+            avg: getAvg(morningValues),
+            median: getMedian(morningValues),
+            min: getMin(morningValues),
+            max: getMax(morningValues),
+            p95: getPercentile(morningValues, 95) // 95. percentilis
+          };
+
+          // Délutáni statisztikák
+          stats[statKey].afternoon = {
+            count: afternoonValues.length,
+            avg: getAvg(afternoonValues),
+            median: getMedian(afternoonValues),
+            min: getMin(afternoonValues),
+            max: getMax(afternoonValues),
+            p95: getPercentile(afternoonValues, 95) // 95. percentilis
+          };
+        }
+        
         return stats;
       }
+      // === VÉGE: MÓDOSÍTOTT calculateStats FÜGGVÉNY ===
+
 
       async function fetchData(date) {
         const loading = document.getElementById('loading');
@@ -185,9 +235,22 @@
           // Koordináták kinyerése WKT-ből kliens oldalon
           data.forEach(item => {
             if (item.location) {
-              const geom = new Wkt.Wkt().read(item.location).toObject();
-              item.long = geom.x;
-              item.lat = geom.y;
+              // Ellenőrizzük, hogy a Wkt könyvtár be van-e töltve
+              if (typeof Wkt !== 'undefined') { 
+                try {
+                  const geom = new Wkt.Wkt().read(item.location).toObject();
+                  item.long = geom.x;
+                  item.lat = geom.y;
+                } catch (e) {
+                  console.warn("Hiba a WKT feldolgozásakor:", e, item.location);
+                  item.long = null;
+                  item.lat = null;
+                }
+              } else {
+                console.warn("Wicket könyvtár (Wkt) nem található.");
+                item.long = null;
+                item.lat = null;
+              }
             } else {
               item.long = null;
               item.lat = null;
@@ -203,30 +266,51 @@
         }
       }
 
+      // === MÓDOSÍTOTT updateStats FÜGGVÉNY ===
       function updateStats(data) {
         const statsContainer = document.getElementById('statsContainer');
         const statsBody = document.getElementById('statsBody');
         const stats = calculateStats(data);
 
-        statsBody.innerHTML = '';
-        ['morning', 'afternoon'].forEach(period => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${period === 'morning' ? 'Délelőtt' : 'Délután'}</td>
-            <td>${stats.pm25[period].avg.toFixed(1)}</td>
-            <td>${stats.pm25[period].median.toFixed(1)}</td>
-            <td>${stats.temp[period].avg.toFixed(1)}</td>
-            <td>${stats.temp[period].median.toFixed(1)}</td>
-            <td>${stats.hum[period].avg.toFixed(1)}</td>
-            <td>${stats.hum[period].median.toFixed(1)}</td>
-            <td>${stats.co2[period].avg.toFixed(1)}</td>
-            <td>${stats.co2[period].median.toFixed(1)}</td>
-          `;
-          statsBody.appendChild(row);
-        });
+        statsBody.innerHTML = ''; // Táblázat kiürítése
+
+        // Megjelenítendő nevek és mértékegységek
+        const metricDisplayNames = {
+          pm25: 'PM2.5 (µg/m³)',
+          temp: 'Hőmérséklet (°C)',
+          hum: 'Páratartalom (%)',
+          co2: 'CO₂ (ppm)'
+        };
+
+        // Iterálás a metrikákon és időszakokon, majd a táblázat feltöltése
+        for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
+          ['morning', 'afternoon'].forEach(period => {
+            const periodName = period === 'morning' ? 'Délelőtt' : 'Délután';
+            const statData = stats[metricKey][period];
+            
+            const row = document.createElement('tr');
+            
+            // Csak akkor adjuk hozzá a sort, ha volt adat (count > 0)
+            if (statData.count > 0) {
+              row.innerHTML = `
+                <td><strong>${displayName}</strong></td>
+                <td>${periodName}</td>
+                <td>${statData.count}</td>
+                <td>${statData.avg.toFixed(1)}</td>
+                <td>${statData.median.toFixed(1)}</td>
+                <td>${statData.min.toFixed(1)}</td>
+                <td>${statData.max.toFixed(1)}</td>
+                <td>${statData.p95.toFixed(1)}</td>
+              `;
+              statsBody.appendChild(row);
+            }
+          });
+        }
 
         statsContainer.classList.remove('hidden');
       }
+      // === VÉGE: MÓDOSÍTOTT updateStats FÜGGVÉNY ===
+
 
       async function initializeAnalytics() {
         const validDates = await loadAvailableDates();
@@ -239,7 +323,13 @@
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
               const data = await fetchData(date);
-              updateStats(data);
+              if (data.length > 0) {
+                updateStats(data);
+              } else {
+                // Kezeljük le, ha nincs adat
+                document.getElementById('statsContainer').classList.add('hidden');
+                alert("Nincs adat a kiválasztott dátumra.");
+              }
             }
           }
         });
@@ -248,7 +338,11 @@
           const latestDate = validDates[validDates.length - 1];
           datePicker._flatpickr.setDate(latestDate);
           const data = await fetchData(latestDate);
-          updateStats(data);
+           if (data.length > 0) {
+              updateStats(data);
+           } else {
+              console.warn("Nincs adat a legutóbbi dátumra.");
+           }
         }
       }
 
@@ -270,28 +364,40 @@
           }
 
           const csvRows = [];
-          const headers = ['Dátum', 'Időszak', 'PM2.5 Átlag', 'PM2.5 Medián', 'Hőm. Átlag', 'Hőm. Medián', 'Párat. Átlag', 'Párat. Medián', 'CO₂ Átlag', 'CO₂ Medián'];
+          // Az export fejlécét is frissítjük az új statisztikáknak megfelelően
+          const headers = ['Dátum', 'Metrika', 'Időszak', 'Adatpont (N)', 'Átlag', 'Medián', 'Min', 'Max', 'P95 Percentilis'];
           csvRows.push(headers.join(','));
 
           const stats = calculateStats(data);
-          ['morning', 'afternoon'].forEach(period => {
-            const row = [
-              selectedDate,
-              period === 'morning' ? 'Délelőtt' : 'Délután',
-              stats.pm25[period].avg.toFixed(1),
-              stats.pm25[period].median.toFixed(1),
-              stats.temp[period].avg.toFixed(1),
-              stats.temp[period].median.toFixed(1),
-              stats.hum[period].avg.toFixed(1),
-              stats.hum[period].median.toFixed(1),
-              stats.co2[period].avg.toFixed(1),
-              stats.co2[period].median.toFixed(1)
-            ].map(field => `"${field}"`).join(',');
-            csvRows.push(row);
-          });
+          const metricDisplayNames = {
+            pm25: 'PM2.5 (µg/m³)',
+            temp: 'Hőmérséklet (°C)',
+            hum: 'Páratartalom (%)',
+            co2: 'CO₂ (ppm)'
+          };
+
+          for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
+             ['morning', 'afternoon'].forEach(period => {
+                const statData = stats[metricKey][period];
+                if (statData.count > 0) { // Csak a létező adatokat exportáljuk
+                  const row = [
+                    selectedDate,
+                    displayName,
+                    period === 'morning' ? 'Délelőtt' : 'Délután',
+                    statData.count,
+                    statData.avg.toFixed(1),
+                    statData.median.toFixed(1),
+                    statData.min.toFixed(1),
+                    statData.max.toFixed(1),
+                    statData.p95.toFixed(1)
+                  ].map(field => `"${field}"`).join(',');
+                  csvRows.push(row);
+                }
+             });
+          }
 
           const csvContent = csvRows.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv' });
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); // UTF-8 BOM hozzáadása
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -308,7 +414,11 @@
       // WKT könyvtár betöltése a koordináták konvertálásához
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/wicket@1.3.7/wicket.js';
-      script.onload = initializeAnalytics;
+      script.onload = initializeAnalytics; // Az analitika indítása a script betöltése után
+      script.onerror = () => {
+        console.error("Hiba a Wicket (WKT) könyvtár betöltésekor.");
+        initializeAnalytics(); // Próbáljuk meg WKT nélkül is, hátha nincs rá szükség
+      }
       document.head.appendChild(script);
     });
   </script>
