@@ -4,10 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Levegőminőségi Analitika</title>
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
-  
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
@@ -30,7 +28,7 @@
       100% { transform: rotate(360deg); }
     }
     .stats-container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 1rem;
       background-color: #fff;
@@ -84,6 +82,7 @@
       gap: 0.5rem;
       justify-content: center;
       margin-bottom: 0.5rem;
+      flex-wrap: wrap;
     }
     .chart-controls label {
       font-size: 0.875rem;
@@ -115,6 +114,18 @@
     .lang-btn:hover:not(.active) {
       background: rgba(255,255,255,0.2);
     }
+    .date-info {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-style: italic;
+      color: #666;
+    }
+    .no-data-message {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+      font-size: 1.1rem;
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -140,35 +151,75 @@
   </nav>
 
   <div class="container mx-auto p-6 flex-grow relative">
-    <div class="mb-4 flex justify-center items-center gap-2">
-      <label for="datePicker" id="date-label" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
-      <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
+    <div class="mb-6 bg-white p-4 rounded-lg shadow-md">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-2">
+          <label for="datePicker" id="date-label" class="text-md font-semibold text-gray-700 whitespace-nowrap">Válassz dátumot:</label>
+          <input type="text" id="datePicker" class="border rounded px-3 py-2 w-40" placeholder="ÉÉÉÉ-HH-NN" />
+        </div>
+        <div class="flex gap-2">
+          <button id="prev-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">← Előző nap</button>
+          <button id="next-day" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Következő nap →</button>
+        </div>
+      </div>
+      <div id="date-info" class="date-info mt-2"></div>
     </div>
+
     <div id="loading" class="loading-overlay hidden">
       <div class="loading-spinner"></div>
       <span id="loading-text" class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     
+    <div id="no-data-message" class="no-data-message hidden">
+      <p>Nincsenek adatok a kiválasztott dátumra.</p>
+      <p class="text-sm mt-2">Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.</p>
+    </div>
+    
     <div id="statsContainer" class="stats-container hidden">
       <h2 id="stats-title" class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
       
+      <div class="mb-6 bg-blue-50 p-4 rounded-lg">
+        <h3 class="font-semibold text-blue-800 mb-2">Diagram beállítások</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="chart-type" class="block text-sm font-medium text-gray-700">Diagram típusa:</label>
+            <select id="chart-type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
+              <option value="line">Vonalas diagram</option>
+              <option value="bar">Oszlopdiagram</option>
+            </select>
+          </div>
+          <div>
+            <label for="time-period" class="block text-sm font-medium text-gray-700">Időszak megjelenítése:</label>
+            <select id="time-period" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md">
+              <option value="full-day">Egész nap (0-24 óra)</option>
+              <option value="morning-afternoon" selected>Délelőtt/Délután (0-12 / 12-24 óra)</option>
+              <option value="custom">Egyéni időintervallum</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="chart-wrapper">
         <div>
-          <h3 id="morning-title" class="text-center font-semibold text-gray-700">Délelőtti ingázás</h3>
+          <h3 id="morning-title" class="text-center font-semibold text-gray-700">Délelőtt (0-12 óra)</h3>
           <div class="chart-controls">
-            <label for="morning-y1" id="morning-y1-label">Bal Y:</label>
+            <label for="morning-y1" id="morning-y1-label">Metrika 1:</label>
             <select id="morning-y1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
+              <option value="voc">VOC</option>
+              <option value="nox">NOx</option>
             </select>
-            <label for="morning-y2" id="morning-y2-label">Jobb Y:</label>
+            <label for="morning-y2" id="morning-y2-label">Metrika 2:</label>
             <select id="morning-y2">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
+              <option value="voc">VOC</option>
+              <option value="nox">NOx</option>
             </select>
           </div>
           <div class="chart-container">
@@ -176,21 +227,25 @@
           </div>
         </div>
         <div>
-          <h3 id="afternoon-title" class="text-center font-semibold text-gray-700">Délutáni ingázás</h3>
+          <h3 id="afternoon-title" class="text-center font-semibold text-gray-700">Délután (12-24 óra)</h3>
           <div class="chart-controls">
-            <label for="afternoon-y1" id="afternoon-y1-label">Bal Y:</label>
+            <label for="afternoon-y1" id="afternoon-y1-label">Metrika 1:</label>
             <select id="afternoon-y1">
               <option value="pm2_5" selected>PM2.5</option>
               <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
+              <option value="voc">VOC</option>
+              <option value="nox">NOx</option>
             </select>
-            <label for="afternoon-y2" id="afternoon-y2-label">Jobb Y:</label>
+            <label for="afternoon-y2" id="afternoon-y2-label">Metrika 2:</label>
             <select id="afternoon-y2">
               <option value="pm2_5">PM2.5</option>
               <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
+              <option value="voc">VOC</option>
+              <option value="nox">NOx</option>
             </select>
           </div>
           <div class="chart-container">
@@ -199,24 +254,28 @@
         </div>
       </div>
 
-      <table id="statsTable" class="stats-table">
-        <thead>
-          <tr>
-            <th id="metric-header">Metrika</th>
-            <th id="period-header">Időszak</th>
-            <th id="datapoint-header">Adatpont (N)</th>
-            <th id="average-header">Átlag</th>
-            <th id="median-header">Medián</th>
-            <th id="min-header">Min</th>
-            <th id="max-header">Max</th>
-            <th id="p95-header">P95 Percentilis</th>
-          </tr>
-        </thead>
-        <tbody id="statsBody"></tbody>
-      </table>
-      
+      <div class="mt-8">
+        <h3 class="text-lg font-semibold mb-4 text-center">Összegző statisztikák</h3>
+        <table id="statsTable" class="stats-table">
+          <thead>
+            <tr>
+              <th id="metric-header">Metrika</th>
+              <th id="period-header">Időszak</th>
+              <th id="datapoint-header">Mérések</th>
+              <th id="average-header">Átlag</th>
+              <th id="median-header">Medián</th>
+              <th id="min-header">Minimum</th>
+              <th id="max-header">Maximum</th>
+            </tr>
+          </thead>
+          <tbody id="statsBody"></tbody>
+        </table>
+      </div>
     </div>
-    <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6 block mx-auto">Export CSV</button>
+
+    <div class="text-center mt-6">
+      <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">Adatok exportálása CSV-ként</button>
+    </div>
   </div>
 
   <footer class="bg-green-700 text-white text-center py-4 mt-auto">
@@ -224,20 +283,24 @@
     <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
   </footer>
 
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/hu.js"></script>
   
   <script>
     let morningChartInstance = null;
     let afternoonChartInstance = null;
     let currentDayData = [];
+    let availableDates = [];
+    let currentDate = null;
 
     const metricsDetails = {
-      'pm2_5': { label: 'PM2.5 (µg/m³)', color: 'rgb(234, 88, 12)' },
-      'temperature': { label: 'Hőmérséklet (°C)', color: 'rgb(37, 99, 235)' },
-      'humidity': { label: 'Páratartalom (%)', color: 'rgb(22, 163, 74)' },
-      'co2': { label: 'CO₂ (ppm)', color: 'rgb(88, 28, 135)' }
+      'pm2_5': { label: 'PM2.5 (µg/m³)', color: 'rgb(234, 88, 12)', unit: 'µg/m³' },
+      'temperature': { label: 'Hőmérséklet (°C)', color: 'rgb(37, 99, 235)', unit: '°C' },
+      'humidity': { label: 'Páratartalom (%)', color: 'rgb(22, 163, 74)', unit: '%' },
+      'co2': { label: 'CO₂ (ppm)', color: 'rgb(88, 28, 135)', unit: 'ppm' },
+      'voc': { label: 'VOC (ppb)', color: 'rgb(220, 38, 38)', unit: 'ppb' },
+      'nox': { label: 'NOx (ppb)', color: 'rgb(139, 69, 19)', unit: 'ppb' }
     };
 
     // Fordítási adatok
@@ -250,15 +313,22 @@
         dateLabel: "Válassz dátumot:",
         loadingText: "Adatok betöltése...",
         statsTitle: "Levegőminőségi Statisztikák",
-        morningTitle: "Délelőtti ingázás",
-        afternoonTitle: "Délutáni ingázás",
-        morningY1Label: "Bal Y:", morningY2Label: "Jobb Y:",
-        afternoonY1Label: "Bal Y:", afternoonY2Label: "Jobb Y:",
-        metricHeader: "Metrika", periodHeader: "Időszak", datapointHeader: "Adatpont (N)",
-        averageHeader: "Átlag", medianHeader: "Medián", minHeader: "Min", maxHeader: "Max", p95Header: "P95 Percentilis",
-        exportButton: "Export CSV",
+        morningTitle: "Délelőtt (0-12 óra)",
+        afternoonTitle: "Délután (12-24 óra)",
+        morningY1Label: "Metrika 1:", morningY2Label: "Metrika 2:",
+        afternoonY1Label: "Metrika 1:", afternoonY2Label: "Metrika 2:",
+        metricHeader: "Metrika", periodHeader: "Időszak", datapointHeader: "Mérések",
+        averageHeader: "Átlag", medianHeader: "Medián", minHeader: "Minimum", maxHeader: "Maximum",
+        exportButton: "Adatok exportálása CSV-ként",
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
-        disclaimer: "A mérési adatok nem hitelesítettek."
+        disclaimer: "A mérési adatok nem hitelesítettek.",
+        noData: "Nincsenek adatok a kiválasztott dátumra.",
+        selectOtherDate: "Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.",
+        chartType: "Diagram típusa:",
+        timePeriod: "Időszak megjelenítése:",
+        fullDay: "Egész nap (0-24 óra)",
+        morningAfternoon: "Délelőtt/Délután (0-12 / 12-24 óra)",
+        custom: "Egyéni időintervallum"
       },
       en: {
         title: "Air Quality Analytics",
@@ -268,15 +338,22 @@
         dateLabel: "Select date:",
         loadingText: "Loading data...",
         statsTitle: "Air Quality Statistics",
-        morningTitle: "Morning Commute",
-        afternoonTitle: "Afternoon Commute",
-        morningY1Label: "Left Y:", morningY2Label: "Right Y:",
-        afternoonY1Label: "Left Y:", afternoonY2Label: "Right Y:",
-        metricHeader: "Metric", periodHeader: "Period", datapointHeader: "Data Points (N)",
-        averageHeader: "Average", medianHeader: "Median", minHeader: "Min", maxHeader: "Max", p95Header: "P95 Percentile",
-        exportButton: "Export CSV",
+        morningTitle: "Morning (0-12 hours)",
+        afternoonTitle: "Afternoon (12-24 hours)",
+        morningY1Label: "Metric 1:", morningY2Label: "Metric 2:",
+        afternoonY1Label: "Metric 1:", afternoonY2Label: "Metric 2:",
+        metricHeader: "Metric", periodHeader: "Period", datapointHeader: "Measurements",
+        averageHeader: "Average", medianHeader: "Median", minHeader: "Minimum", maxHeader: "Maximum",
+        exportButton: "Export Data as CSV",
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
-        disclaimer: "Measurement data is not verified."
+        disclaimer: "Measurement data is not verified.",
+        noData: "No data available for selected date.",
+        selectOtherDate: "Please select another date or check if there are measurements for this day.",
+        chartType: "Chart type:",
+        timePeriod: "Display period:",
+        fullDay: "Full day (0-24 hours)",
+        morningAfternoon: "Morning/Afternoon (0-12 / 12-24 hours)",
+        custom: "Custom time interval"
       }
     };
 
@@ -319,7 +396,6 @@
       document.getElementById('median-header').textContent = langData.medianHeader;
       document.getElementById('min-header').textContent = langData.minHeader;
       document.getElementById('max-header').textContent = langData.maxHeader;
-      document.getElementById('p95-header').textContent = langData.p95Header;
       
       // Gombok
       document.getElementById('exportButton').textContent = langData.exportButton;
@@ -327,6 +403,14 @@
       // Lábléc
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      
+      // Diagram beállítások
+      document.querySelector('label[for="chart-type"]').textContent = langData.chartType;
+      document.querySelector('label[for="time-period"]').textContent = langData.timePeriod;
+      document.querySelector('#chart-type option[value="line"]').textContent = langData.chartType === 'Diagram típusa:' ? 'Vonalas diagram' : 'Line chart';
+      document.querySelector('#time-period option[value="full-day"]').textContent = langData.fullDay;
+      document.querySelector('#time-period option[value="morning-afternoon"]').textContent = langData.morningAfternoon;
+      document.querySelector('#time-period option[value="custom"]').textContent = langData.custom;
       
       document.documentElement.lang = lang;
       
@@ -350,22 +434,45 @@
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
       );
 
+      // Javított dátumkezelés
       async function loadAvailableDates() {
         try {
-          const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+          // Használjuk a korrelációs oldalon használt függvényt vagy egy általános lekérdezést
+          const { data, error } = await supabaseClient
+            .from('air_quality_view')
+            .select('timestamp')
+            .order('timestamp', { ascending: false })
+            .limit(1000);
+
           if (error) throw error;
-          const dates = data.map(row => row.date).filter(Boolean);
+          
+          // Egyedi dátumok kinyerése
+          const dates = [...new Set(data.map(item => item.timestamp.split('T')[0]))].sort().reverse();
           console.log('Elérhető dátumok:', dates);
           return dates;
         } catch (err) {
-          console.error('Hiba a dátumok lekérdezésekor (get_distinct_dates):', err);
-          return [];
+          console.error('Hiba a dátumok lekérdezésekor:', err);
+          // Visszaállás az aktuális dátumra és néhány előző napra
+          const today = new Date();
+          const dates = [];
+          for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            dates.push(date.toISOString().split('T')[0]);
+          }
+          return dates;
         }
       }
 
       function calculateStats(data) {
-        const morning = data.filter(item => new Date(item.timestamp).getHours() < 12);
-        const afternoon = data.filter(item => new Date(item.timestamp).getHours() >= 12);
+        const morning = data.filter(item => {
+          const hour = new Date(item.timestamp).getHours();
+          return hour < 12;
+        });
+        const afternoon = data.filter(item => {
+          const hour = new Date(item.timestamp).getHours();
+          return hour >= 12;
+        });
 
         const getMedian = arr => {
           if (!arr.length) return 0;
@@ -373,40 +480,42 @@
           const mid = Math.floor(sorted.length / 2);
           return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
         };
+
         const getMin = arr => {
           if (!arr.length) return 0;
           return Math.min(...arr);
         };
+
         const getMax = arr => {
           if (!arr.length) return 0;
           return Math.max(...arr);
         };
-        const getPercentile = (arr, p) => {
-          if (!arr.length) return 0;
-          const sorted = [...arr].sort((a, b) => a - b);
-          const k = Math.ceil((p / 100) * sorted.length);
-          return sorted[k > 0 ? k - 1 : 0];
-        };
+
         const getAvg = arr => {
           if (!arr.length) return 0;
           return arr.reduce((a, b) => a + b, 0) / arr.length;
         };
+
         const createStatBlock = () => ({
-          count: 0, avg: 0, median: 0, min: 0, max: 0, p95: 0
+          count: 0, avg: 0, median: 0, min: 0, max: 0
         });
 
         const stats = {
           pm25: { morning: createStatBlock(), afternoon: createStatBlock() },
           temp: { morning: createStatBlock(), afternoon: createStatBlock() },
           hum: { morning: createStatBlock(), afternoon: createStatBlock() },
-          co2: { morning: createStatBlock(), afternoon: createStatBlock() }
+          co2: { morning: createStatBlock(), afternoon: createStatBlock() },
+          voc: { morning: createStatBlock(), afternoon: createStatBlock() },
+          nox: { morning: createStatBlock(), afternoon: createStatBlock() }
         };
 
         const metricMap = {
           'pm2_5': 'pm25',
           'temperature': 'temp',
           'humidity': 'hum',
-          'co2': 'co2'
+          'co2': 'co2',
+          'voc': 'voc',
+          'nox': 'nox'
         };
 
         for (const [metricKey, statKey] of Object.entries(metricMap)) {
@@ -418,45 +527,47 @@
             avg: getAvg(morningValues),
             median: getMedian(morningValues),
             min: getMin(morningValues),
-            max: getMax(morningValues),
-            p95: getPercentile(morningValues, 95)
+            max: getMax(morningValues)
           };
           stats[statKey].afternoon = {
             count: afternoonValues.length,
             avg: getAvg(afternoonValues),
             median: getMedian(afternoonValues),
             min: getMin(afternoonValues),
-            max: getMax(afternoonValues),
-            p95: getPercentile(afternoonValues, 95)
+            max: getMax(afternoonValues)
           };
         }
         
         return stats;
       }
 
+      // Javított adatlekérdezés - rugalmasabb dátumkezeléssel
       async function fetchData(date) {
         const loading = document.getElementById('loading');
         loading.classList.remove('hidden');
         try {
-          const start = `${date} 00:00:00+00`;
-          const end = `${date} 23:59:59+00`;
+          // Egyszerű dátumformátum használata
+          const start = `${date}T00:00:00`;
+          const end = `${date}T23:59:59`;
+
+          console.log(`Lekérdezés: ${start} - ${end}`);
 
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('id, timestamp, pm2_5, temperature, humidity, co2')
+            .select('*')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true });
             
           if (error) throw error;
           
+          console.log(`Lekérdezett adatok száma (${date}):`, data ? data.length : 0);
+          
           if (!data || data.length === 0) {
-            console.warn('Nincs adat a megadott dátumra.');
             currentDayData = [];
             return []; 
           }
           
-          console.log(`Lekérdezett adatok száma (${date}):`, data.length);
           currentDayData = data;
           return data;
         } catch (err) {
@@ -472,17 +583,47 @@
         if (morningChartInstance) morningChartInstance.destroy();
         if (afternoonChartInstance) afternoonChartInstance.destroy();
 
-        const morningData = data.filter(item => new Date(item.timestamp).getHours() < 12);
-        const afternoonData = data.filter(item => new Date(item.timestamp).getHours() >= 12);
+        if (!data || data.length === 0) {
+          document.getElementById('no-data-message').classList.remove('hidden');
+          document.getElementById('statsContainer').classList.add('hidden');
+          return;
+        }
+
+        document.getElementById('no-data-message').classList.add('hidden');
+        document.getElementById('statsContainer').classList.remove('hidden');
+
+        const morningData = data.filter(item => {
+          const hour = new Date(item.timestamp).getHours();
+          return hour < 12;
+        });
+        const afternoonData = data.filter(item => {
+          const hour = new Date(item.timestamp).getHours();
+          return hour >= 12;
+        });
 
         const mY1 = document.getElementById('morning-y1').value;
         const mY2 = document.getElementById('morning-y2').value;
         const aY1 = document.getElementById('afternoon-y1').value;
         const aY2 = document.getElementById('afternoon-y2').value;
+        const chartType = document.getElementById('chart-type').value;
 
         const createChart = (canvasId, chartData, y1Key, y2Key) => {
           const ctx = document.getElementById(canvasId);
-          if (!ctx || chartData.length === 0) return null;
+          if (!ctx || chartData.length === 0) {
+            // Ha nincs adat, üres diagram
+            return new Chart(ctx, {
+              type: chartType,
+              data: { datasets: [] },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: { title: { display: true, text: 'Időpont' } },
+                  y: { title: { display: true, text: 'Érték' } }
+                }
+              }
+            });
+          }
 
           const y1Metric = metricsDetails[y1Key];
           const y2Metric = metricsDetails[y2Key];
@@ -492,7 +633,7 @@
           const y2Data = chartData.map(d => d[y2Key]);
 
           return new Chart(ctx, {
-            type: 'line',
+            type: chartType,
             data: {
               labels: labels,
               datasets: [
@@ -500,17 +641,19 @@
                   label: y1Metric.label,
                   data: y1Data,
                   borderColor: y1Metric.color,
-                  backgroundColor: y1Metric.color.replace(')', ', 0.5)'),
+                  backgroundColor: chartType === 'bar' ? y1Metric.color.replace(')', ', 0.7)') : y1Metric.color.replace(')', ', 0.1)'),
                   yAxisID: 'y1',
-                  tension: 0.1
+                  tension: 0.1,
+                  fill: chartType === 'line'
                 },
                 {
                   label: y2Metric.label,
                   data: y2Data,
                   borderColor: y2Metric.color,
-                  backgroundColor: y2Metric.color.replace(')', ', 0.5)'),
+                  backgroundColor: chartType === 'bar' ? y2Metric.color.replace(')', ', 0.7)') : y2Metric.color.replace(')', ', 0.1)'),
                   yAxisID: 'y2',
-                  tension: 0.1
+                  tension: 0.1,
+                  fill: chartType === 'line'
                 }
               ]
             },
@@ -521,7 +664,11 @@
               scales: {
                 x: {
                   type: 'time',
-                  time: { unit: 'minute', tooltipFormat: 'HH:mm:ss', displayFormats: { minute: 'HH:mm' } },
+                  time: { 
+                    unit: 'hour',
+                    tooltipFormat: 'HH:mm',
+                    displayFormats: { hour: 'HH:mm' }
+                  },
                   title: { display: true, text: 'Időpont' }
                 },
                 y1: {
@@ -547,7 +694,6 @@
       }
 
       function updateStatsTable(data) {
-        const statsContainer = document.getElementById('statsContainer');
         const statsBody = document.getElementById('statsBody');
         const stats = calculateStats(data); 
 
@@ -556,7 +702,9 @@
           pm25: 'PM2.5 (µg/m³)',
           temp: 'Hőmérséklet (°C)',
           hum: 'Páratartalom (%)',
-          co2: 'CO₂ (ppm)'
+          co2: 'CO₂ (ppm)',
+          voc: 'VOC (ppb)',
+          nox: 'NOx (ppb)'
         };
 
         for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
@@ -574,7 +722,6 @@
                 <td>${statData.median.toFixed(1)}</td>
                 <td>${statData.min.toFixed(1)}</td>
                 <td>${statData.max.toFixed(1)}</td>
-                <td>${statData.p95.toFixed(1)}</td>
               `;
             } else {
               row.classList.add('no-data');
@@ -586,116 +733,130 @@
                 <td>N/A</td>
                 <td>N/A</td>
                 <td>N/A</td>
-                <td>N/A</td>
               `;
             }
             statsBody.appendChild(row);
           });
         }
-        statsContainer.classList.remove('hidden'); 
+      }
+
+      function updateDateInfo(date, dataCount) {
+        const dateInfo = document.getElementById('date-info');
+        const lang = localStorage.getItem('language') || 'hu';
+        
+        if (dataCount > 0) {
+          dateInfo.textContent = `${date} - ${dataCount} mérési adat`;
+          dateInfo.style.color = '#16a34a';
+        } else {
+          dateInfo.textContent = lang === 'hu' 
+            ? `${date} - Nincsenek adatok ezen a napon`
+            : `${date} - No data available for this day`;
+          dateInfo.style.color = '#dc2626';
+        }
+      }
+
+      async function loadDate(date) {
+        currentDate = date;
+        const data = await fetchData(date);
+        updateDateInfo(date, data.length);
+        updateCharts(data);
+        updateStatsTable(data);
       }
 
       async function initializeAnalytics() {
-        const validDates = await loadAvailableDates();
+        availableDates = await loadAvailableDates();
         const datePicker = document.getElementById('datePicker');
         
+        // Dátumválasztó beállítása
         flatpickr("#datePicker", {
+          locale: 'hu',
           dateFormat: "Y-m-d",
-          enable: validDates,
-          defaultDate: validDates.length > 0 ? validDates[validDates.length - 1] : null,
+          enable: availableDates,
+          defaultDate: availableDates.length > 0 ? availableDates[0] : new Date(),
           onChange: async (selectedDates) => {
             if (selectedDates.length > 0) {
               const date = selectedDates[0].toISOString().split('T')[0];
-              document.getElementById('statsContainer').classList.add('hidden');
-              const data = await fetchData(date);
-              updateCharts(data);
-              updateStatsTable(data);
+              await loadDate(date);
             }
           }
         });
 
-        if (validDates.length > 0) {
-          const latestDate = validDates[validDates.length - 1];
-          datePicker._flatpickr.setDate(latestDate);
-          const data = await fetchData(latestDate);
-          updateCharts(data);
-          updateStatsTable(data);
-        } else {
-          console.warn("Nem töltődtek be elérhető dátumok. Az oldal üres marad.");
-          updateCharts([]);
-          updateStatsTable([]);
-        }
+        // Előző/Következő nap gombok
+        document.getElementById('prev-day').addEventListener('click', () => {
+          if (!currentDate) return;
+          
+          const currentIndex = availableDates.indexOf(currentDate);
+          if (currentIndex < availableDates.length - 1) {
+            const prevDate = availableDates[currentIndex + 1];
+            datePicker._flatpickr.setDate(prevDate);
+            loadDate(prevDate);
+          }
+        });
 
-        // Eseményfigyelők a diagram választókra
+        document.getElementById('next-day').addEventListener('click', () => {
+          if (!currentDate) return;
+          
+          const currentIndex = availableDates.indexOf(currentDate);
+          if (currentIndex > 0) {
+            const nextDate = availableDates[currentIndex - 1];
+            datePicker._flatpickr.setDate(nextDate);
+            loadDate(nextDate);
+          }
+        });
+
+        // Diagram beállítások változásai
+        document.getElementById('chart-type').addEventListener('change', () => updateCharts(currentDayData));
+        document.getElementById('time-period').addEventListener('change', () => updateCharts(currentDayData));
+
+        // Metrika választók változásai
         document.getElementById('morning-y1').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('morning-y2').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('afternoon-y1').addEventListener('change', () => updateCharts(currentDayData));
         document.getElementById('afternoon-y2').addEventListener('change', () => updateCharts(currentDayData));
+
+        // Kezdeti dátum betöltése
+        if (availableDates.length > 0) {
+          const latestDate = availableDates[0];
+          datePicker._flatpickr.setDate(latestDate);
+          await loadDate(latestDate);
+        } else {
+          const today = new Date().toISOString().split('T')[0];
+          await loadDate(today);
+        }
       }
 
+      // Export funkció
       document.getElementById('exportButton').addEventListener('click', () => {
-        console.log('Export gomb megnyomva');
-        const datePicker = document.getElementById('datePicker');
-        const selectedDate = datePicker.value;
-        if (!selectedDate) {
-          alert('Kérlek, válassz dátumot az exportáláshoz!');
+        if (!currentDate || currentDayData.length === 0) {
+          alert('Nincsenek exportálható adatok!');
           return;
         }
 
-        fetchData(selectedDate).then(data => {
-          if (data.length === 0) {
-            alert('Nincs exportálható adat a kiválasztott dátumra!');
-            return;
-          }
+        const csvRows = [];
+        const headers = ['Időbélyeg', 'PM2.5', 'Hőmérséklet', 'Páratartalom', 'CO2', 'VOC', 'NOx'];
+        csvRows.push(headers.join(','));
 
-          const csvRows = [];
-          const headers = ['Dátum', 'Metrika', 'Időszak', 'Adatpont (N)', 'Átlag', 'Medián', 'Min', 'Max', 'P95 Percentilis'];
-          csvRows.push(headers.join(','));
-
-          const stats = calculateStats(data);
-          const metricDisplayNames = {
-            pm25: 'PM2.5 (µg/m³)',
-            temp: 'Hőmérséklet (°C)',
-            hum: 'Páratartalom (%)',
-            co2: 'CO₂ (ppm)'
-          };
-
-          for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
-             ['morning', 'afternoon'].forEach(period => {
-                const statData = stats[metricKey][period];
-                if (statData.count > 0) {
-                  const row = [
-                    selectedDate, displayName,
-                    period === 'morning' ? 'Délelőtt' : 'Délután',
-                    statData.count,
-                    statData.avg.toFixed(1),
-                    statData.median.toFixed(1),
-                    statData.min.toFixed(1),
-                    statData.max.toFixed(1),
-                    statData.p95.toFixed(1)
-                  ].map(field => `"${field}"`).join(',');
-                  csvRows.push(row);
-                }
-             });
-          }
-          
-          if (csvRows.length <= 1) {
-             alert('Nincs exportálható adat a kiválasztott dátumra!');
-             return;
-          }
-
-          const csvContent = csvRows.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `air_quality_analytics_${selectedDate}.csv`;
-          a.click();
-          window.URL.revokeObjectURL(url);
-        }).catch(err => {
-          console.error('Hiba az exportálás során:', err);
-          alert('Hiba az exportálás során!');
+        currentDayData.forEach(row => {
+          const csvRow = [
+            row.timestamp,
+            row.pm2_5 || '',
+            row.temperature || '',
+            row.humidity || '',
+            row.co2 || '',
+            row.voc || '',
+            row.nox || ''
+          ].map(field => `"${field}"`).join(',');
+          csvRows.push(csvRow);
         });
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `levego_minoseg_${currentDate}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
       });
 
       initializeAnalytics();
