@@ -270,7 +270,10 @@
                 radius: 14,
                 blur: 6,
                 maxZoom: 18,
-                max: 1.0,                    // FIX 1.0
+                max: config.max, // JAVÍTVA: A felhasználó által beállított maximum
+                // A Leaflet.heat alapértelmezetten 0-t használ minimumnak, 
+                // de a 'min' opciót is beállíthatod, ha a könyvtár támogatja 
+                // (bár a legtöbb implementáció 0-tól skáláz a 'max'-ig)                    // FIX 1.0
                 gradient: config.gradient
             }).addTo(map);
 
