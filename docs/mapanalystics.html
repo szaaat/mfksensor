@@ -10,6 +10,9 @@
          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
          crossorigin=""/>
     
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -18,10 +21,6 @@
     
     <!-- Turf.js for spatial analysis -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-    
-    <!-- Leaflet Draw -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
     <style>
         #map {
@@ -87,6 +86,35 @@
             height: 300px;
             margin-top: 15px;
         }
+        
+        .draw-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .draw-btn {
+            background-color: #22c55e;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .draw-btn:hover {
+            background-color: #16a34a;
+        }
+        
+        .clear-btn {
+            background-color: #ef4444;
+        }
+        
+        .clear-btn:hover {
+            background-color: #dc2626;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -125,11 +153,11 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-lg p-4">
                 <div id="map"></div>
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <button id="draw-rectangle" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Téglalap rajzolása</button>
-                    <button id="draw-polygon" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Sokszög rajzolása</button>
-                    <button id="draw-circle" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Kör rajzolása</button>
-                    <button id="clear-all" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm">Összes törlése</button>
+                <div class="draw-controls">
+                    <button id="draw-rectangle" class="draw-btn">Téglalap rajzolása</button>
+                    <button id="draw-polygon" class="draw-btn">Sokszög rajzolása</button>
+                    <button id="draw-circle" class="draw-btn">Kör rajzolása</button>
+                    <button id="clear-all" class="draw-btn clear-btn">Összes törlése</button>
                 </div>
             </div>
         </div>
@@ -224,7 +252,13 @@
     <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
 </footer>
 
-<!-- Supabase JS -->
+<!-- BETÖLTÉSI SORREND JAVÍTVA: Először Leaflet, majd Leaflet.draw, végül Supabase -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+        
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -241,6 +275,7 @@
     let drawControl;
     let currentChart = null;
     let selectedArea = null;
+    let currentDrawControl = null;
 
     // -----------------------------------------------------------------
     // 2. TÉRKÉP INICIALIZÁLÁS
@@ -254,43 +289,36 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        // Rajzolási vezérlő
-        drawControl = new L.Control.Draw({
-            draw: {
-                polygon: {
-                    allowIntersection: false,
-                    drawError: {
-                        color: '#e1e100',
-                        message: '<strong>Hiba:<strong> nem rajzolhatsz átfedő alakzatokat!'
-                    },
-                    shapeOptions: {
-                        color: '#97009c'
-                    }
-                },
-                polyline: false,
-                circle: {
-                    shapeOptions: {
-                        color: '#97009c'
-                    }
-                },
-                rectangle: {
-                    shapeOptions: {
-                        color: '#97009c'
-                    }
-                },
-                marker: false
-            },
-            edit: {
-                featureGroup: drawnItems
-            }
-        });
-        
-        map.addControl(drawControl);
+        // Rajzolási réteg hozzáadása
         map.addLayer(drawnItems);
         
-        // Eseménykezelők a rajzoláshoz
+        // Gombok eseménykezelői
+        document.getElementById('draw-rectangle').addEventListener('click', function() {
+            clearCurrentDraw();
+            currentDrawControl = new L.Draw.Rectangle(map);
+            currentDrawControl.enable();
+        });
+        
+        document.getElementById('draw-polygon').addEventListener('click', function() {
+            clearCurrentDraw();
+            currentDrawControl = new L.Draw.Polygon(map);
+            currentDrawControl.enable();
+        });
+        
+        document.getElementById('draw-circle').addEventListener('click', function() {
+            clearCurrentDraw();
+            currentDrawControl = new L.Draw.Circle(map);
+            currentDrawControl.enable();
+        });
+        
+        document.getElementById('clear-all').addEventListener('click', function() {
+            drawnItems.clearLayers();
+            selectedArea = null;
+            document.getElementById('analysis-results').classList.add('hidden');
+        });
+        
+        // Eseménykezelő a rajzoláshoz
         map.on(L.Draw.Event.CREATED, function (e) {
-            const type = e.layerType;
             const layer = e.layer;
             
             drawnItems.clearLayers();
@@ -301,30 +329,17 @@
             setTimeout(performAnalysis, 500);
         });
         
-        // Gombok eseménykezelői
-        document.getElementById('draw-rectangle').addEventListener('click', function() {
-            new L.Draw.Rectangle(map, drawControl.options.draw.rectangle).enable();
-        });
-        
-        document.getElementById('draw-polygon').addEventListener('click', function() {
-            new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
-        });
-        
-        document.getElementById('draw-circle').addEventListener('click', function() {
-            new L.Draw.Circle(map, drawControl.options.draw.circle).enable();
-        });
-        
-        document.getElementById('clear-all').addEventListener('click', function() {
-            drawnItems.clearLayers();
-            selectedArea = null;
-            document.getElementById('analysis-results').classList.add('hidden');
-        });
-        
         // Elemzés gomb
         document.getElementById('analyze-btn').addEventListener('click', performAnalysis);
         
         // Export gomb
         document.getElementById('export-btn').addEventListener('click', exportResults);
+    }
+
+    function clearCurrentDraw() {
+        if (currentDrawControl) {
+            currentDrawControl.disable();
+        }
     }
 
     // -----------------------------------------------------------------
@@ -425,7 +440,7 @@
         const dailyTrend = {};
         data.forEach(item => {
             if (item[metric] !== null && item[metric] !== undefined) {
-                const date = item.timestamp.split('T')[0]; // Csak a dátum rész
+                const date = item.timestamp ? item.timestamp.split('T')[0] : 'Ismeretlen dátum';
                 if (!dailyTrend[date]) {
                     dailyTrend[date] = { sum: 0, count: 0 };
                 }
@@ -578,7 +593,13 @@
             temperature: "Hőmérséklet",
             humidity: "Páratartalom",
             date: "Dátum",
-            loadingText: "Adatok betöltése..."
+            loadingText: "Adatok betöltése...",
+            avg: "Átlag",
+            min: "Minimum",
+            max: "Maximum",
+            count: "Mérések száma",
+            analyze: "Elemzés indítása",
+            export: "Eredmények exportálása"
         },
         en: {
             title: "Spatial-Temporal Analyzer - MFKSensor",
@@ -610,7 +631,13 @@
             temperature: "Temperature",
             humidity: "Humidity",
             date: "Date",
-            loadingText: "Loading data..."
+            loadingText: "Loading data...",
+            avg: "Average",
+            min: "Minimum",
+            max: "Maximum",
+            count: "Measurements count",
+            analyze: "Start Analysis",
+            export: "Export Results"
         }
     };
 
@@ -650,10 +677,10 @@
         document.getElementById('results-title').textContent = langData.resultsTitle;
         
         // Statisztika címkék
-        document.getElementById('stat-1-label').textContent = langData.avg || "Átlag";
-        document.getElementById('stat-2-label').textContent = langData.min || "Minimum";
-        document.getElementById('stat-3-label').textContent = langData.max || "Maximum";
-        document.getElementById('stat-4-label').textContent = langData.count || "Mérések száma";
+        document.getElementById('stat-1-label').textContent = langData.avg;
+        document.getElementById('stat-2-label').textContent = langData.min;
+        document.getElementById('stat-3-label').textContent = langData.max;
+        document.getElementById('stat-4-label').textContent = langData.count;
         
         // Lábléc
         document.getElementById('footer-text').textContent = langData.footer;
@@ -663,8 +690,8 @@
         document.getElementById('loading-text').textContent = langData.loadingText;
         
         // Gombok
-        document.getElementById('analyze-btn').textContent = langData.analyze || "Elemzés indítása";
-        document.getElementById('export-btn').textContent = langData.export || "Eredmények exportálása";
+        document.getElementById('analyze-btn').textContent = langData.analyze;
+        document.getElementById('export-btn').textContent = langData.export;
         
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.lang === lang);
