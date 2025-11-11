@@ -65,7 +65,9 @@
             background-color: #16a34a; /* Zöld */
             color: white;
             font-weight: bold;
-        }
+            #about-text {
+            text-align: justify;
+         }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -157,16 +159,30 @@
         'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
         'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm10_0':      { max: 40, min: 10, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
-        'temperature': { max: 35, min: 0, unit: '°C',  gradient: { 0.0: '#0000FF', 0.5: '#FFFF00', 1: '#FF0000' } },
-        'humidity':    { max: 100, min: 0, unit: '%',   gradient: { 0.4: '#FFFF00', 0.7: '#00FFFF', 1: '#0000FF' } },
-        'co2':         { max: 1200, min: 500, unit: 'ppm', gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } }, 
+        'temperature': { 
+            max: 35, min: 0, unit: '°C', 
+            // JAVASLAT: Egy "lila -> narancs -> sárga" skála (sötétebb)
+            gradient: { 0.0: '#440154', 0.5: '#f06e12', 1: '#fde725' } 
+        },
+        'humidity': {
+            max: 100, min: 0, unit: '%',
+            // JAVASLAT: "Száraz" (fehér) -> "Nedves" (sötétkék)
+            gradient: { 0.0: '#FFFFFF', 0.5: '#00FFFF', 1: '#0000A0' } // Fehér -> Cián -> Sötétkék
+        },
+        'co2': { 
+            max: 1000, // Csökkentsük a maximumot 1000-re
+            min: 500,  // A minimum maradhat 500 (ez a "háttér")
+            unit: 'ppm', 
+            // A gradient marad, de most már 500-1000 között feszül ki
+            gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } 
+        },
         'voc': { 
             max: 120, min: 100, unit: 'index',
-            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
+            gradient: { 0.1: 'green', 0.5: 'yellow', 1: 'red' }
         },
         'nox': { 
             max: 3, min: 1, unit: 'index',
-            gradient: { 0.1: '#FFFF00', 0.5: '#FF9900', 1: '#FF0000' } 
+            gradient: { 0.1: 'green', 0.5: 'yellow', 1: 'red' } 
         }
     };
     const DEFAULT_CONFIG = { max: 100, min: 0, unit: '', gradient: { 0.4: 'blue', 0.65: 'lime', 1: 'red' } };
@@ -317,7 +333,7 @@
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek.",
         aboutTitle: "Az oldal működése",
-        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat."
+        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel finomhangolhatja a nézetet: kiválaszthatja az időszakot, a mért adat típusát, és a 'Skála Min/Max' mezőkkel a vizuális skálát. A **'Teljes adatsor'** gomb minden mérést átlagol, míg a **'Szennyezett'** gomb csak azokat az adatokat mutatja, amelyek meghaladják a tudományosan meghatározott küszöbértékeket. Ez a nézet segít kiemelni a legjelentősebb szennyezettségi gócokat, például ha a **PM2.5 értéke 15 µg/m³ feletti**, a **PM10 értéke 45 µg/m³ feletti**, a **CO2 1000 ppm feletti**, vagy a **NOx index 1.0 feletti**."
       },
       en: {
         title: "Seasonal Heatmap - MFKSensor",
@@ -340,7 +356,7 @@
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified.",
         aboutTitle: "How This Page Works",
-        aboutText: "This page displays aggregated air quality data (e.g., PM2.5, CO2, NOx) collected by mobile sensors on an interactive heatmap. The data is averaged onto a grid to show spatial distribution. You can use the controls to select the period (seasonal or annual average) and the metric type. The 'Scale Min' and 'Scale Max' fields allow you to fine-tune the visual scale to highlight the value ranges that are important to you."
+        aboutText: "This page displays aggregated air quality data (e.g., PM2.5, CO2, NOx) collected by mobile sensors on an interactive heatmap. Data is averaged onto a grid to show spatial distribution. You can use the controls to fine-tune the view: select the period, the metric, and the visual scale using the 'Scale Min/Max' fields. The **'All Data'** button averages all measurements, while the **'Polluted'** button shows only data points that exceed scientifically defined thresholds. This view helps highlight significant pollution hotspots, for example, where **PM2.5 is over 15 µg/m³**, **PM10 is over 45 µg/m³**, **CO2 is over 1000 ppm**, or the **NOx index is over 1.0**."
       }
     };
 
