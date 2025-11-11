@@ -12,7 +12,9 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.sync/0.2.4/L.Leaflet.Sync.min.js"></script>
+    <!-- JAVÍTOTT: Leaflet.Sync plugin betöltése megbízhatóbb forrásból -->
+    <script src="https://unpkg.com/leaflet.sync@2.0.0/dist/Leaflet.Sync.min.js"></script>
+    
     <style>
         .map-container { display: flex; width: 100%; flex-wrap: wrap; }
         .map-wrapper {
@@ -227,8 +229,8 @@
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(mapRight);
 
-    // Térképek szinkronizálása
-    // EZ A SOR MOST MÁR MŰKÖDNI FOG, MERT A SYNC PLUGIN BE VAN TÖLTVE A <HEAD>-BE
+    // JAVÍTOTT: Térképek szinkronizálása a megfelelő módon
+    // A Leaflet.Sync plugin a L.Map.prototype-ba adja hozzá a sync metódust
     mapLeft.sync(mapRight);
     mapRight.sync(mapLeft);
 
