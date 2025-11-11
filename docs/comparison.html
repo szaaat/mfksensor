@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-R">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Összehasonlító Hőtérkép - MFKSensor</title>
 
@@ -139,8 +139,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-<!-- JAVÍTOTT: Leaflet.Sync plugin betöltése megbízható forrásból -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.sync/0.2.2/Leaflet.Sync.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.sync@0.2.4/L.Map.Sync.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -172,8 +171,6 @@
     const mapRight = L.map('map-right').setView([47.95, 20.55], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapLeft);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapRight);
-    
-    // JAVÍTOTT: Térképek szinkronizálása - most már működnie kell
     mapLeft.sync(mapRight);
     mapRight.sync(mapLeft);
 
@@ -342,14 +339,14 @@
         navMapCO2: "CO₂ Térkép",
         navHeatmap: "Hőtérkép",
         navComparison: "Összehasonlítás",
-        navCorrelation: "Korreláció",
+        navCorrelation: "Korreláció", // <-- EZ AZ ÚJ SOR
         navAbout: "Rólunk",
         periodAll: "Összes",
         periodWinter: "Tél",
         periodSpring: "Tavasz",
         periodSummer: "Nyár",
         periodAutumn: "Ősz",
-        legendTitle: "Jelmagyarázat",
+        legendTitle: "Jelmagyarázat", // ÚJ
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek."
       },
@@ -361,14 +358,14 @@
         navMapCO2: "CO₂ Map",
         navHeatmap: "Heatmap",
         navComparison: "Comparison",
-        navCorrelation: "Correlation",
+        navCorrelation: "Correlation", // <-- EZ AZ ÚJ SOR
         navAbout: "About",
         periodAll: "All",
         periodWinter: "Winter",
         periodSpring: "Spring",
         periodSummer: "Summer",
         periodAutumn: "Autumn",
-        legendTitle: "Legend",
+        legendTitle: "Legend", // ÚJ
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified."
       }
@@ -403,11 +400,13 @@
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
       document.documentElement.lang = lang;
       
+     
+
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
       
-      // Frissítse a térképeket (és a jelmagyarázatot) nyelvváltáskor
+      // ÚJ: Frissítse a térképeket (és a jelmagyarázatot) nyelvváltáskor
       if (legendLeft) updateMapLeft();
       if (legendRight) updateMapRight();
     }
