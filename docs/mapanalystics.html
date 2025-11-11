@@ -171,9 +171,7 @@
                 <select id="time-period" class="w-full p-2 border border-gray-300 rounded">
                     <option value="morning">Délelőtt (6:00-12:00)</option>
                     <option value="afternoon">Délután (12:00-18:00)</option>
-                    <option value="weekday">Hétköznap</option>
-                    <option value="weekend" selected>Hétvége</option>
-                    <option value="all">Összes adat</option>
+                    <option value="all" selected>Összes adat</option>
                 </select>
             </div>
             
@@ -195,7 +193,6 @@
                 <select id="analysis-type" class="w-full p-2 border border-gray-300 rounded">
                     <option value="stats">Statisztikai összefoglaló</option>
                     <option value="trend">Időbeli trend</option>
-                    <option value="heatmap">Hőtérkép a területen</option>
                 </select>
             </div>
             
@@ -272,7 +269,6 @@
     // Globális változók
     let map;
     let drawnItems = new L.FeatureGroup();
-    let drawControl;
     let currentChart = null;
     let selectedArea = null;
     let currentDrawControl = null;
@@ -345,84 +341,67 @@
     // -----------------------------------------------------------------
     // 3. ADATLEKÉRÉS ÉS ELEMZÉS
     // -----------------------------------------------------------------
-    async function performAnalysis() {
-        if (!selectedArea) {
-            alert(getTranslation('noAreaSelected'));
-            return;
-        }
-        
-        const timePeriod = document.getElementById('time-period').value;
-        const metric = document.getElementById('metric').value;
-        const analysisType = document.getElementById('analysis-type').value;
-        
-        showLoading(true);
-        
-        try {
-            // Terület határainak meghatározása
-            const bounds = selectedArea.getBounds();
-            const north = bounds.getNorth();
-            const south = bounds.getSouth();
-            const east = bounds.getEast();
-            const west = bounds.getWest();
-            
-            // Időszűrés összeállítása
-            let timeFilter = {};
-            if (timePeriod === 'morning') {
-                timeFilter = { hour: { gte: 6, lt: 12 } };
-            } else if (timePeriod === 'afternoon') {
-                timeFilter = { hour: { gte: 12, lt: 18 } };
-            } else if (timePeriod === 'weekday') {
-                timeFilter = { is_weekend: false };
-            } else if (timePeriod === 'weekend') {
-                timeFilter = { is_weekend: true };
-            }
-            
-            // Adatok lekérése Supabase-ből
-            let query = supabaseClient
-                .from('sensor_data')
-                .select('*')
-                .gte('latitude', south)
-                .lte('latitude', north)
-                .gte('longitude', west)
-                .lte('longitude', east);
-            
-            // Időszűrés alkalmazása
-            if (timePeriod !== 'all') {
-                if (timePeriod === 'weekday' || timePeriod === 'weekend') {
-                    query = query.eq('is_weekend', timePeriod === 'weekend');
-                } else {
-                    query = query.gte('hour', timeFilter.hour.gte).lt('hour', timeFilter.hour.lt);
-                }
-            }
-            
-            const { data: sensorData, error } = await query;
-            
-            if (error) throw error;
-            
-            if (!sensorData || sensorData.length === 0) {
-                throw new Error(getTranslation('noDataForArea'));
-            }
-            
-            // Elemzés végrehajtása
-            const analysisResults = analyzeSensorData(sensorData, metric, analysisType);
-            
-            // Eredmények megjelenítése
-            displayResults(analysisResults, metric, analysisType);
-            
-        } catch (error) {
-            console.error('Hiba az elemzés során:', error);
-            alert(getTranslation('analysisError') + ': ' + error.message);
-        } finally {
-            showLoading(false);
-        }
+    // -----------------------------------------------------------------
+// 3. ADATLEKÉRÉS ÉS ELEMZÉS - JAVÍTOTT VERZIÓ
+// -----------------------------------------------------------------
+async function performAnalysis() {
+    if (!selectedArea) {
+        alert(getTranslation('noAreaSelected'));
+        return;
     }
+    
+    const timePeriod = document.getElementById('time-period').value;
+    const metric = document.getElementById('metric').value;
+    
+    showLoading(true);
+    
+    try {
+        // Terület határainak meghatározása
+        const bounds = selectedArea.getBounds();
+        const north = bounds.getNorth();
+        const south = bounds.getSouth();
+        const east = bounds.getEast();
+        const west = bounds.getWest();
+        
+        // RPC függvény meghívása - NEVEZD ÁT A FÜGGVÉNYT!
+        const { data: sensorData, error } = await supabaseClient.rpc(
+            'get_sensor_data_for_area', // ← EZT A FÜGGVÉNYNEVET KELL LÉTREHOZNOD
+            {
+                north: north,
+                south: south, 
+                east: east,
+                west: west,
+                target_metric: metric,
+                time_filter: timePeriod
+            }
+        );
+        
+        if (error) throw error;
+        
+        if (!sensorData || sensorData.length === 0) {
+            throw new Error(getTranslation('noDataForArea'));
+        }
+        
+        // Elemzés végrehajtása
+        const analysisResults = analyzeSensorData(sensorData, metric);
+        
+        // Eredmények megjelenítése
+        displayResults(analysisResults, metric);
+        
+    } catch (error) {
+        console.error('Hiba az elemzés során:', error);
+        alert(getTranslation('analysisError') + ': ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
 
     // -----------------------------------------------------------------
     // 4. ADATELEMZÉS FÜGGVÉNYEK
     // -----------------------------------------------------------------
     function analyzeSensorData(data, metric, analysisType) {
         // Alap statisztikák
-        const values = data.map(item => item[metric]).filter(val => val !== null && val !== undefined);
+        const values = data.map(item => item.value).filter(val => val !== null && val !== undefined);
         
         if (values.length === 0) {
             throw new Error(getTranslation('noDataForMetric'));
@@ -437,17 +416,19 @@
         };
         
         // Időbeli trend (csoportosítás dátum szerint)
-        const dailyTrend = {};
-        data.forEach(item => {
-            if (item[metric] !== null && item[metric] !== undefined) {
-                const date = item.timestamp ? item.timestamp.split('T')[0] : 'Ismeretlen dátum';
-                if (!dailyTrend[date]) {
-                    dailyTrend[date] = { sum: 0, count: 0 };
-                }
-                dailyTrend[date].sum += item[metric];
-                dailyTrend[date].count++;
-            }
-        });
+        // A analyzeSensorData függvényben módosítsd:
+const dailyTrend = {};
+data.forEach(item => {
+    if (item.value !== null && item.value !== undefined) {
+        // használd a measured_time mezőt
+        const date = item.measured_time ? new Date(item.measured_time).toISOString().split('T')[0] : 'Ismeretlen dátum';
+        if (!dailyTrend[date]) {
+            dailyTrend[date] = { sum: 0, count: 0 };
+        }
+        dailyTrend[date].sum += item.value;
+        dailyTrend[date].count++;
+    }
+});
         
         // Átlagok számítása napokra
         const trendData = Object.keys(dailyTrend).map(date => {
@@ -588,6 +569,7 @@
             noAreaSelected: "Kérjük, jelölj ki egy területet a térképen az elemzéshez!",
             noDataForArea: "Nincs elérhető adat a kiválasztott területre és időszakra.",
             noDataForMetric: "Nincs elérhető adat a kiválasztott metrikára.",
+            noDataForTimePeriod: "Nincs elérhető adat a kiválasztott időszakra.",
             analysisError: "Hiba az elemzés során",
             exportFeatureSoon: "Az export funkció hamarosan elérhető lesz!",
             temperature: "Hőmérséklet",
@@ -626,6 +608,7 @@
             noAreaSelected: "Please select an area on the map for analysis!",
             noDataForArea: "No data available for the selected area and time period.",
             noDataForMetric: "No data available for the selected metric.",
+            noDataForTimePeriod: "No data available for the selected time period.",
             analysisError: "Error during analysis",
             exportFeatureSoon: "Export feature coming soon!",
             temperature: "Temperature",
