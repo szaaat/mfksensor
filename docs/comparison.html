@@ -12,8 +12,8 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- JAVÍTOTT: Leaflet.Sync plugin betöltése megbízhatóbb forrásból -->
-    <script src="https://unpkg.com/leaflet.sync@2.0.0/dist/Leaflet.Sync.min.js"></script>
+    <!-- JAVÍTOTT: Leaflet.Sync 0.2.2 verzió -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.sync/0.2.2/Leaflet.Sync.min.js"></script>
     
     <style>
         .map-container { display: flex; width: 100%; flex-wrap: wrap; }
@@ -36,7 +36,7 @@
             width: 20px; height: 20px; animation: spin 1s linear infinite;
             vertical-align: middle; display: inline-block;
         }
-        .spinner-wrapper { display: none; } /* Alapból rejtve */
+        .spinner-wrapper { display: none; }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
@@ -47,7 +47,6 @@
         .lang-btn.active { background: white; color: green; font-weight: bold; }
         .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
 
-        /* Jelmagyarázat stílusa */
         .info.legend {
             background: rgba(255, 255, 255, 0.9); padding: 10px;
             border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2);
@@ -61,14 +60,12 @@
         .legend-labels .mid { top: 50%; transform: translateY(-50%); }
         .legend-labels .min { bottom: 0; }
 
-        /* Aktív gomb stílusa */
         .controls button.active {
-            background-color: #16a34a; /* Zöld */
+            background-color: #16a34a;
             color: white;
             font-weight: bold;
         }
         
-        /* Magyarázó szöveg (ÚJ) */
         #about-text {
             text-align: justify;
          }
@@ -185,7 +182,7 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // -----------------------------------------------------------------
-    // METRIKA KONFIG (A heatmap.html-ből frissítve, kontrasztos színekkel)
+    // METRIKA KONFIG
     // -----------------------------------------------------------------
     const METRIC_CONFIG = {
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
@@ -198,7 +195,7 @@
         },
         'humidity': {
             max: 100, min: 0, unit: '%',
-            gradient: { 0.0: '#FFFFFF', 0.5: '#00FFFF', 1: '#0000A0' } // Fehér -> Cián -> Sötétkék
+            gradient: { 0.0: '#FFFFFF', 0.5: '#00FFFF', 1: '#0000A0' }
         },
         'co2': { 
             max: 1000, min: 500, unit: 'ppm', 
@@ -229,8 +226,7 @@
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(mapRight);
 
-    // JAVÍTOTT: Térképek szinkronizálása a megfelelő módon
-    // A Leaflet.Sync plugin a L.Map.prototype-ba adja hozzá a sync metódust
+    // Térképek szinkronizálása - MEGJEGYZÉS: most már működnie kell
     mapLeft.sync(mapRight);
     mapRight.sync(mapLeft);
 
@@ -268,7 +264,7 @@
     }
 
     // -----------------------------------------------------------------
-    // TÉRKÉP FRISSÍTŐ FÜGGVÉNYEK (KÜLÖNVÁLASZTVA)
+    // TÉRKÉP FRISSÍTŐ FÜGGVÉNYEK
     // -----------------------------------------------------------------
 
     async function updateMap(side) {
@@ -285,7 +281,7 @@
         
         spinner.style.display = 'inline-block';
 
-        // 1. Config betöltése (a heatmap.html logikája alapján)
+        // 1. Config betöltése
         let config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
         const userMin = parseFloat(minInput.value);
         const userMax = parseFloat(maxInput.value);
@@ -297,14 +293,12 @@
             maxInput.value = config.max;
         }
 
-        // 2. Adatlekérés (az optimalizált SQL függvénnyel)
+        // 2. Adatlekérés
         try {
-            // UGYANAZT a 'get_heatmap_data' függvényt hívjuk, mint a heatmap.html
-            // Ez feltételezi, hogy az SQL függvény már a "durvább" rácsot használja
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
-                grid_size: 0.001, // Ezt a paramétert az SQL függvény már felülbírálja
+                grid_size: 0.001,
                 analysis_mode: analysisMode 
             });
 
@@ -326,12 +320,12 @@
 
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
 
-            // 3. Hőtérkép réteg (a config.max javítással)
+            // 3. Hőtérkép réteg
             const heatLayer = L.heatLayer(heatData, {
                 radius: 14,
                 blur: 6,
                 maxZoom: 18,
-                max: config.max, // JAVÍTVA
+                max: config.max,
                 gradient: config.gradient
             }).addTo(map);
 
@@ -378,9 +372,7 @@
     function updateMapLeft() { updateMap('left'); }
     function updateMapRight() { updateMap('right'); }
     
-    // -----------------------------------------------------------------
-    // ÚJ: Elemzési mód váltók (oldalanként)
-    // -----------------------------------------------------------------
+    // Elemzési mód váltók
     function setAnalysisModeLeft(mode) {
         currentAnalysisModeLeft = mode;
         pollutedBtnLeft.classList.toggle('active', mode === 'polluted');
@@ -396,7 +388,7 @@
     }
 
     // -----------------------------------------------------------------
-    // NYELVI RÉSZ (Kiegészítve a magyarázattal)
+    // NYELVI RÉSZ
     // -----------------------------------------------------------------
     const translations = {
       hu: {
@@ -470,8 +462,8 @@
 
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
-      document.getElementById('about-title').textContent = langData.aboutTitle; // ÚJ
-      document.getElementById('about-text').textContent = langData.aboutText; // ÚJ
+      document.getElementById('about-title').textContent = langData.aboutTitle;
+      document.getElementById('about-text').textContent = langData.aboutText;
       document.documentElement.lang = lang;
       
       document.querySelectorAll('.lang-btn').forEach(btn => {
