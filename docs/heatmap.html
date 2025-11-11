@@ -60,6 +60,11 @@
         .legend-labels .max { top: 0; }
         .legend-labels .mid { top: 50%; transform: translateY(-50%); }
         .legend-labels .min { bottom: 0; }
+        .controls button.active {
+            background-color: #16a34a; /* Zöld */
+            color: white;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -119,6 +124,8 @@
     <input type="number" id="max-value" class="mx-1 p-2 rounded border border-gray-300 w-20">
     
     <button id="update-scale-btn" class="ml-2 p-2 bg-green-600 text-white rounded hover:bg-green-700">Frissít</button>
+    <button id="polluted-btn" class="ml-4 p-2 rounded bg-gray-300">Szennyezett</button>
+    <button id="all-btn" class="ml-2 p-2 rounded bg-gray-300">Teljes adatsor</button>
     <div id="loading-spinner"></div>
 </div>       
         
@@ -207,6 +214,10 @@
     const minInput = document.getElementById('min-value');
     const maxInput = document.getElementById('max-value');
     const updateScaleBtn = document.getElementById('update-scale-btn');
+    
+    const pollutedBtn = document.getElementById('polluted-btn');
+    const allBtn = document.getElementById('all-btn');
+    let currentAnalysisMode = 'polluted';
 
     // ÚJ: Helper függvény a CSS színátmenet generálásához
     function createGradientCSS(gradient) {
@@ -244,6 +255,14 @@
             minInput.value = config.min;
             maxInput.value = config.max;
         }
+        
+        try {
+            const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
+                period_filter: period,
+                metric: metric,
+                grid_size: 0.001,
+                analysis_mode: currentAnalysisMode // <-- EZ AZ ÚJ PARAMÉTER!
+            });
 
         try {
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
@@ -414,6 +433,39 @@
           updateHeatmap(); // Egyszerűbb újrahívni a heatmap-et, ami újragenerálja a jelmagyarázatot
       }
     }
+    
+    function setAnalysisMode(mode) {
+        currentAnalysisMode = mode;
+        if (mode === 'polluted') {
+            pollutedBtn.classList.add('active');
+            allBtn.classList.remove('active');
+        } else {
+            pollutedBtn.classList.remove('active');
+            allBtn.classList.add('active');
+        }
+    // Amikor módot váltunk, frissítsük a térképet
+        updateHeatmap();
+    }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('language') || 'hu';
+  setLanguage(savedLang);
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setLanguage(btn.dataset.lang);
+    });
+  });
+
+  // ▼▼▼ ÚJ ESEMÉNYKEZELŐK ▼▼▼
+  pollutedBtn.addEventListener('click', () => setAnalysisMode('polluted'));
+  allBtn.addEventListener('click', () => setAnalysisMode('all'));
+  // ▲▲▲ VÉGE ▲▲▲
+
+  // Módosított indítás:
+  // updateHeatmap(); // Ehelyett:
+  setAnalysisMode(currentAnalysisMode); // Hogy az alapértelmezett mód betöltődjön
+});
 
     document.addEventListener('DOMContentLoaded', () => {
       const savedLang = localStorage.getItem('language') || 'hu';
