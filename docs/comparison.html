@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Összehasonlító Hőtérkép - MFKSensor</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -9,6 +10,8 @@
          crossorigin=""/>
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-sync/dist/Leaflet.Sync.min.js"></script>
     <style>
         .map-container { display: flex; width: 100%; flex-wrap: wrap; }
         .map-wrapper {
@@ -170,7 +173,6 @@
     <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
 </footer>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -225,6 +227,7 @@
     }).addTo(mapRight);
 
     // Térképek szinkronizálása
+    // EZ A SOR MOST MÁR MŰKÖDNI FOG, MERT A SYNC PLUGIN BE VAN TÖLTVE A <HEAD>-BE
     mapLeft.sync(mapRight);
     mapRight.sync(mapLeft);
 
