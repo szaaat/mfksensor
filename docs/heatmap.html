@@ -104,13 +104,37 @@
         <option value="co2">CO2</option>
         <option value="temperature">Hőmérséklet</option>
         <option value="humidity">Páratartalom</option>
-       
+
+<div class="controls text-center p-4 bg-gray-100 shadow-sm">
+    <label for="period-select" ...>...</label>
+    <select id="period-select" ...>...</select>
+    
+    <label for="metric-select" ...>...</label>
+    <select id="metric-select" ...>...</select>
+
+    <label for="min-value" class="ml-4 font-semibold text-gray-700">Skála Min:</label>
+    <input type="number" id="min-value" class="mx-1 p-2 rounded border border-gray-300 w-20">
+    
+    <label for="max-value" class="ml-2 font-semibold text-gray-700">Skála Max:</label>
+    <input type="number" id="max-value" class="mx-1 p-2 rounded border border-gray-300 w-20">
+    
+    <button id="update-scale-btn" class="ml-2 p-2 bg-green-600 text-white rounded hover:bg-green-700">Frissít</button>
+    <div id="loading-spinner"></div>
+</div>       
         
     </select>
     <div id="loading-spinner"></div>
 </div>
 
 <div id="map" class="flex-grow"></div>
+
+<div class="container mx-auto px-6 py-8 mt-8 bg-white shadow-lg rounded-lg">
+    <h2 id="about-title" class="text-2xl font-bold text-green-700 mb-4">Az oldal működése</h2>
+    <p id="about-text" class="text-gray-700 leading-relaxed">
+        Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat.
+    </p>
+</div>
+
 
 <footer class="bg-green-700 text-white text-center py-4 mt-auto">
     <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
@@ -180,6 +204,9 @@
     const loadingSpinner = document.getElementById('loading-spinner');
     const periodSelect = document.getElementById('period-select');
     const metricSelect = document.getElementById('metric-select');
+    const minInput = document.getElementById('min-value');
+    const maxInput = document.getElementById('max-value');
+    const updateScaleBtn = document.getElementById('update-scale-btn');
 
     // ÚJ: Helper függvény a CSS színátmenet generálásához
     function createGradientCSS(gradient) {
@@ -194,8 +221,29 @@
     async function updateHeatmap() {
         const period = periodSelect.value;
         const metric = metricSelect.value;
-        const config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
         loadingSpinner.style.display = 'inline-block';
+        
+        // 1. Alapértelmezett config betöltése
+        // (Használj 'let'-et 'const' helyett, hogy felülírhassuk)
+        let config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
+
+        // 2. ÚJ: Felülírás a felhasználói bemenettel
+        // Ellenőrizzük, hogy a mezőkben érvényes számok vannak-e
+        const userMin = parseFloat(minInput.value);
+        const userMax = parseFloat(maxInput.value);
+
+        if (!isNaN(userMin) && !isNaN(userMax) && userMin < userMax) {
+            // Lemásoljuk és felülírjuk a configot, hogy az eredeti METRIC_CONFIG ne sérüljön
+            config = { 
+                ...config, // Megtartja az eredeti 'unit'-ot és 'gradient'-et
+                min: userMin, 
+                max: userMax 
+            };
+        } else {
+            // Ha a mezők üresek vagy érvénytelenek, töltsük fel őket az alapértelmezettekkel
+            minInput.value = config.min;
+            maxInput.value = config.max;
+        }
 
         try {
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
@@ -259,7 +307,16 @@
     }
 
     periodSelect.addEventListener('change', updateHeatmap);
-    metricSelect.addEventListener('change', updateHeatmap);
+    metricSelect.addEventListener('change', () => {
+        // Amikor metrikát vált, töröljük az input mezőket,
+        // hogy az updateHeatmap az új alapértékkel töltse fel őket.
+        minInput.value = '';
+        maxInput.value = '';
+        updateHeatmap();
+    });
+
+    // ÚJ: A gomb eseménykezelője
+    updateScaleBtn.addEventListener('click', updateHeatmap);
 </script>
 
 <script>
@@ -283,7 +340,10 @@
         periodAutumn: "Ősz (Szep, Okt, Nov)",
         legendTitle: "Jelmagyarázat", // ÚJ
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
-        disclaimer: "A mérési adatok nem hitelesítettek."
+        disclaimer: "A mérési adatok nem hitelesítettek.",
+        aboutTitle: "Az oldal működése",
+        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat."
+        
       },
       en: {
         title: "Seasonal Heatmap - MFKSensor",
@@ -304,7 +364,10 @@
         periodAutumn: "Autumn (Sep, Oct, Nov)",
         legendTitle: "Legend", // ÚJ
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
-        disclaimer: "Measurement data is not verified."
+        disclaimer: "Measurement data is not verified.",
+        aboutTitle: "How This Page Works",
+        aboutText: "This page displays aggregated air quality data (e.g., PM2.5, CO2, NOx) collected by mobile sensors on an interactive heatmap. The data is averaged onto a grid to show spatial distribution. You can use the controls to select the period (seasonal or annual average) and the metric type. The 'Scale Min' and 'Scale Max' fields allow you to fine-tune the visual scale to highlight the value ranges that are important to you."
+        
       }
     };
 
@@ -333,6 +396,8 @@
       document.getElementById('period-autumn').textContent = langData.periodAutumn;
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      document.getElementById('about-title').textContent = langData.aboutTitle;
+      document.getElementById('about-text').textContent = langData.aboutText;
       document.documentElement.lang = lang;
       
      
