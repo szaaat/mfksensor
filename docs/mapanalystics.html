@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tér-idő Elemző - MFKSensor</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+         crossorigin=""/>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    
+    <!-- Turf.js for spatial analysis -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Leaflet Draw -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <style>
+        #map {
+            height: 60vh;
+            width: 100%;
+            z-index: 1;
+        }
+        
+        .analysis-panel {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            border-left: 4px solid #22c55e;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .lang-btn {
+          padding: 2px 10px;
+          border: 1px solid white;
+          border-radius: 4px;
+          background: transparent;
+          color: white;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+        
+        .lang-btn.active {
+          background: white;
+          color: green;
+          font-weight: bold;
+        }
+        
+        .lang-btn:hover:not(.active) {
+          background: rgba(255,255,255,0.2);
+        }
+        
+        .time-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+
+<header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
+    <div class="absolute top-4 right-4 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
+      <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
+    </div>
+    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Tér-idő Elemző</h1>
+</header>
+
+<nav class="bg-green-600 text-white py-4 shadow-md">
+    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
+      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
+      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
+      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
+      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
+      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
+      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors">Korreláció</a>
+      <a href="/mfksensor/spatial-temporal.html" id="nav-spatial" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Tér-idő Elemző</a>
+      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
+    </div>
+</nav>
+
+<div class="container mx-auto px-4 py-6 flex-grow">
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 id="instructions-title" class="text-xl font-bold text-green-700 mb-4">Elemzési útmutató</h2>
+        <p id="instructions-text" class="text-gray-700 mb-2">1. Jelölj ki egy területet a térképen (téglalap, sokszög vagy kör)</p>
+        <p id="instructions-text-2" class="text-gray-700 mb-2">2. Válaszd ki az elemzési időszakot és a metrikát</p>
+        <p id="instructions-text-3" class="text-gray-700">3. Az elemzés eredményei automatikusan megjelennek</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Térkép -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-lg p-4">
+                <div id="map"></div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button id="draw-rectangle" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Téglalap rajzolása</button>
+                    <button id="draw-polygon" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Sokszög rajzolása</button>
+                    <button id="draw-circle" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm">Kör rajzolása</button>
+                    <button id="clear-all" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm">Összes törlése</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vezérlők -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+            <h3 id="controls-title" class="text-lg font-bold text-green-700 mb-4">Elemzési beállítások</h3>
+            
+            <div class="mb-4">
+                <label id="time-period-label" for="time-period" class="block text-sm font-medium text-gray-700 mb-1">Időszak:</label>
+                <select id="time-period" class="w-full p-2 border border-gray-300 rounded">
+                    <option value="morning">Délelőtt (6:00-12:00)</option>
+                    <option value="afternoon">Délután (12:00-18:00)</option>
+                    <option value="weekday">Hétköznap</option>
+                    <option value="weekend" selected>Hétvége</option>
+                    <option value="all">Összes adat</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label id="metric-label" for="metric" class="block text-sm font-medium text-gray-700 mb-1">Metrika:</label>
+                <select id="metric" class="w-full p-2 border border-gray-300 rounded">
+                    <option value="pm2_5">PM2.5</option>
+                    <option value="pm10_0">PM10.0</option>
+                    <option value="co2">CO₂</option>
+                    <option value="nox">NOx</option>
+                    <option value="voc">VOC</option>
+                    <option value="temperature">Hőmérséklet</option>
+                    <option value="humidity">Páratartalom</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label id="analysis-type-label" for="analysis-type" class="block text-sm font-medium text-gray-700 mb-1">Elemzés típusa:</label>
+                <select id="analysis-type" class="w-full p-2 border border-gray-300 rounded">
+                    <option value="stats">Statisztikai összefoglaló</option>
+                    <option value="trend">Időbeli trend</option>
+                    <option value="heatmap">Hőtérkép a területen</option>
+                </select>
+            </div>
+            
+            <button id="analyze-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Elemzés indítása
+            </button>
+            
+            <div id="loading" class="loading mt-4">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
+                <span id="loading-text" class="ml-2">Adatok betöltése...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Elemzési eredmények -->
+    <div id="analysis-results" class="mt-6 hidden">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 id="results-title" class="text-xl font-bold text-green-700 mb-4">Elemzési eredmények</h2>
+            
+            <div class="stats-grid mb-6">
+                <div class="stat-card">
+                    <div id="stat-1-label" class="text-sm text-gray-500">Átlag</div>
+                    <div id="stat-1-value" class="text-xl font-bold">-</div>
+                </div>
+                <div class="stat-card">
+                    <div id="stat-2-label" class="text-sm text-gray-500">Minimum</div>
+                    <div id="stat-2-value" class="text-xl font-bold">-</div>
+                </div>
+                <div class="stat-card">
+                    <div id="stat-3-label" class="text-sm text-gray-500">Maximum</div>
+                    <div id="stat-3-value" class="text-xl font-bold">-</div>
+                </div>
+                <div class="stat-card">
+                    <div id="stat-4-label" class="text-sm text-gray-500">Mérések száma</div>
+                    <div id="stat-4-value" class="text-xl font-bold">-</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="time-chart"></canvas>
+            </div>
+            
+            <div class="mt-4 flex justify-end">
+                <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Eredmények exportálása
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-green-700 text-white text-center py-4 mt-auto">
+    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+</footer>
+
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // -----------------------------------------------------------------
+    // 1. SUPABASE ÉS GLOBÁLIS VÁLTOZÓK
+    // -----------------------------------------------------------------
+    const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Globális változók
+    let map;
+    let drawnItems = new L.FeatureGroup();
+    let drawControl;
+    let currentChart = null;
+    let selectedArea = null;
+
+    // -----------------------------------------------------------------
+    // 2. TÉRKÉP INICIALIZÁLÁS
+    // -----------------------------------------------------------------
+    function initMap() {
+        // Térkép létrehozása
+        map = L.map('map').setView([48.1034, 20.7784], 12); // Miskolc középpont
+        
+        // OpenStreetMap alapréteg
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Rajzolási vezérlő
+        drawControl = new L.Control.Draw({
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    drawError: {
+                        color: '#e1e100',
+                        message: '<strong>Hiba:<strong> nem rajzolhatsz átfedő alakzatokat!'
+                    },
+                    shapeOptions: {
+                        color: '#97009c'
+                    }
+                },
+                polyline: false,
+                circle: {
+                    shapeOptions: {
+                        color: '#97009c'
+                    }
+                },
+                rectangle: {
+                    shapeOptions: {
+                        color: '#97009c'
+                    }
+                },
+                marker: false
+            },
+            edit: {
+                featureGroup: drawnItems
+            }
+        });
+        
+        map.addControl(drawControl);
+        map.addLayer(drawnItems);
+        
+        // Eseménykezelők a rajzoláshoz
+        map.on(L.Draw.Event.CREATED, function (e) {
+            const type = e.layerType;
+            const layer = e.layer;
+            
+            drawnItems.clearLayers();
+            drawnItems.addLayer(layer);
+            selectedArea = layer;
+            
+            // Automatikus elemzés indítása
+            setTimeout(performAnalysis, 500);
+        });
+        
+        // Gombok eseménykezelői
+        document.getElementById('draw-rectangle').addEventListener('click', function() {
+            new L.Draw.Rectangle(map, drawControl.options.draw.rectangle).enable();
+        });
+        
+        document.getElementById('draw-polygon').addEventListener('click', function() {
+            new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+        });
+        
+        document.getElementById('draw-circle').addEventListener('click', function() {
+            new L.Draw.Circle(map, drawControl.options.draw.circle).enable();
+        });
+        
+        document.getElementById('clear-all').addEventListener('click', function() {
+            drawnItems.clearLayers();
+            selectedArea = null;
+            document.getElementById('analysis-results').classList.add('hidden');
+        });
+        
+        // Elemzés gomb
+        document.getElementById('analyze-btn').addEventListener('click', performAnalysis);
+        
+        // Export gomb
+        document.getElementById('export-btn').addEventListener('click', exportResults);
+    }
+
+    // -----------------------------------------------------------------
+    // 3. ADATLEKÉRÉS ÉS ELEMZÉS
+    // -----------------------------------------------------------------
+    async function performAnalysis() {
+        if (!selectedArea) {
+            alert(getTranslation('noAreaSelected'));
+            return;
+        }
+        
+        const timePeriod = document.getElementById('time-period').value;
+        const metric = document.getElementById('metric').value;
+        const analysisType = document.getElementById('analysis-type').value;
+        
+        showLoading(true);
+        
+        try {
+            // Terület határainak meghatározása
+            const bounds = selectedArea.getBounds();
+            const north = bounds.getNorth();
+            const south = bounds.getSouth();
+            const east = bounds.getEast();
+            const west = bounds.getWest();
+            
+            // Időszűrés összeállítása
+            let timeFilter = {};
+            if (timePeriod === 'morning') {
+                timeFilter = { hour: { gte: 6, lt: 12 } };
+            } else if (timePeriod === 'afternoon') {
+                timeFilter = { hour: { gte: 12, lt: 18 } };
+            } else if (timePeriod === 'weekday') {
+                timeFilter = { is_weekend: false };
+            } else if (timePeriod === 'weekend') {
+                timeFilter = { is_weekend: true };
+            }
+            
+            // Adatok lekérése Supabase-ből
+            let query = supabaseClient
+                .from('sensor_data')
+                .select('*')
+                .gte('latitude', south)
+                .lte('latitude', north)
+                .gte('longitude', west)
+                .lte('longitude', east);
+            
+            // Időszűrés alkalmazása
+            if (timePeriod !== 'all') {
+                if (timePeriod === 'weekday' || timePeriod === 'weekend') {
+                    query = query.eq('is_weekend', timePeriod === 'weekend');
+                } else {
+                    query = query.gte('hour', timeFilter.hour.gte).lt('hour', timeFilter.hour.lt);
+                }
+            }
+            
+            const { data: sensorData, error } = await query;
+            
+            if (error) throw error;
+            
+            if (!sensorData || sensorData.length === 0) {
+                throw new Error(getTranslation('noDataForArea'));
+            }
+            
+            // Elemzés végrehajtása
+            const analysisResults = analyzeSensorData(sensorData, metric, analysisType);
+            
+            // Eredmények megjelenítése
+            displayResults(analysisResults, metric, analysisType);
+            
+        } catch (error) {
+            console.error('Hiba az elemzés során:', error);
+            alert(getTranslation('analysisError') + ': ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 4. ADATELEMZÉS FÜGGVÉNYEK
+    // -----------------------------------------------------------------
+    function analyzeSensorData(data, metric, analysisType) {
+        // Alap statisztikák
+        const values = data.map(item => item[metric]).filter(val => val !== null && val !== undefined);
+        
+        if (values.length === 0) {
+            throw new Error(getTranslation('noDataForMetric'));
+        }
+        
+        const stats = {
+            count: values.length,
+            avg: values.reduce((a, b) => a + b, 0) / values.length,
+            min: Math.min(...values),
+            max: Math.max(...values),
+            std: calculateStdDev(values)
+        };
+        
+        // Időbeli trend (csoportosítás dátum szerint)
+        const dailyTrend = {};
+        data.forEach(item => {
+            if (item[metric] !== null && item[metric] !== undefined) {
+                const date = item.timestamp.split('T')[0]; // Csak a dátum rész
+                if (!dailyTrend[date]) {
+                    dailyTrend[date] = { sum: 0, count: 0 };
+                }
+                dailyTrend[date].sum += item[metric];
+                dailyTrend[date].count++;
+            }
+        });
+        
+        // Átlagok számítása napokra
+        const trendData = Object.keys(dailyTrend).map(date => {
+            return {
+                date: date,
+                value: dailyTrend[date].sum / dailyTrend[date].count
+            };
+        }).sort((a, b) => a.date.localeCompare(b.date));
+        
+        return {
+            stats: stats,
+            trend: trendData,
+            rawData: data
+        };
+    }
+    
+    function calculateStdDev(values) {
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        const squareDiffs = values.map(value => Math.pow(value - avg, 2));
+        const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+        return Math.sqrt(avgSquareDiff);
+    }
+
+    // -----------------------------------------------------------------
+    // 5. EREDMÉNYEK MEGJELENÍTÉSE
+    // -----------------------------------------------------------------
+    function displayResults(results, metric, analysisType) {
+        // Statisztikák frissítése
+        document.getElementById('stat-1-value').textContent = results.stats.avg.toFixed(2);
+        document.getElementById('stat-2-value').textContent = results.stats.min.toFixed(2);
+        document.getElementById('stat-3-value').textContent = results.stats.max.toFixed(2);
+        document.getElementById('stat-4-value').textContent = results.stats.count;
+        
+        // Diagram frissítése
+        updateChart(results.trend, metric);
+        
+        // Elemzési panel megjelenítése
+        document.getElementById('analysis-results').classList.remove('hidden');
+    }
+    
+    function updateChart(trendData, metric) {
+        const ctx = document.getElementById('time-chart').getContext('2d');
+        
+        // Meglévő diagram törlése
+        if (currentChart) {
+            currentChart.destroy();
+        }
+        
+        // Új diagram létrehozása
+        currentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: trendData.map(item => item.date),
+                datasets: [{
+                    label: getMetricLabel(metric),
+                    data: trendData.map(item => item.value),
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: getMetricLabel(metric)
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: getTranslation('date')
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------
+    // 6. SEGÉDFÜGGVÉNYEK
+    // -----------------------------------------------------------------
+    function showLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+    
+    function exportResults() {
+        // CSV export implementációja
+        alert(getTranslation('exportFeatureSoon'));
+    }
+    
+    function getMetricLabel(metric) {
+        const metricLabels = {
+            'pm2_5': 'PM2.5',
+            'pm10_0': 'PM10.0',
+            'co2': 'CO₂',
+            'nox': 'NOx',
+            'voc': 'VOC',
+            'temperature': getTranslation('temperature'),
+            'humidity': getTranslation('humidity')
+        };
+        
+        return metricLabels[metric] || metric;
+    }
+
+    // -----------------------------------------------------------------
+    // 7. NYELVI TÁMOGATÁS
+    // -----------------------------------------------------------------
+    const translations = {
+        hu: {
+            title: "Tér-idő Elemző - MFKSensor",
+            mainTitle: "Tér-idő Elemző",
+            navHome: "Kezdőlap",
+            navMap: "PM2.5 Térkép",
+            navMapCO2: "CO₂ Térkép",
+            navHeatmap: "Hőtérkép",
+            navComparison: "Összehasonlítás",
+            navCorrelation: "Korreláció",
+            navSpatial: "Tér-idő Elemző",
+            navAbout: "Rólunk",
+            instructionsTitle: "Elemzési útmutató",
+            instructionsText: "1. Jelölj ki egy területet a térképen (téglalap, sokszög vagy kör)",
+            instructionsText2: "2. Válaszd ki az elemzési időszakot és a metrikát",
+            instructionsText3: "3. Az elemzés eredményei automatikusan megjelennek",
+            controlsTitle: "Elemzési beállítások",
+            timePeriodLabel: "Időszak:",
+            metricLabel: "Metrika:",
+            analysisTypeLabel: "Elemzés típusa:",
+            resultsTitle: "Elemzési eredmények",
+            footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
+            disclaimer: "A mérési adatok nem hitelesítettek.",
+            noAreaSelected: "Kérjük, jelölj ki egy területet a térképen az elemzéshez!",
+            noDataForArea: "Nincs elérhető adat a kiválasztott területre és időszakra.",
+            noDataForMetric: "Nincs elérhető adat a kiválasztott metrikára.",
+            analysisError: "Hiba az elemzés során",
+            exportFeatureSoon: "Az export funkció hamarosan elérhető lesz!",
+            temperature: "Hőmérséklet",
+            humidity: "Páratartalom",
+            date: "Dátum",
+            loadingText: "Adatok betöltése..."
+        },
+        en: {
+            title: "Spatial-Temporal Analyzer - MFKSensor",
+            mainTitle: "Spatial-Temporal Analyzer",
+            navHome: "Home",
+            navMap: "PM2.5 Map",
+            navMapCO2: "CO₂ Map",
+            navHeatmap: "Heatmap",
+            navComparison: "Comparison",
+            navCorrelation: "Correlation",
+            navSpatial: "Spatial-Temporal",
+            navAbout: "About",
+            instructionsTitle: "Analysis Guide",
+            instructionsText: "1. Select an area on the map (rectangle, polygon or circle)",
+            instructionsText2: "2. Choose the time period and metric for analysis",
+            instructionsText3: "3. Analysis results will appear automatically",
+            controlsTitle: "Analysis Settings",
+            timePeriodLabel: "Time Period:",
+            metricLabel: "Metric:",
+            analysisTypeLabel: "Analysis Type:",
+            resultsTitle: "Analysis Results",
+            footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
+            disclaimer: "Measurement data is not verified.",
+            noAreaSelected: "Please select an area on the map for analysis!",
+            noDataForArea: "No data available for the selected area and time period.",
+            noDataForMetric: "No data available for the selected metric.",
+            analysisError: "Error during analysis",
+            exportFeatureSoon: "Export feature coming soon!",
+            temperature: "Temperature",
+            humidity: "Humidity",
+            date: "Date",
+            loadingText: "Loading data..."
+        }
+    };
+
+    function setLanguage(lang) {
+        localStorage.setItem('language', lang);
+        applyLanguage(lang);
+    }
+
+    function applyLanguage(lang) {
+        const langData = translations[lang];
+        document.title = langData.title;
+        document.getElementById('main-title').textContent = langData.mainTitle;
+        
+        // Navigáció
+        document.getElementById('nav-home').textContent = langData.navHome;
+        document.getElementById('nav-map').textContent = langData.navMap;
+        document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
+        document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
+        document.getElementById('nav-comparison').textContent = langData.navComparison;
+        document.getElementById('nav-correlation').textContent = langData.navCorrelation;
+        document.getElementById('nav-spatial').textContent = langData.navSpatial;
+        document.getElementById('nav-about').textContent = langData.navAbout;
+        
+        // Utasítások
+        document.getElementById('instructions-title').textContent = langData.instructionsTitle;
+        document.getElementById('instructions-text').textContent = langData.instructionsText;
+        document.getElementById('instructions-text-2').textContent = langData.instructionsText2;
+        document.getElementById('instructions-text-3').textContent = langData.instructionsText3;
+        
+        // Vezérlők
+        document.getElementById('controls-title').textContent = langData.controlsTitle;
+        document.getElementById('time-period-label').textContent = langData.timePeriodLabel;
+        document.getElementById('metric-label').textContent = langData.metricLabel;
+        document.getElementById('analysis-type-label').textContent = langData.analysisTypeLabel;
+        
+        // Eredmények
+        document.getElementById('results-title').textContent = langData.resultsTitle;
+        
+        // Statisztika címkék
+        document.getElementById('stat-1-label').textContent = langData.avg || "Átlag";
+        document.getElementById('stat-2-label').textContent = langData.min || "Minimum";
+        document.getElementById('stat-3-label').textContent = langData.max || "Maximum";
+        document.getElementById('stat-4-label').textContent = langData.count || "Mérések száma";
+        
+        // Lábléc
+        document.getElementById('footer-text').textContent = langData.footer;
+        document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+        
+        // Betöltés szöveg
+        document.getElementById('loading-text').textContent = langData.loadingText;
+        
+        // Gombok
+        document.getElementById('analyze-btn').textContent = langData.analyze || "Elemzés indítása";
+        document.getElementById('export-btn').textContent = langData.export || "Eredmények exportálása";
+        
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
+        
+        document.documentElement.lang = lang;
+    }
+
+    function getTranslation(key) {
+        const lang = localStorage.getItem('language') || 'hu';
+        return translations[lang][key] || key;
+    }
+
+    // -----------------------------------------------------------------
+    // 8. ALAPBEÁLLÍTÁSOK ÉS INICIALIZÁLÁS
+    // -----------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+        // Nyelv beállítása
+        const savedLang = localStorage.getItem('language') || 'hu';
+        setLanguage(savedLang);
+        
+        // Nyelvváltó gombok
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+        });
+        
+        // Térkép inicializálása
+        initMap();
+    });
+</script>
+
+</body>
+</html>
