@@ -467,18 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setAnalysisMode(currentAnalysisMode); // Hogy az alapértelmezett mód betöltődjön
 });
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const savedLang = localStorage.getItem('language') || 'hu';
-      setLanguage(savedLang);
-
-      document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          setLanguage(btn.dataset.lang);
-        });
-      });
-      
-      updateHeatmap();
-    });
 </script>
 
 </body>
