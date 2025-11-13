@@ -437,17 +437,32 @@
         const exportButton = document.getElementById('exportButton');
         const legend = document.getElementById('legend');
         
-        // Ez a hívás most már hibát dobhat, amit a külső `catch` elkap
+        // 1. Lekérjük a dátumokat a gyors táblából
         const validDates = await loadAvailableDates();
         
+        // 2. Kiszámoljuk a mai dátumot YYYY-MM-DD formátumban
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0'); // Hónapok 0-11
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        // 3. Hozzáadjuk a mait a listához, HA még nincs benne
+        if (!validDates.includes(todayStr)) {
+            console.log('A mai nap manuálisan hozzáadva a naptárhoz:', todayStr);
+            validDates.push(todayStr); // A lista végére szúrjuk
+        }
+
+        // 4. A 'latestDate' most már garantáltan a legfrissebb (a mai) lesz
         const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
 
+        // 5. Átadjuk a kiegészített listát a naptárnak
         flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
-          enable: validDates,
-          defaultDate: latestDate,
+          enable: validDates, // A kiegészített lista
+          defaultDate: latestDate, // Ez most már a mai nap lesz
           onChange: () => updateMap(),
-          locale: savedLang // Ez most már működni fog a betöltött 'hu.js' miatt
+          locale: savedLang
         });
 
         async function updateMap() {
