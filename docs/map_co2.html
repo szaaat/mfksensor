@@ -265,10 +265,12 @@
       return null;
     };
 
-    // ▼▼▼ JAVÍTÁS: A függvény most már "throw"-olja a hibát, ahelyett, hogy elnyelné ▼▼▼
+    // ▼▼▼ JAVÍTÁS: A függvény neve visszaállítva 'get_distinct_dates'-re ▼▼▼
     async function loadAvailableDates() {
       try {
-        const { data, error } = await supabaseClient.rpc('get_distinct_dates_co2');
+        // ITT VOLT A HIBA: Visszajavítva 'get_distinct_dates_co2'-ről 'get_distinct_dates'-re
+        const { data, error } = await supabaseClient.rpc('get_distinct_dates'); 
+        
         if (error) {
           console.error('Hiba a dátumok lekérdezésekor:', error);
           throw error; // <-- Hiba továbbdobása
