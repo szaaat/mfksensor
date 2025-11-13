@@ -264,20 +264,24 @@
       return null;
     };
 
-    // ▼▼▼ JAVÍTÁS: A függvény most már "throw"-olja a hibát, ahelyett, hogy elnyelné ▼▼▼
+    // ▼▼▼ JAVÍTÁS: A függvény neve visszaállítva 'get_distinct_dates'-re ▼▼▼
     async function loadAvailableDates() {
       try {
-        const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+        const { data, error } = await supabaseClient
+          .from('available_dates') // <-- Az új tábla neve
+          .select('date')
+          .order('date', { ascending: true });
+
         if (error) {
           console.error('Hiba a dátumok lekérdezésekor:', error);
-          throw error; // <-- Hiba továbbdobása
+          throw error; 
         }
-        const dates = data.map(row => row.date).filter(Boolean).sort();
+        const dates = data.map(row => row.date).filter(Boolean);
         console.log('Elérhető dátumok:', dates);
         return dates;
       } catch (err) {
         console.error('Váratlan hiba a dátumok betöltésekor:', err);
-        throw err; // <-- Hiba továbbdobása
+        throw err;
       }
     }
 
