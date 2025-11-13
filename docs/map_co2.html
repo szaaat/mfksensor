@@ -144,6 +144,7 @@
     );
 
     let geojsonData = null;
+    let fpInstance = null; // Ide mentjük a naptár-példányt
 
     const mapTranslations = {
       hu: {
@@ -211,6 +212,15 @@
     function setMapLanguage(lang) {
       localStorage.setItem('language', lang);
       applyMapLanguage(lang);
+
+      // ▼▼▼ EZ AZ ÚJ RÉSZ ▼▼▼
+      // Frissítjük a már létező naptár nyelvét is
+      if (fpInstance) {
+        // 'default' a flatpickr beépített angol nyelve, 'hu' a betöltött magyar
+        const newLocale = (lang === 'hu') ? 'hu' : 'default';
+        fpInstance.set('locale', newLocale);
+      }
+      // ▲▲▲ EDDIG ▲▲▲
     }
 
     function applyMapLanguage(lang) {
@@ -465,7 +475,7 @@
         const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
 
         // 5. Átadjuk a kiegészített listát a naptárnak
-        flatpickr("#datePicker", {
+        fpInstance = flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
           enable: validDates, // A kiegészített lista
           defaultDate: latestDate, // Ez most már a mai nap lesz
