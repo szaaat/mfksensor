@@ -6,8 +6,8 @@
     <title>Korreláció Elemzés - MFKSensor</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-         crossorigin=""/>
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
     <script src="https://cdn.tailwindcss.com/3.4.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
@@ -70,6 +70,7 @@
       <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
       <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
       <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Korreláció</a>
+      <a href="/mfksensor/analytics.html" id="nav-analytics" class="text-lg font-semibold hover:text-green-200 transition-colors">Analitika</a>
       <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
     </div>
 </nav>
@@ -91,25 +92,27 @@
         
         <label id="metric1-label" for="metric-select-1" class="font-semibold">X tengely:</label>
         <select id="metric-select-1" class="p-2 rounded border border-gray-300">
-            <option value="nox" selected>NOx</option>
-            <option value="voc">VOC</option>
-            <option value="pm2_5">PM2.5</option>
-            <option value="pm10_0">PM10.0</option>
+            <option value="pm2_5" selected>PM2.5</option>
             <option value="co2">CO2</option>
+            <option value="nox">NOx</option>
+            <option value="voc">VOC</option>
+            <option value="pm10_0">PM10.0</option>
+            
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
-        </select>
+            <option value="altitude">Magasság</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2_diff">CO2 Különbség</option> <option value="pm25_bg">PM2.5 Háttér</option> <option value="co2_bg">CO2 Háttér</option> </select>
         
         <label id="metric2-label" for="metric-select-2" class="font-semibold">Y tengely:</label>
         <select id="metric-select-2" class="p-2 rounded border border-gray-300">
+            <option value="pm2_5">PM2.5</option>
+            <option value="co2">CO2</option>
             <option value="nox">NOx</option>
             <option value="voc" selected>VOC</option>
-            <option value="pm2_5">PM2.5</option>
             <option value="pm10_0">PM10.0</option>
-            <option value="co2">CO2</option>
+            
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
-        </select>
+            <option value="altitude">Magasság</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2_diff">CO2 Különbség</option> <option value="pm25_bg">PM2.5 Háttér</option> <option value="co2_bg">CO2 Háttér</option> </select>
         
         <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
         <div id="loading-spinner"></div>
@@ -181,7 +184,7 @@
     let currentData = { x: [], y: [] };
 
     // -----------------------------------------------------------------
-    // 2. STATISZTIKAI FÜGGVÉNYEK (JAVÍTVA: corrcoeff)
+    // 2. STATISZTIKAI FÜGGVÉNYEK
     // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
         if (typeof jStat === 'undefined' || typeof jStat.corrcoeff !== 'function') {
@@ -194,7 +197,7 @@
         }
         
         try {
-            const r = jStat.corrcoeff(x, y);  // JAVÍTVA: corrcoeff
+            const r = jStat.corrcoeff(x, y);
             const n = x.length;
             
             if (r === 1 || r === -1) return { r, p: 0, n };
@@ -222,7 +225,7 @@
     }
 
     // -----------------------------------------------------------------
-    // 3. DIAGRAM FRISSÍTŐ (Változatlan)
+    // 3. DIAGRAM FRISSÍTŐ
     // -----------------------------------------------------------------
     async function updateCorrelationChart() {
         const m1 = metricSelect1.value;
@@ -239,13 +242,13 @@
         loadingSpinner.style.display = 'inline-block';
     
         try {
-            // JAVÍTVA: helyes függvényhívás + paraméterek
+            // Az RPC függvényednek támogatnia kell a dinamikus oszlopneveket!
             const { data, error } = await supabaseClient.rpc('get_correlation_pairs_flexible', {
                 metric1: m1,
                 metric2: m2,
                 period_filter: period,
                 grid_size: 0.001,
-                filter_mode: currentAnalysisMode  // 'all' vagy 'polluted'
+                filter_mode: currentAnalysisMode 
             });
         
             if (error) throw error;
@@ -282,7 +285,7 @@
                 type: 'scatter',
                 data: {
                     datasets: [{
-                        label: `${m1.toUpperCase()} vs ${m2.toUpperCase()}`,
+                        label: `${m1.toUpperCase().replace('_DIFF', ' Diff').replace('_BG', ' BG')} vs ${m2.toUpperCase().replace('_DIFF', ' Diff').replace('_BG', ' BG')}`,
                         data: scatterData,
                         backgroundColor: 'rgba(22, 101, 52, 0.6)'
                     }]
@@ -291,8 +294,8 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: m1.toUpperCase() } },
-                        y: { title: { display: true, text: m2.toUpperCase() } }
+                        x: { title: { display: true, text: m1.toUpperCase().replace('_', ' ') } },
+                        y: { title: { display: true, text: m2.toUpperCase().replace('_', ' ') } }
                     },
                     plugins: {
                         tooltip: {
@@ -315,7 +318,7 @@
     }
 
     // -----------------------------------------------------------------
-    // 4. EXPORT FUNKCIÓ (Változatlan)
+    // 4. EXPORT FUNKCIÓ
     // -----------------------------------------------------------------
     function exportData() {
         const m1 = metricSelect1.value;
@@ -346,14 +349,14 @@
         title: "Korreláció Elemzés - MFKSensor",
         mainTitle: "Korreláció Elemzés",
         navHome: "Kezdőlap", navMap: "PM2.5 Térkép", navMapCO2: "CO₂ Térkép", navHeatmap: "Hőtérkép",
-        navComparison: "Összehasonlítás", navCorrelation: "Korreláció", navAbout: "Rólunk",
+        navComparison: "Összehasonlítás", navCorrelation: "Korreláció", navAnalytics: "Analitika", navAbout: "Rólunk",
         periodAll: "Összes", periodWinter: "Tél", periodSpring: "Tavasz", periodSummer: "Nyár", periodAutumn: "Ősz",
         metric1Label: "X tengely:", metric2Label: "Y tengely:",
         exportBtn: "Export CSV",
         resultsTitle: "Korrelációs Eredmények",
         nValueLabel: "rácscella pár",
-        modePolluted: "Szennyezett adatsor", // ÚJ
-        modeAll: "Teljes adatsor",           // ÚJ
+        modePolluted: "Szennyezett adatsor",
+        modeAll: "Teljes adatsor",
         alertSameMetric: "Kérlek válassz két különböző metrikát!",
         alertNotEnoughData: "Túl kevés adatpár (N < 10) a megbízható korrelációhoz.",
         sigVeryHigh: "Rendkívül erős szignifikancia (p < 0.001)",
@@ -362,7 +365,6 @@
         sigNone: "Nem szignifikáns (p >= 0.05)",
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek.",
-        // Módszertani leírás
         methodTitle: "Módszertani leírás",
         methodIntro: "Ez az oldal két kiválasztott szenzoradat (pl. NOx és VOC) közötti statisztikai összefüggést vizsgálja, a térben aggregált adatok alapján.",
         methodScatterTitle: "A pontdiagram (Scatter Plot):",
@@ -379,14 +381,14 @@
         title: "Correlation Analysis - MFKSensor",
         mainTitle: "Correlation Analysis",
         navHome: "Home", navMap: "PM2.5 Map", navMapCO2: "CO₂ Map", navHeatmap: "Heatmap",
-        navComparison: "Comparison", navCorrelation: "Correlation", navAbout: "About",
+        navComparison: "Comparison", navCorrelation: "Correlation", navAnalytics: "Analytics", navAbout: "About",
         periodAll: "All", periodWinter: "Winter", periodSpring: "Spring", periodSummer: "Summer", periodAutumn: "Autumn",
         metric1Label: "X-Axis:", metric2Label: "Y-Axis:",
         exportBtn: "Export CSV",
         resultsTitle: "Correlation Results",
         nValueLabel: "grid cell pairs",
-        modePolluted: "Polluted Data", // ÚJ
-        modeAll: "Full Data",           // ÚJ
+        modePolluted: "Polluted Data",
+        modeAll: "Full Data",
         alertSameMetric: "Please select two different metrics!",
         alertNotEnoughData: "Too few data pairs (N < 10) for reliable correlation.",
         sigVeryHigh: "Extremely High Significance (p < 0.001)",
@@ -395,7 +397,6 @@
         sigNone: "Not Significant (p >= 0.05)",
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified.",
-        // Módszertani leírás
         methodTitle: "Methodology Explained",
         methodIntro: "This page analyzes the statistical relationship between two selected sensor metrics (e.g., NOx and VOC), based on spatially aggregated data.",
         methodScatterTitle: "The Scatter Plot:",
@@ -426,6 +427,7 @@
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
+      document.getElementById('nav-analytics').textContent = langData.navAnalytics;
       document.getElementById('nav-about').textContent = langData.navAbout;
       // Vezérlők
       document.getElementById('period-all').textContent = langData.periodAll;

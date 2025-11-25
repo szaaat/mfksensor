@@ -178,7 +178,6 @@
   </nav>
 
   <div class="container mx-auto p-6 flex-grow relative">
-    <!-- Dátum választó -->
     <div class="mb-6 bg-white p-4 rounded-lg shadow-md">
       <div class="flex flex-col md:flex-row justify-between items-center gap-4">
         <div class="flex items-center gap-2">
@@ -193,22 +192,18 @@
       <div id="date-info" class="date-info mt-2 text-gray-600"></div>
     </div>
 
-    <!-- Betöltés indikátor -->
     <div id="loading" class="loading-overlay hidden">
       <div class="loading-spinner"></div>
       <span id="loading-text" class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
     
-    <!-- Nincs adat üzenet -->
     <div id="no-data-message" class="no-data-message hidden">
       <div class="text-4xl mb-4">📊</div>
       <p id="no-data-text" class="font-semibold">Nincsenek adatok a kiválasztott dátumra.</p>
       <p id="select-other-date" class="text-sm mt-2 text-gray-500">Kérjük, válassz másik dátumot vagy ellenőrizd, hogy vannak-e mérések az adott napon.</p>
     </div>
     
-    <!-- Fő tartalom -->
     <div id="statsContainer" class="stats-container hidden">
-      <!-- Adat összegzés -->
       <div id="data-summary" class="data-summary hidden">
         <div class="summary-card">
           <div class="summary-value" id="total-measurements">0</div>
@@ -230,7 +225,6 @@
 
       <h2 id="stats-title" class="text-xl font-semibold mb-4 text-center">Levegőminőségi Statisztikák</h2>
       
-      <!-- Diagram beállítások -->
       <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
         <h3 class="font-semibold text-blue-800 mb-3 text-center">Diagram beállítások</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +247,6 @@
         </div>
       </div>
 
-      <!-- Diagramok -->
       <div class="chart-wrapper">
         <div class="bg-white p-4 rounded-lg shadow-sm border">
           <h3 id="morning-title" class="text-center font-semibold text-gray-700 mb-3">Délelőtt (0-12 óra)</h3>
@@ -261,20 +254,26 @@
             <label for="morning-y1" id="morning-y1-label" class="whitespace-nowrap">Metrika 1:</label>
             <select id="morning-y1" class="flex-1">
               <option value="pm2_5" selected>PM2.5</option>
-              <option value="temperature">Hőmérséklet</option>
+              <option value="pm25_bg">PM2.5 Háttér</option>
+              <option value="pm25_diff">PM2.5 Különbség</option> <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
-              <option value="voc">VOC</option>
+              <option value="co2_bg">CO₂ Háttér</option>
+              <option value="co2_diff">CO₂ Különbség</option> <option value="voc">VOC</option>
               <option value="nox">NOx</option>
+              <option value="altitude">Magasság</option>
             </select>
             <label for="morning-y2" id="morning-y2-label" class="whitespace-nowrap">Metrika 2:</label>
             <select id="morning-y2" class="flex-1">
               <option value="pm2_5">PM2.5</option>
-              <option value="temperature" selected>Hőmérséklet</option>
+              <option value="pm25_bg">PM2.5 Háttér</option>
+              <option value="pm25_diff">PM2.5 Különbség</option> <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
-              <option value="voc">VOC</option>
+              <option value="co2_bg">CO₂ Háttér</option>
+              <option value="co2_diff">CO₂ Különbség</option> <option value="voc">VOC</option>
               <option value="nox">NOx</option>
+              <option value="altitude">Magasság</option>
             </select>
           </div>
           <div class="chart-container">
@@ -288,20 +287,26 @@
             <label for="afternoon-y1" id="afternoon-y1-label" class="whitespace-nowrap">Metrika 1:</label>
             <select id="afternoon-y1" class="flex-1">
               <option value="pm2_5" selected>PM2.5</option>
-              <option value="temperature">Hőmérséklet</option>
+              <option value="pm25_bg">PM2.5 Háttér</option>
+              <option value="pm25_diff">PM2.5 Különbség</option> <option value="temperature">Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
-              <option value="voc">VOC</option>
+              <option value="co2_bg">CO₂ Háttér</option>
+              <option value="co2_diff">CO₂ Különbség</option> <option value="voc">VOC</option>
               <option value="nox">NOx</option>
+              <option value="altitude">Magasság</option>
             </select>
             <label for="afternoon-y2" id="afternoon-y2-label" class="whitespace-nowrap">Metrika 2:</label>
             <select id="afternoon-y2" class="flex-1">
               <option value="pm2_5">PM2.5</option>
-              <option value="temperature" selected>Hőmérséklet</option>
+              <option value="pm25_bg">PM2.5 Háttér</option>
+              <option value="pm25_diff">PM2.5 Különbség</option> <option value="temperature" selected>Hőmérséklet</option>
               <option value="humidity">Páratartalom</option>
               <option value="co2">CO₂</option>
-              <option value="voc">VOC</option>
+              <option value="co2_bg">CO₂ Háttér</option>
+              <option value="co2_diff">CO₂ Különbség</option> <option value="voc">VOC</option>
               <option value="nox">NOx</option>
+              <option value="altitude">Magasság</option>
             </select>
           </div>
           <div class="chart-container">
@@ -310,7 +315,6 @@
         </div>
       </div>
 
-      <!-- Statisztikai táblázat -->
       <div class="mt-8 bg-white p-6 rounded-lg shadow-sm border">
         <h3 class="text-lg font-semibold mb-4 text-center">Részletes statisztikák</h3>
         <div class="overflow-x-auto">
@@ -332,7 +336,6 @@
       </div>
     </div>
 
-    <!-- Export gomb -->
     <div class="text-center mt-6">
       <button id="exportButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition-colors shadow-md">Adatok exportálása CSV-ként</button>
     </div>
@@ -354,13 +357,19 @@
     let availableDates = [];
     let currentDate = null;
 
+    // ÚJ: Kibővített metrika definíciók
     const metricsDetails = {
       'pm2_5': { label: 'PM2.5 (µg/m³)', color: 'rgb(234, 88, 12)', unit: 'µg/m³' },
+      'pm25_bg': { label: 'PM2.5 Háttér (µg/m³)', color: 'rgb(251, 146, 60)', unit: 'µg/m³' },
+      'pm25_diff': { label: 'PM2.5 Különbség (µg/m³)', color: 'rgb(194, 65, 12)', unit: 'µg/m³' }, // ÚJ: Sötétebb narancs
       'temperature': { label: 'Hőmérséklet (°C)', color: 'rgb(37, 99, 235)', unit: '°C' },
       'humidity': { label: 'Páratartalom (%)', color: 'rgb(22, 163, 74)', unit: '%' },
       'co2': { label: 'CO₂ (ppm)', color: 'rgb(88, 28, 135)', unit: 'ppm' },
+      'co2_bg': { label: 'CO₂ Háttér (ppm)', color: 'rgb(147, 51, 234)', unit: 'ppm' },
+      'co2_diff': { label: 'CO₂ Különbség (ppm)', color: 'rgb(76, 29, 149)', unit: 'ppm' }, // ÚJ: Sötétebb lila
       'voc': { label: 'VOC (ppb)', color: 'rgb(220, 38, 38)', unit: 'ppb' },
-      'nox': { label: 'NOx (ppb)', color: 'rgb(139, 69, 19)', unit: 'ppb' }
+      'nox': { label: 'NOx (ppb)', color: 'rgb(139, 69, 19)', unit: 'ppb' },
+      'altitude': { label: 'Magasság (m)', color: 'rgb(75, 85, 99)', unit: 'm' }
     };
 
     // Fordítási adatok
@@ -484,6 +493,29 @@
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
+
+      // ÚJ: Frissíteni kell az opciók szövegét is nyelvváltáskor
+      const metricOptions = {
+        'pm2_5': 'PM2.5',
+        'pm25_bg': lang === 'hu' ? 'PM2.5 Háttér' : 'PM2.5 Background',
+        'pm25_diff': lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Difference', // ÚJ
+        'temperature': lang === 'hu' ? 'Hőmérséklet' : 'Temperature',
+        'humidity': lang === 'hu' ? 'Páratartalom' : 'Humidity',
+        'co2': 'CO₂',
+        'co2_bg': lang === 'hu' ? 'CO₂ Háttér' : 'CO₂ Background',
+        'co2_diff': lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Difference', // ÚJ
+        'voc': 'VOC',
+        'nox': 'NOx',
+        'altitude': lang === 'hu' ? 'Magasság' : 'Altitude'
+      };
+
+      const selects = ['morning-y1', 'morning-y2', 'afternoon-y1', 'afternoon-y2'];
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        Array.from(select.options).forEach(opt => {
+          if(metricOptions[opt.value]) opt.text = metricOptions[opt.value];
+        });
+      });
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -507,11 +539,9 @@
           if (error) throw error;
           
           console.log('Elérhető dátumok:', data);
-          // A dátumok már string formátumban jönnek, pl: "2025-01-10"
           return data.map(item => item.date); 
         } catch (err) {
           console.error('Hiba a dátumok lekérdezésekor:', err);
-          // Visszaállás az aktuális dátumra
           const today = new Date();
           const dates = [];
           for (let i = 0; i < 7; i++) {
@@ -528,7 +558,6 @@
         const loading = document.getElementById('loading');
         loading.classList.remove('hidden');
         try {
-          // Használjuk a dátum stringet közvetlenül
           const start = `${date}T00:00:00`;
           const end = `${date}T23:59:59`;
 
@@ -580,16 +609,13 @@
           if (timestamp - groupStart < intervalMs) {
             currentGroup.push(point);
           } else {
-            // Átlag számítása a csoportra
             const avgPoint = calculateAverage(currentGroup);
             aggregated.push(avgPoint);
             
-            // Új csoport kezdése
             groupStart = timestamp;
             currentGroup = [point];
           }
 
-          // Utolsó pont feldolgozása
           if (index === data.length - 1 && currentGroup.length > 0) {
             const avgPoint = calculateAverage(currentGroup);
             aggregated.push(avgPoint);
@@ -601,7 +627,8 @@
 
       function calculateAverage(points) {
         const avgPoint = { ...points[0] };
-        const metrics = ['pm2_5', 'temperature', 'humidity', 'co2', 'voc', 'nox'];
+        // ÚJ: Hozzáadva az új mezők a listához
+        const metrics = ['pm2_5', 'pm25_bg', 'pm25_diff', 'temperature', 'humidity', 'co2', 'co2_bg', 'co2_diff', 'voc', 'nox', 'altitude'];
         
         metrics.forEach(metric => {
           const values = points.map(p => p[metric]).filter(v => v != null);
@@ -610,7 +637,6 @@
           }
         });
 
-        // Az első pont időbélyegét használjuk
         avgPoint.timestamp = points[0].timestamp;
         return avgPoint;
       }
@@ -624,7 +650,6 @@
         const morningData = data.filter(item => new Date(item.timestamp).getHours() < 12);
         const afternoonData = data.filter(item => new Date(item.timestamp).getHours() >= 12);
         
-        // Időtartam számítás
         const timestamps = data.map(d => new Date(d.timestamp).getTime());
         const minTime = Math.min(...timestamps);
         const maxTime = Math.max(...timestamps);
@@ -652,7 +677,6 @@
         document.getElementById('no-data-message').classList.add('hidden');
         document.getElementById('statsContainer').classList.remove('hidden');
 
-        // Idő aggregálás alkalmazása
         const aggregation = document.getElementById('time-aggregation').value;
         const aggregatedData = aggregateData(data, aggregation);
 
@@ -784,22 +808,34 @@
           count: 0, avg: 0, median: 0, min: 0, max: 0
         });
 
+        // ÚJ: Kibővített statisztikai objektum
         const stats = {
           pm25: { morning: createStatBlock(), afternoon: createStatBlock() },
+          pm25_bg: { morning: createStatBlock(), afternoon: createStatBlock() },
+          pm25_diff: { morning: createStatBlock(), afternoon: createStatBlock() }, // ÚJ
           temp: { morning: createStatBlock(), afternoon: createStatBlock() },
           hum: { morning: createStatBlock(), afternoon: createStatBlock() },
           co2: { morning: createStatBlock(), afternoon: createStatBlock() },
+          co2_bg: { morning: createStatBlock(), afternoon: createStatBlock() },
+          co2_diff: { morning: createStatBlock(), afternoon: createStatBlock() }, // ÚJ
           voc: { morning: createStatBlock(), afternoon: createStatBlock() },
-          nox: { morning: createStatBlock(), afternoon: createStatBlock() }
+          nox: { morning: createStatBlock(), afternoon: createStatBlock() },
+          altitude: { morning: createStatBlock(), afternoon: createStatBlock() }
         };
 
+        // ÚJ: Kibővített metrika térkép
         const metricMap = {
           'pm2_5': 'pm25',
+          'pm25_bg': 'pm25_bg',
+          'pm25_diff': 'pm25_diff', // ÚJ
           'temperature': 'temp',
           'humidity': 'hum',
           'co2': 'co2',
+          'co2_bg': 'co2_bg',
+          'co2_diff': 'co2_diff', // ÚJ
           'voc': 'voc',
-          'nox': 'nox'
+          'nox': 'nox',
+          'altitude': 'altitude'
         };
 
         for (const [metricKey, statKey] of Object.entries(metricMap)) {
@@ -830,13 +866,19 @@
         const stats = calculateStats(data); 
 
         statsBody.innerHTML = ''; 
+        // ÚJ: Kibővített nevek a táblázathoz
         const metricDisplayNames = {
           pm25: 'PM2.5 (µg/m³)',
+          pm25_bg: 'PM2.5 Háttér (µg/m³)',
+          pm25_diff: 'PM2.5 Különbség (µg/m³)', // ÚJ
           temp: 'Hőmérséklet (°C)',
           hum: 'Páratartalom (%)',
           co2: 'CO₂ (ppm)',
+          co2_bg: 'CO₂ Háttér (ppm)',
+          co2_diff: 'CO₂ Különbség (ppm)', // ÚJ
           voc: 'VOC (ppb)',
-          nox: 'NOx (ppb)'
+          nox: 'NOx (ppb)',
+          altitude: 'Magasság (m)'
         };
 
         for (const [metricKey, displayName] of Object.entries(metricDisplayNames)) {
@@ -971,18 +1013,24 @@
         }
 
         const csvRows = [];
-        const headers = ['Időbélyeg', 'PM2.5', 'Hőmérséklet', 'Páratartalom', 'CO2', 'VOC', 'NOx'];
+        // ÚJ: Fejléc bővítése
+        const headers = ['Időbélyeg', 'PM2.5', 'PM2.5 Háttér', 'PM2.5 Különbség', 'Hőmérséklet', 'Páratartalom', 'CO2', 'CO2 Háttér', 'CO2 Különbség', 'VOC', 'NOx', 'Magasság'];
         csvRows.push(headers.join(','));
 
         currentDayData.forEach(row => {
           const csvRow = [
             row.timestamp,
             row.pm2_5 || '',
+            row.pm25_bg || '',
+            row.pm25_diff || '', // ÚJ
             row.temperature || '',
             row.humidity || '',
             row.co2 || '',
+            row.co2_bg || '',
+            row.co2_diff || '', // ÚJ
             row.voc || '',
-            row.nox || ''
+            row.nox || '',
+            row.altitude || ''
           ].map(field => `"${field}"`).join(',');
           csvRows.push(csvRow);
         });

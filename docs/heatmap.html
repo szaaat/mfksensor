@@ -5,8 +5,8 @@
     <title>Szezonális Hőtérkép - MFKSensor</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-         crossorigin=""/>
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
     <script src="https://cdn.tailwindcss.com/3.4.0"></script>
 
     <style>
@@ -65,9 +65,10 @@
             background-color: #16a34a; /* Zöld */
             color: white;
             font-weight: bold;
-            #about-text {
+        }
+        #about-text {
             text-align: justify;
-         }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -104,13 +105,10 @@
     
     <label for="metric-select" id="metric-label" class="ml-4 font-semibold text-gray-700">Válassz adatot:</label>
     <select id="metric-select" class="mx-2 p-2 rounded border border-gray-300">
-        <option value="pm1_0">PM1.0</option>
         <option value="pm2_5">PM2.5</option>
-        <option value="pm4_0">PM4.0</option>
-        <option value="pm10_0">PM10.0</option>
-        <option value="voc">VOC Index</option>
+        <option value="pm25_bg">PM2.5 Háttér</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2">CO2</option>
+        <option value="co2_bg">CO2 Háttér</option> <option value="co2_diff">CO2 Különbség</option> <option value="altitude">Magasság</option> <option value="voc">VOC Index</option>
         <option value="nox">NOx Index</option>
-        <option value="co2">CO2</option>
         <option value="temperature">Hőmérséklet</option>
         <option value="humidity">Páratartalom</option>
     </select>
@@ -152,29 +150,39 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG
+    // 2. METRIKA KONFIG (ÚJ SKÁLÁK HOZZÁADVA)
     // -----------------------------------------------------------------
     const METRIC_CONFIG = {
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
+        'pm25_bg':     { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'orange' } }, // Tiszta
+        'pm25_diff':   { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.0: 'white', 0.2: 'yellow', 0.5: 'orange', 1: 'red' } },   // Szennyezés
         'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm10_0':      { max: 40, min: 10, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
         'temperature': { 
             max: 35, min: 0, unit: '°C', 
-            // JAVASLAT: Egy "lila -> narancs -> sárga" skála (sötétebb)
             gradient: { 0.0: '#440154', 0.5: '#f06e12', 1: '#fde725' } 
         },
         'humidity': {
             max: 100, min: 0, unit: '%',
-            // JAVASLAT: "Száraz" (fehér) -> "Nedves" (sötétkék)
-            gradient: { 0.0: '#FFFFFF', 0.5: '#00FFFF', 1: '#0000A0' } // Fehér -> Cián -> Sötétkék
+            gradient: { 0.0: '#FFFFFF', 0.5: '#00FFFF', 1: '#0000A0' } 
         },
         'co2': { 
-            max: 1000, // Csökkentsük a maximumot 1000-re
-            min: 500,  // A minimum maradhat 500 (ez a "háttér")
-            unit: 'ppm', 
-            // A gradient marad, de most már 500-1000 között feszül ki
+            max: 1000, min: 350, unit: 'ppm', 
             gradient: { 0.1: 'blue', 0.4: 'green', 0.7: 'yellow', 1: 'red' } 
+        },
+        'co2_bg': { 
+            max: 500, min: 350, unit: 'ppm', 
+            gradient: { 0.1: 'cyan', 0.5: 'blue', 1: 'purple' } 
+        },
+        'co2_diff': { 
+            max: 300, min: 0, unit: 'ppm', 
+            gradient: { 0.0: 'white', 0.2: 'yellow', 0.5: 'orange', 1: 'red' } 
+        },
+        'altitude': { 
+            max: 1000, min: 0, unit: 'm', 
+            // Domborzati színek: Zöld (alföld) -> Sárga -> Barna (hegy)
+            gradient: { 0.0: 'green', 0.3: 'yellow', 0.6: 'orange', 1: 'brown' } 
         },
         'voc': { 
             max: 120, min: 100, unit: 'index',
@@ -214,7 +222,7 @@
     }
 
     // -----------------------------------------------------------------
-    // 4. ADATLEKÉRÉS (JAVÍTVA)
+    // 4. ADATLEKÉRÉS
     // -----------------------------------------------------------------
     async function updateHeatmap() {
         const period = periodSelect.value;
@@ -239,18 +247,19 @@
             maxInput.value = config.max;
         }
         
-        // 3. Adatlekérés (JAVÍTOTT 'try' BLOKK ÉS RPC HÍVÁS)
         try {
+            // Itt hívjuk meg a Supabase függvényt. Fontos, hogy az SQL függvény
+            // támogassa az új oszlopneveket (pl. 'pm25_bg')!
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
                 grid_size: 0.001,
-                analysis_mode: currentAnalysisMode // Hozzáadva az új paraméter
+                analysis_mode: currentAnalysisMode
             });
 
             if (error) throw error;
             if (heatLayer) map.removeLayer(heatLayer);
-            if (legendControl) map.removeControl(legendControl); // Jelmagyarázat eltávolítása
+            if (legendControl) map.removeControl(legendControl); 
 
             if (data.length === 0) {
                 console.log("Nincs adat erre a szűrésre.");
@@ -259,17 +268,16 @@
 
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
-            // Hőtérkép réteg (JAVÍTVA: 'max: config.max' -ra)
             heatLayer = L.heatLayer(heatData, {
                 radius: 14,
                 blur: 6,
                 maxZoom: 18,
-                max: config.max, // JAVÍTVA: A 'config'-ból jön
+                max: config.max,
                 gradient: config.gradient
             }).addTo(map);
 
             // -----------------------------------------------------------------
-            // 5. JELMAGYARÁZAT HOZZÁADÁSA
+            // 5. JELMAGYARÁZAT
             // -----------------------------------------------------------------
             legendControl = L.control({position: 'bottomright'});
             legendControl.onAdd = function (map) {
@@ -309,7 +317,7 @@
     updateScaleBtn.addEventListener('click', updateHeatmap);
 
     // -----------------------------------------------------------------
-    // 6. NYELVI RÉSZ (KIEGÉSZÍTVE)
+    // 6. NYELVI RÉSZ (ÚJ ELEMEK KIEGÉSZÍTVE)
     // -----------------------------------------------------------------
     const translations = {
       hu: {
@@ -333,7 +341,7 @@
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek.",
         aboutTitle: "Az oldal működése",
-        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel finomhangolhatja a nézetet: kiválaszthatja az időszakot, a mért adat típusát, és a 'Skála Min/Max' mezőkkel a vizuális skálát. A **'Teljes adatsor'** gomb minden mérést átlagol, míg a **'Szennyezett'** gomb csak azokat az adatokat mutatja, amelyek meghaladják a tudományosan meghatározott küszöbértékeket. Ez a nézet segít kiemelni a legjelentősebb szennyezettségi gócokat, például ha a **PM2.5 értéke 15 µg/m³ feletti**, a **PM10 értéke 45 µg/m³ feletti**, a **CO2 1000 ppm feletti**, vagy a **NOx index 1.0 feletti**."
+        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen..."
       },
       en: {
         title: "Seasonal Heatmap - MFKSensor",
@@ -356,7 +364,7 @@
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified.",
         aboutTitle: "How This Page Works",
-        aboutText: "This page displays aggregated air quality data (e.g., PM2.5, CO2, NOx) collected by mobile sensors on an interactive heatmap. Data is averaged onto a grid to show spatial distribution. You can use the controls to fine-tune the view: select the period, the metric, and the visual scale using the 'Scale Min/Max' fields. The **'All Data'** button averages all measurements, while the **'Polluted'** button shows only data points that exceed scientifically defined thresholds. This view helps highlight significant pollution hotspots, for example, where **PM2.5 is over 15 µg/m³**, **PM10 is over 45 µg/m³**, **CO2 is over 1000 ppm**, or the **NOx index is over 1.0**."
+        aboutText: "This page displays aggregated air quality data..."
       }
     };
 
@@ -376,8 +384,8 @@
       document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       document.getElementById('nav-about').textContent = langData.navAbout;
-      document.getElementById('period-label').innerHTML = langData.periodLabel; //innerHTML a <strong> miatt
-      document.getElementById('metric-label').innerHTML = langData.metricLabel; //innerHTML a <strong> miatt
+      document.getElementById('period-label').innerHTML = langData.periodLabel; 
+      document.getElementById('metric-label').innerHTML = langData.metricLabel; 
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;
       document.getElementById('period-spring').textContent = langData.periodSpring;
@@ -393,15 +401,34 @@
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
       
-      // Frissítse a jelmagyarázatot is, ha már létezik
+      // Frissítjük a legördülő menü szövegeit is!
+      const metricOptions = {
+        'pm2_5': 'PM2.5',
+        'pm25_bg': lang === 'hu' ? 'PM2.5 Háttér' : 'PM2.5 Background',
+        'pm25_diff': lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Difference',
+        'temperature': lang === 'hu' ? 'Hőmérséklet' : 'Temperature',
+        'humidity': lang === 'hu' ? 'Páratartalom' : 'Humidity',
+        'co2': 'CO₂',
+        'co2_bg': lang === 'hu' ? 'CO₂ Háttér' : 'CO₂ Background',
+        'co2_diff': lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Difference',
+        'voc': lang === 'hu' ? 'VOC Index' : 'VOC Index',
+        'nox': lang === 'hu' ? 'NOx Index' : 'NOx Index',
+        'altitude': lang === 'hu' ? 'Magasság' : 'Altitude',
+        'pm1_0': 'PM1.0',
+        'pm4_0': 'PM4.0',
+        'pm10_0': 'PM10.0'
+      };
+      
+      const select = document.getElementById('metric-select');
+      Array.from(select.options).forEach(opt => {
+          if(metricOptions[opt.value]) opt.text = metricOptions[opt.value];
+      });
+
       if (legendControl) {
-          updateHeatmap(); // Újrahívja a heatmap-et, ami újragenerálja a jelmagyarázatot
+          updateHeatmap(); 
       }
     }
     
-    // -----------------------------------------------------------------
-    // 7. MÓD VÁLTÓ (ÚJ)
-    // -----------------------------------------------------------------
     function setAnalysisMode(mode) {
         currentAnalysisMode = mode;
         if (mode === 'polluted') {
@@ -411,39 +438,22 @@
             pollutedBtn.classList.remove('active');
             allBtn.classList.add('active');
         }
-        // Amikor módot váltunk, frissítsük a térképet
         updateHeatmap();
     }
 
-    // -----------------------------------------------------------------
-    // 8. INDÍTÁS (JAVÍTVA: EGYETLEN 'DOMContentLoaded')
-    // -----------------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
       const savedLang = localStorage.getItem('language') || 'hu';
       setLanguage(savedLang);
 
-      // Nyelvváltó gombok
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           setLanguage(btn.dataset.lang);
         });
       });
 
-      // Elemzési mód gombok
       pollutedBtn.addEventListener('click', () => setAnalysisMode('polluted'));
       allBtn.addEventListener('click', () => setAnalysisMode('all'));
       
-      // Vezérlők a térkép frissítéséhez (a gombok már a setAnalysisMode-on keresztül frissítenek)
-      periodSelect.addEventListener('change', updateHeatmap);
-      metricSelect.addEventListener('change', () => {
-          minInput.value = '';
-          maxInput.value = '';
-          updateHeatmap();
-      });
-      updateScaleBtn.addEventListener('click', updateHeatmap);
-
-
-      // Indítás az alapértelmezett móddal
       setAnalysisMode(currentAnalysisMode);
     });
 </script>
