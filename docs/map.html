@@ -30,7 +30,7 @@
     }
     .legend {
       position: absolute;
-      bottom: 30px; /* Kicsit feljebb, hogy elférjen a háttér infó */
+      bottom: 30px;
       left: 10px;
       background: rgba(255,255,255,0.95);
       border: 1px solid #ddd;
@@ -54,10 +54,10 @@
       border-radius: 50%;
       border: 1px solid #666;
     }
-    /* ÚJ: Háttér információs doboz */
+    /* Háttér információs doboz */
     .background-info {
         position: absolute;
-        bottom: 250px; /* A jelmagyarázat fölé */
+        bottom: 260px; /* A jelmagyarázat fölé */
         left: 10px;
         background: rgba(255, 255, 255, 0.95);
         border: 1px solid #ddd;
@@ -130,8 +130,10 @@
       <select id="metricSelect" class="border rounded px-2 py-1 bg-white">
           <option value="pm2_5">PM2.5</option>
           <option value="pm25_diff">PM2.5 Különbség</option>
+          <option value="pm25_bg">PM2.5 Háttér</option>
           <option value="co2">CO₂</option>
           <option value="co2_diff">CO₂ Különbség</option>
+          <option value="co2_bg">CO₂ Háttér</option>
           <option value="temperature">Hőmérséklet</option>
           <option value="humidity">Páratartalom</option>
           <option value="voc">VOC Index</option>
@@ -172,12 +174,14 @@
   <footer class="bg-green-700 text-white text-center py-3 text-sm mt-auto">
     <p id="map-footer">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium</p>
   </footer>
+  
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/hu.js"></script>
   
-  const supabaseClient = supabase.createClient(
+  <script>
+    const supabaseClient = supabase.createClient(
       'https://yuamroqhxrflusxeyylp.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
     );
@@ -186,13 +190,12 @@
     let fpInstance = null;
     let currentMetric = 'pm2_5';
 
-    // --- ÚJ: IDŐZÓNA KONVERTÁLÓ FÜGGVÉNY ---
-    // Ez garantálja, hogy mindig magyar időt láss (UTC helyett)
+    // IDŐZÓNA KEZELÉS
     function formatDateToLocal(isoString) {
         if (!isoString) return '-';
         const date = new Date(isoString);
         return date.toLocaleString('hu-HU', {
-            timeZone: 'Europe/Budapest', // Kényszerített magyar időzóna
+            timeZone: 'Europe/Budapest',
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -202,9 +205,16 @@
         });
     }
 
+    // METRIKA KONFIGURÁCIÓ (Színek és határértékek)
     const METRIC_CONFIG = {
         'pm2_5': {
             label: 'PM2.5 (µg/m³)',
+            stops: [0, 10, 20, 25, 50, 75],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Jó', 'Megfelelő', 'Elfogadható', 'Szennyezett', 'Erősen szenn.', 'Extrém']
+        },
+        'pm25_bg': {
+            label: 'PM2.5 Háttér (µg/m³)',
             stops: [0, 10, 20, 25, 50, 75],
             colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
             labels: ['Jó', 'Megfelelő', 'Elfogadható', 'Szennyezett', 'Erősen szenn.', 'Extrém']
@@ -218,6 +228,12 @@
         'co2': {
             label: 'CO₂ (ppm)',
             stops: [400, 600, 800, 1000, 1500, 2000],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Friss', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
+        },
+        'co2_bg': {
+            label: 'CO₂ Háttér (ppm)',
+            stops: [400, 500, 600, 800, 1000, 1200],
             colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
             labels: ['Friss', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
         },
@@ -295,9 +311,11 @@
         const newLocale = (lang === 'hu') ? 'hu' : 'default';
         fpInstance.set('locale', newLocale);
       }
-      // Opciók frissítése
+      // Opciók frissítése nyelvváltáskor
       document.querySelector('option[value="pm25_diff"]').textContent = lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Diff';
+      document.querySelector('option[value="pm25_bg"]').textContent = lang === 'hu' ? 'PM2.5 Háttér' : 'PM2.5 Background';
       document.querySelector('option[value="co2_diff"]').textContent = lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Diff';
+      document.querySelector('option[value="co2_bg"]').textContent = lang === 'hu' ? 'CO₂ Háttér' : 'CO₂ Background';
       document.querySelector('option[value="temperature"]').textContent = lang === 'hu' ? 'Hőmérséklet' : 'Temperature';
       document.querySelector('option[value="humidity"]').textContent = lang === 'hu' ? 'Páratartalom' : 'Humidity';
       document.querySelector('option[value="altitude"]').textContent = lang === 'hu' ? 'Magasság' : 'Altitude';
@@ -349,6 +367,7 @@
       }
     }
 
+    // JAVÍTOTT HÁTTÉR INFÓ (UNDEFINED HIBA ELLEN)
     function updateBackgroundInfo(data) {
         const bgInfo = document.getElementById('background-info');
         const bgMorning = document.getElementById('bg-morning');
@@ -551,7 +570,7 @@
 
             updateMapPaintProperties();
 
-            // --- POPUP JAVÍTÁSOK ---
+            // --- POPUP BŐVÍTVE ---
             map.on('click', 'air_quality_points', async e => {
                 const lang = localStorage.getItem('language') || 'hu';
                 const langData = mapTranslations[lang];
@@ -598,7 +617,7 @@
           updateMapData();
         }
 
-        // EXPORT FUNKCIÓ JAVÍTVA (Magyar idő)
+        // EXPORT FUNKCIÓ
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
@@ -632,7 +651,7 @@
               const coords = getCoordinates(p.location);
               const row = [
                 p.id || '',
-                formatDateToLocal(p.timestamp), // EXPORTNÁL IS MAGYAR IDŐ!
+                formatDateToLocal(p.timestamp), // IDŐZÓNA JAVÍTVA
                 coords ? coords.lng.toFixed(6) : '',
                 coords ? coords.lat.toFixed(6) : '',
                 p.pm1_0 || '',
