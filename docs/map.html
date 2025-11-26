@@ -54,7 +54,6 @@
       border-radius: 50%;
       border: 1px solid #666;
     }
-    /* Háttér információs doboz */
     .background-info {
         position: absolute;
         bottom: 260px;
@@ -94,7 +93,7 @@
       color: green;
       font-weight: bold;
     }
-    .lang-btn:hover:not(.active) {
+    .lang-btn.hover:not(.active) {
       background: rgba(255,255,255,0.2);
     }
     @media (max-width: 768px) {
@@ -189,7 +188,6 @@
     let fpInstance = null;
     let currentMetric = 'pm2_5';
 
-    // --- IDŐZÓNA JAVÍTÁS ---
     function formatDateToLocal(isoString) {
         if (!isoString) return '-';
         const date = new Date(isoString);
@@ -204,74 +202,18 @@
         });
     }
 
-    // --- METRIKA KONFIG ---
     const METRIC_CONFIG = {
-        'pm2_5': {
-            label: 'PM2.5 (µg/m³)',
-            stops: [0, 10, 20, 25, 50, 75],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Jó', 'Megfelelő', 'Elfogadható', 'Szennyezett', 'Erősen szenn.', 'Extrém']
-        },
-        'pm25_bg': {
-            label: 'PM2.5 Háttér (µg/m³)',
-            stops: [0, 10, 20, 25, 50, 75],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Jó', 'Megfelelő', 'Elfogadható', 'Szennyezett', 'Erősen szenn.', 'Extrém']
-        },
-        'pm25_diff': {
-            label: 'PM2.5 Különbség (µg/m³)',
-            stops: [0, 2, 5, 10, 20, 50],
-            colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Semmi', 'Kicsi', 'Közepes', 'Magas', 'Nagyon Magas', 'Extrém']
-        },
-        'co2': {
-            label: 'CO₂ (ppm)',
-            stops: [400, 600, 800, 1000, 1500, 2000],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Friss', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
-        },
-        'co2_bg': {
-            label: 'CO₂ Háttér (ppm)',
-            stops: [400, 500, 600, 800, 1000, 1200],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Friss', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
-        },
-        'co2_diff': {
-            label: 'CO₂ Különbség (ppm)',
-            stops: [0, 50, 100, 200, 400, 800],
-            colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Semmi', 'Kicsi', 'Közepes', 'Magas', 'Nagyon Magas', 'Extrém']
-        },
-        'temperature': {
-            label: 'Hőmérséklet (°C)',
-            stops: [0, 10, 20, 25, 30, 35],
-            colors: ['#0000FF', '#00FFFF', '#00FF00', '#FFFF00', '#FF9900', '#FF0000'],
-            labels: ['Hideg', 'Hűvös', 'Kellemes', 'Meleg', 'Forró', 'Hőség']
-        },
-        'humidity': {
-            label: 'Páratartalom (%)',
-            stops: [0, 20, 40, 60, 80, 100],
-            colors: ['#FF0000', '#FF9900', '#FFFF00', '#00FF00', '#00FFFF', '#0000FF'],
-            labels: ['Száraz', 'Alacsony', 'Ideális', 'Magas', 'Nagyon magas', 'Telített']
-        },
-        'altitude': {
-            label: 'Magasság (m)',
-            stops: [100, 200, 300, 500, 800, 1000],
-            colors: ['#006400', '#228B22', '#32CD32', '#FFFF00', '#FFA500', '#8B4513'],
-            labels: ['Alföld', 'Domb', 'Domb', 'Hegy', 'Hegy', 'Csúcs']
-        },
-        'voc': {
-            label: 'VOC Index',
-            stops: [0, 50, 100, 150, 200, 300],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Tiszta', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
-        },
-        'nox': {
-            label: 'NOx Index',
-            stops: [0, 1, 2, 3, 4, 5],
-            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
-            labels: ['Tiszta', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
-        }
+        'pm2_5': { label: 'PM2.5 (µg/m³)', stops: [0, 10, 20, 25, 50, 75], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] },
+        'pm25_bg': { label: 'PM2.5 Háttér (µg/m³)', stops: [0, 10, 20, 25, 50, 75], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] },
+        'pm25_diff': { label: 'PM2.5 Különbség (µg/m³)', stops: [0, 2, 5, 10, 20, 50], colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'] },
+        'co2': { label: 'CO₂ (ppm)', stops: [400, 600, 800, 1000, 1500, 2000], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] },
+        'co2_bg': { label: 'CO₂ Háttér (ppm)', stops: [400, 500, 600, 800, 1000, 1200], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] },
+        'co2_diff': { label: 'CO₂ Különbség (ppm)', stops: [0, 50, 100, 200, 400, 800], colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'] },
+        'temperature': { label: 'Hőmérséklet (°C)', stops: [0, 10, 20, 25, 30, 35], colors: ['#0000FF', '#00FFFF', '#00FF00', '#FFFF00', '#FF9900', '#FF0000'] },
+        'humidity': { label: 'Páratartalom (%)', stops: [0, 20, 40, 60, 80, 100], colors: ['#FF0000', '#FF9900', '#FFFF00', '#00FF00', '#00FFFF', '#0000FF'] },
+        'altitude': { label: 'Magasság (m)', stops: [100, 200, 300, 500, 800, 1000], colors: ['#006400', '#228B22', '#32CD32', '#FFFF00', '#FFA500', '#8B4513'] },
+        'voc': { label: 'VOC Index', stops: [0, 50, 100, 150, 200, 300], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] },
+        'nox': { label: 'NOx Index', stops: [0, 1, 2, 3, 4, 5], colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'] }
     };
 
     const mapTranslations = {
@@ -310,7 +252,6 @@
         const newLocale = (lang === 'hu') ? 'hu' : 'default';
         fpInstance.set('locale', newLocale);
       }
-      // Opciók frissítése
       document.querySelector('option[value="pm25_diff"]').textContent = lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Diff';
       document.querySelector('option[value="co2_diff"]').textContent = lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Diff';
       document.querySelector('option[value="temperature"]').textContent = lang === 'hu' ? 'Hőmérséklet' : 'Temperature';
@@ -349,22 +290,18 @@
       return null;
     };
 
-    // --- JAVÍTVA: VISSZA A RÉGI RPC-HEZ ---
+    // --- ADATBETÖLTÉS AZ available_dates TÁBLÁBÓL ---
     async function loadAvailableDates() {
       try {
-        const { data, error } = await supabaseClient.rpc('get_distinct_dates');
+        const { data, error } = await supabaseClient
+          .from('available_dates') // Most már a nézetet/táblát olvassa
+          .select('date')
+          .order('date', { ascending: true });
 
         if (error) throw error;
-        
-        // Ha az RPC objektumokat ad (pl. [{date: "2023-01-01"}]), kinyerjük a dátumot
-        if (data && data.length > 0 && data[0].date) {
-             return data.map(item => item.date);
-        }
-        // Ha sima stringeket ad, akkor jó így
-        return data || [];
+        return data.map(row => row.date).filter(Boolean);
       } catch (err) {
         console.error('Hiba a dátumoknál:', err);
-        // Fallback: üres lista (a "ma" logika úgyis hozzáadja a mai napot)
         return [];
       }
     }
@@ -517,23 +454,18 @@
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
 
         const datePicker = document.getElementById('datePicker');
-        
-        // --- JAVÍTOTT LOGIKA: MAI NAP MINDIG ELÉRHETŐ ---
         const validDates = await loadAvailableDates();
-        const today = new Date().toISOString().split('T')[0];
         
-        // Ha a mai nap nincs a listában, hozzáadjuk a VÉGÉRE
-        if (!validDates.includes(today)) {
-            validDates.push(today);
-        }
-
-        // Alapértelmezett dátum a lista legvége (ami vagy az utolsó adat, vagy a mai nap)
-        const latestDate = validDates[validDates.length - 1];
+        const today = new Date().toISOString().split('T')[0];
+        if (!validDates.includes(today)) validDates.push(today);
+        
+        // A mai nap az alapértelmezett
+        const defaultDate = today;
 
         fpInstance = flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
           enable: validDates,
-          defaultDate: latestDate, // Mindig a legfrissebb (mai) dátumot választja
+          defaultDate: defaultDate,
           onChange: () => updateMapData(),
           locale: savedLang
         });
@@ -620,11 +552,12 @@
           }
         }
 
-        if (latestDate) {
+        // Indításkor betöltjük az adatokat
+        if (defaultDate) {
           updateMapData();
         }
 
-        // EXPORT FUNKCIÓ
+        // EXPORT
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
