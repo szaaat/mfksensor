@@ -177,17 +177,31 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/hu.js"></script>
   
-  <script>
-    const supabaseClient = supabase.createClient(
+  const supabaseClient = supabase.createClient(
       'https://yuamroqhxrflusxeyylp.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U'
     );
 
     let geojsonData = null;
     let fpInstance = null;
-    let currentMetric = 'pm2_5'; // Alapértelmezett metrika
+    let currentMetric = 'pm2_5';
 
-    // Konfiguráció a színezéshez és határértékekhez
+    // --- ÚJ: IDŐZÓNA KONVERTÁLÓ FÜGGVÉNY ---
+    // Ez garantálja, hogy mindig magyar időt láss (UTC helyett)
+    function formatDateToLocal(isoString) {
+        if (!isoString) return '-';
+        const date = new Date(isoString);
+        return date.toLocaleString('hu-HU', {
+            timeZone: 'Europe/Budapest', // Kényszerített magyar időzóna
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
     const METRIC_CONFIG = {
         'pm2_5': {
             label: 'PM2.5 (µg/m³)',
@@ -281,7 +295,7 @@
         const newLocale = (lang === 'hu') ? 'hu' : 'default';
         fpInstance.set('locale', newLocale);
       }
-      // Frissítjük a metrika választó feliratait is
+      // Opciók frissítése
       document.querySelector('option[value="pm25_diff"]').textContent = lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Diff';
       document.querySelector('option[value="co2_diff"]').textContent = lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Diff';
       document.querySelector('option[value="temperature"]').textContent = lang === 'hu' ? 'Hőmérséklet' : 'Temperature';
@@ -306,7 +320,6 @@
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
       
-      // Jelmagyarázat frissítése
       updateLegend();
     }
 
@@ -336,7 +349,6 @@
       }
     }
 
-    // Háttér adatok kinyerése a betöltött adatokból
     function updateBackgroundInfo(data) {
         const bgInfo = document.getElementById('background-info');
         const bgMorning = document.getElementById('bg-morning');
@@ -347,27 +359,27 @@
             return;
         }
 
-        // Megkeressük az első nem null háttér értéket a délelőttiek és délutániak között
-        // Mivel a háttér érték naponta/napszakonként konstans, elég egyet találni.
         let morningVal = null;
         let afternoonVal = null;
 
         for (const row of data) {
+            if (!row.timestamp) continue;
             const hour = new Date(row.timestamp).getHours();
-            if (row.pm25_bg !== null) {
+            
+            if (typeof row.pm25_bg === 'number') {
                 if (hour < 12 && morningVal === null) morningVal = row.pm25_bg;
                 if (hour >= 12 && afternoonVal === null) afternoonVal = row.pm25_bg;
             }
             if (morningVal !== null && afternoonVal !== null) break;
         }
 
-        bgMorning.textContent = morningVal !== null ? `${morningVal.toFixed(1)} µg/m³` : '-';
-        bgAfternoon.textContent = afternoonVal !== null ? `${afternoonVal.toFixed(1)} µg/m³` : '-';
+        const formatVal = (val) => (typeof val === 'number') ? `${val.toFixed(1)} µg/m³` : '-';
+        bgMorning.textContent = formatVal(morningVal);
+        bgAfternoon.textContent = formatVal(afternoonVal);
         
         bgInfo.classList.remove('hidden');
     }
 
-    // Jelmagyarázat frissítése a választott metrika alapján
     function updateLegend() {
         const config = METRIC_CONFIG[currentMetric];
         const legendContent = document.getElementById('legend-content');
@@ -410,10 +422,9 @@
         if (countError) throw countError;
 
         while (offset < count) {
-          // Bővített SELECT, hogy minden mező meglegyen
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('*') // Mindent lekérünk, hogy a popupban és színezésben használhassuk
+            .select('*')
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true })
@@ -426,7 +437,6 @@
           offset += data.length;
         }
 
-        // Háttér infó frissítése
         updateBackgroundInfo(allData);
 
         const features = allData.map(row => {
@@ -451,8 +461,6 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       const loading = document.getElementById('loading');
-      const loadingText = document.getElementById('loading-text');
-      const loadingSpinner = document.querySelector('.loading-spinner');
       let savedLang = 'hu';
 
       try {
@@ -462,16 +470,14 @@
         document.querySelectorAll('.lang-btn').forEach(btn => {
           btn.addEventListener('click', () => {
             setMapLanguage(btn.dataset.lang);
-            // Nem kell updateMap(), mert a setMapLanguage frissíti a legendát
           });
         });
 
-        // Metrika választó eseménykezelő
         const metricSelect = document.getElementById('metricSelect');
         metricSelect.addEventListener('change', (e) => {
             currentMetric = e.target.value;
             updateLegend();
-            updateMapPaintProperties(); // Csak a színezést frissítjük!
+            updateMapPaintProperties();
         });
 
         const map = new maplibregl.Map({
@@ -501,32 +507,22 @@
           dateFormat: "Y-m-d",
           enable: validDates,
           defaultDate: latestDate,
-          onChange: () => updateMapData(), // Teljes újratöltés
+          onChange: () => updateMapData(),
           locale: savedLang
         });
 
-        // Ez a függvény felel a színek átállításáért (gyors!)
         function updateMapPaintProperties() {
             if (!map.getLayer('air_quality_points')) return;
 
             const config = METRIC_CONFIG[currentMetric];
-            // Interpolációs kifejezés felépítése MapLibre számára
             const colorExpression = ['interpolate', ['linear'], ['get', currentMetric]];
             
-            // A stops tömbből építjük fel: [stop1, color1, stop2, color2...]
             for (let i = 0; i < config.stops.length; i++) {
                 colorExpression.push(config.stops[i]);
                 colorExpression.push(config.colors[i]);
             }
 
-            // Pontok színezése
             map.setPaintProperty('air_quality_points', 'circle-color', colorExpression);
-            
-            // Klaszterek színezése (Egyszerűsítés: A klaszterek színét is az átlag alapján állítjuk be)
-            // Megjegyzés: A klaszterezés logikája összetett dinamikus metrikáknál.
-            // Most a klaszterek maradnak "sűrűség" alapúak vagy az alapértelmezett színűek,
-            // hogy ne bonyolítsuk túl a MapLibre forrásfrissítést.
-            // A pontok viszont szépen átváltanak.
         }
 
         async function updateMapData() {
@@ -538,7 +534,7 @@
             map.addSource('air_quality', {
               type: 'geojson',
               data: geojson,
-              cluster: false // Kikapcsoljuk a klasztert, hogy lássuk a pontokat pontosan
+              cluster: false
             });
             
             map.addLayer({
@@ -553,10 +549,9 @@
               }
             });
 
-            // Kezdeti színezés
             updateMapPaintProperties();
 
-            // POPUP logika (bővítve)
+            // --- POPUP JAVÍTÁSOK ---
             map.on('click', 'air_quality_points', async e => {
                 const lang = localStorage.getItem('language') || 'hu';
                 const langData = mapTranslations[lang];
@@ -569,13 +564,18 @@
                     <div class="popup-content">
                       <h3 class="font-bold text-lg mb-2 text-blue-700">${langData.popupTitle}</h3>
                       <div class="grid grid-cols-2 gap-2 text-sm">
-                        <div><strong>Idő:</strong></div><div>${props.timestamp ? new Date(props.timestamp).toLocaleTimeString() : '-'}</div>
+                        <div><strong>${langData.popupTime}</strong></div>
+                        <div>${formatDateToLocal(props.timestamp)}</div>
+                        
                         <div><strong>PM2.5:</strong></div><div>${props.pm2_5?.toFixed(1) || '-'} µg/m³</div>
                         <div><strong>PM2.5 Diff:</strong></div><div>${props.pm25_diff?.toFixed(1) || '-'}</div>
                         <div><strong>PM2.5 Háttér:</strong></div><div>${props.pm25_bg?.toFixed(1) || '-'}</div>
                         <div><strong>CO₂:</strong></div><div>${props.co2?.toFixed(0) || '-'} ppm</div>
                         <div><strong>CO₂ Diff:</strong></div><div>${props.co2_diff?.toFixed(0) || '-'}</div>
+                        
                         <div><strong>Hőmérséklet:</strong></div><div>${props.temperature?.toFixed(1) || '-'} °C</div>
+                        <div><strong>Páratartalom:</strong></div><div>${props.humidity?.toFixed(1) || '-'} %</div>
+                        
                         <div><strong>Magasság:</strong></div><div>${props.altitude?.toFixed(0) || '-'} m</div>
                         <div><strong>Szél:</strong></div><div>${props.wind_speed_10m?.toFixed(1) || '-'} km/h</div>
                       </div>
@@ -585,9 +585,8 @@
             });
           }
           
-          updateMapPaintProperties(); // Adatfrissítés után is beállítjuk a színeket
+          updateMapPaintProperties();
           
-          // Zoom a pontokra
           const bounds = new maplibregl.LngLatBounds();
           geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
           if (!bounds.isEmpty()) {
@@ -599,7 +598,7 @@
           updateMapData();
         }
 
-        // EXPORT FUNKCIÓ (BŐVÍTETT)
+        // EXPORT FUNKCIÓ JAVÍTVA (Magyar idő)
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
@@ -611,7 +610,6 @@
           exportButton.textContent = "Export...";
 
           try {
-            // Újra lekérjük az adatokat (vagy használhatnánk a geojson-t is, de ez biztosabb)
             const start = `${date} 00:00:00+00`;
             const end = `${date} 23:59:59+00`;
             
@@ -634,7 +632,7 @@
               const coords = getCoordinates(p.location);
               const row = [
                 p.id || '',
-                p.timestamp || '',
+                formatDateToLocal(p.timestamp), // EXPORTNÁL IS MAGYAR IDŐ!
                 coords ? coords.lng.toFixed(6) : '',
                 coords ? coords.lat.toFixed(6) : '',
                 p.pm1_0 || '',
