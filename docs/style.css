@@ -1,0 +1,54 @@
+
+/* style.css - Közös mobil optimalizálások */
+@media (max-width: 768px) {
+  .mobile-nav {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  .mobile-nav a {
+    font-size: 0.875rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  .mobile-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  .mobile-text {
+    font-size: 0.9rem !important;
+  }
+  
+  .mobile-title {
+    font-size: 1.5rem !important;
+  }
+  
+  .mobile-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .hero {
+    padding: 2rem 1rem !important;
+  }
+  
+  .hero h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  .controls {
+    padding: 0.5rem !important;
+  }
+  
+  .controls select, .controls button {
+    margin: 0.25rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  #chart-container {
+    height: 50vh !important;
+    margin: 1rem auto !important;
+  }
+}

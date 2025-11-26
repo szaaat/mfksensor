@@ -6,6 +6,7 @@
   <title>Rólunk - Földrajz Geoinformatika Intézet</title>
   <script src="https://cdn.tailwindcss.com/3.4.0"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
   <style>
     .hero {
       background: linear-gradient(rgba(22, 101, 52, 0.85), rgba(22, 101, 52, 0.9)), 
@@ -38,52 +39,50 @@
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
-    <div class="absolute top-4 right-4 flex space-x-2">
+  <header class="bg-green-700 text-white text-center py-4 shadow-lg relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
       <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
       <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
     </div>
-    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Rólunk - Földrajz - Geoinformattika Intézet</h1>
+    <h1 id="main-title" class="text-lg md:text-2xl font-extrabold tracking-tight mobile-title">Rólunk - Földrajz - Geoinformatika Intézet</h1>
   </header>
 
-  <nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex justify-center space-x-8">
-      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
-      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
-      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
-      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
-      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors">Korreláció</a>
-      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Rólunk</a>
+  <nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
+      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Kezdőlap</a>
+      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
+      <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
+      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
+      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Rólunk</a>
     </div>
   </nav>
 
-  <main class="container mx-auto px-4 py-8 flex-grow max-w-6xl">
+  <main class="container mx-auto px-3 py-4 flex-grow max-w-6xl mobile-container">
     <!-- Hero Section -->
-    <section class="hero rounded-xl shadow-xl text-white p-8 mb-12">
+    <section class="hero rounded-xl shadow-xl text-white p-4 mb-6">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 id="hero-title" class="text-3xl md:text-5xl font-bold mb-4">Levegőminőség-kutatás Miskolcon</h2>
-        <p id="hero-subtitle" class="text-xl mb-6">Mobil szenzorokkal végzett hosszútávú mérések a szennyezett levegő és az éghajlatváltozás hatásainak vizsgálatára</p>
-        <div class="flex justify-center space-x-4">
-          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
-            <i class="fas fa-flask text-2xl mr-2"></i>
+        <h2 id="hero-title" class="text-xl md:text-3xl font-bold mb-3 mobile-title">Levegőminőség-kutatás Miskolcon</h2>
+        <p id="hero-subtitle" class="text-base mb-4 mobile-text">Mobil szenzorokkal végzett hosszútávú mérések a szennyezett levegő és az éghajlatváltozás hatásainak vizsgálatára</p>
+        <div class="flex flex-wrap justify-center gap-3">
+          <div class="bg-white bg-opacity-20 rounded-lg p-2 flex items-center">
+            <i class="fas fa-flask text-lg mr-2"></i>
             <div>
-              <p class="text-2xl font-bold">7B</p>
-              <p id="hero-project" class="text-sm">Alprojekt</p>
+              <p class="text-lg font-bold">7B</p>
+              <p id="hero-project" class="text-xs mobile-text">Alprojekt</p>
             </div>
           </div>
-          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
-            <i class="fas fa-sensor text-2xl mr-2"></i>
+          <div class="bg-white bg-opacity-20 rounded-lg p-2 flex items-center">
+            <i class="fas fa-sensor text-lg mr-2"></i>
             <div>
-              <p class="text-2xl font-bold">10+</p>
-              <p id="hero-sensors" class="text-sm">Szenzor</p>
+              <p class="text-lg font-bold">10+</p>
+              <p id="hero-sensors" class="text-xs mobile-text">Szenzor</p>
             </div>
           </div>
-          <div class="bg-white bg-opacity-20 rounded-lg p-4 flex items-center">
-            <i class="fas fa-calendar-days text-2xl mr-2"></i>
+          <div class="bg-white bg-opacity-20 rounded-lg p-2 flex items-center">
+            <i class="fas fa-calendar-days text-lg mr-2"></i>
             <div>
-              <p class="text-2xl font-bold">2022-</p>
-              <p id="hero-ongoing" class="text-sm">Folyamatban</p>
+              <p class="text-lg font-bold">2022-</p>
+              <p id="hero-ongoing" class="text-xs mobile-text">Folyamatban</p>
             </div>
           </div>
         </div>
@@ -91,35 +90,35 @@
     </section>
 
     <!-- About Section -->
-    <section class="mb-16">
-      <h2 id="about-title" class="text-3xl font-bold text-center mb-12 text-green-800">Rólunk</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
-          <h3 id="contact-title" class="text-2xl font-bold text-green-700 mb-4">Kapcsolat</h3>
-          <div class="flex items-start mb-6">
-            <img src="/mfksensor/images/attila_szamosi.jpg" alt="Szamosi Attila" class="w-16 h-16 rounded-full mr-4 object-cover">
+    <section class="mb-8">
+      <h2 id="about-title" class="text-xl font-bold text-center mb-6 text-green-800 mobile-title">Rólunk</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mobile-grid">
+        <div class="bg-white rounded-xl shadow-lg p-3 card-hover">
+          <h3 id="contact-title" class="text-lg font-bold text-green-700 mb-2">Kapcsolat</h3>
+          <div class="flex items-start mb-3">
+            <img src="images/attila_szamosi.jpg" alt="Szamosi Attila" class="w-10 h-10 rounded-full mr-2 object-cover">
             <div>
-              <h4 class="text-xl font-semibold">Szamosi Attila</h4>
-              <p id="position" class="text-gray-600">Kutató</p>
-              <div class="mt-2">
-                <p class="flex items-center"><i class="fas fa-envelope mr-2 text-green-600"></i> attila.szamosi@uni-miskolc.hu</p>
+              <h4 class="text-base font-semibold">Szamosi Attila</h4>
+              <p id="position" class="text-gray-600 text-sm mobile-text">Kutató</p>
+              <div class="mt-1">
+                <p class="flex items-center text-xs mobile-text"><i class="fas fa-envelope mr-1 text-green-600"></i> attila.szamosi@uni-miskolc.hu</p>
               </div>
             </div>
           </div>
-          <p id="contact-text" class="text-gray-700">
+          <p id="contact-text" class="text-gray-700 text-sm mobile-text">
             Kérdéseivel, észrevételeivel és együttműködési ajánlataival forduljon hozzám bátran. 
             Az adatok minőségének folyamatos javításán és a kutatási eredmények széles körű terjesztésén dolgozunk.
           </p>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
-          <h3 id="goal-title" class="text-2xl font-bold text-green-700 mb-4">Kutatási célunk</h3>
-          <p id="goal-text" class="text-gray-700 mb-4">
+        <div class="bg-white rounded-xl shadow-lg p-3 card-hover">
+          <h3 id="goal-title" class="text-lg font-bold text-green-700 mb-2">Kutatási célunk</h3>
+          <p id="goal-text" class="text-gray-700 mb-3 text-sm mobile-text">
             Célunk, hogy a mobil levegőminőség-mérést hosszú távon teszteljük a Miskolcon kihelyezett 
             olcsó levegőminőség-szenzorokkal összehasonlítva és azokat kiegészítve.
           </p>
-          <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
-            <p id="life-project" class="text-green-800">
+          <div class="bg-green-50 rounded-lg p-2 border-l-4 border-green-600">
+            <p id="life-project" class="text-green-800 text-sm mobile-text">
               A PM monitoring mérőhálózat a <a href="https://pmmonitoring.hu" target="_blank" class="underline hover:text-green-600">LIFE IP HUNGAIRY</a> projekt keretein belül jött létre. 
               A LIFE IP HUNGAIRY (LIFE17 IPE/HU/000017) projekt az Európai Unió LIFE programjának 
               támogatásával valósul meg.
@@ -130,46 +129,46 @@
     </section>
 
     <!-- Faculty Section -->
-    <section class="mb-16">
-      <h2 id="faculty-title" class="text-3xl font-bold text-center mb-12 text-green-800">Intézményünk</h2>
-      <div class="bg-white rounded-xl shadow-lg p-6 card-hover">
-        <h3 id="mfk-title" class="text-2xl font-bold text-green-700 mb-4">Műszaki Föld- és Környezettudományi Kar</h3>
-        <p id="mfk-text" class="text-gray-700 mb-4">
+    <section class="mb-8">
+      <h2 id="faculty-title" class="text-xl font-bold text-center mb-6 text-green-800 mobile-title">Intézményünk</h2>
+      <div class="bg-white rounded-xl shadow-lg p-3 card-hover">
+        <h3 id="mfk-title" class="text-lg font-bold text-green-700 mb-2">Műszaki Föld- és Környezettudományi Kar</h3>
+        <p id="mfk-text" class="text-gray-700 mb-3 text-sm mobile-text">
           Kutatásaink a Miskolci Egyetem Műszaki Föld- és Környezettudományi Karán zajlanak, 
           amely a fenntartható természeti erőforrás-gazdálkodás és környezettudomány területén végez kiemelkedő munkát.
         </p>
-        <a href="https://mfk.uni-miskolc.hu" target="_blank" id="mfk-link" class="inline-flex items-center text-green-600 hover:text-green-800">
-          <i class="fas fa-external-link-alt mr-2"></i> Tovább a kar honlapjára
+        <a href="https://mfk.uni-miskolc.hu" target="_blank" id="mfk-link" class="inline-flex items-center text-green-600 hover:text-green-800 text-sm mobile-text">
+          <i class="fas fa-external-link-alt mr-1"></i> Tovább a kar honlapjára
         </a>
       </div>
     </section>
 
     <!-- Funding Section -->
-    <section class="mb-16">
-      <h2 id="funding-title" class="text-3xl font-bold text-center mb-8 text-green-800">Támogatóink</h2>
+    <section class="mb-8">
+      <h2 id="funding-title" class="text-xl font-bold text-center mb-4 text-green-800 mobile-title">Támogatóink</h2>
       <div class="text-center">
-        <p id="funding-text" class="text-gray-700 mb-4">
+        <p id="funding-text" class="text-gray-700 mb-3 text-sm mobile-text">
           A projekt az Európai Unió támogatásával, az RRF-2.3.1-21-2022-00014 azonosítószámú 
           Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium keretében valósul meg.
         </p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
-            <img src="/mfksensor/logos/logo1.png" alt="Logo 1" class="h-14 transition-transform hover:scale-105">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="bg-white rounded-xl shadow-md p-2 flex items-center justify-center h-20">
+            <img src="logos/logo1.png" alt="Logo 1" class="h-8 transition-transform hover:scale-105">
           </div>
-          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
-            <img src="/mfksensor/logos/logo2.png" alt="Logo 2" class="h-14 transition-transform hover:scale-105">
+          <div class="bg-white rounded-xl shadow-md p-2 flex items-center justify-center h-20">
+            <img src="logos/logo2.png" alt="Logo 2" class="h-8 transition-transform hover:scale-105">
           </div>
-          <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-center h-32">
-            <img src="/mfksensor/logos/logo3.png" alt="Logo 3" class="h-14 transition-transform hover:scale-105">
+          <div class="bg-white rounded-xl shadow-md p-2 flex items-center justify-center h-20">
+            <img src="logos/logo3.png" alt="Logo 3" class="h-8 transition-transform hover:scale-105">
           </div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="bg-green-700 text-white text-center py-4 mt-auto">
-    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
-    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+  <footer class="bg-green-700 text-white text-center py-2 mt-auto">
+    <p id="footer-text" class="text-sm mobile-text">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-1 font-semibold mobile-text">A mérési adatok nem hitelesítettek.</p>
   </footer>
 
   <script>
@@ -177,11 +176,9 @@
       hu: {
         title: "Rólunk - Földrajz - Geoinformatika Intézet",
         navHome: "Kezdőlap",
-        navMap: "PM2.5 Térkép",
-        navMapCO2: "CO₂ Térkép",
+        navMap: "Térkép",
         navHeatmap: "Hőtérkép",
-        navComparison: "Összehasonlítás",
-        navCorrelation: "Korreláció", // <-- EZ AZ ÚJ SOR
+        navCorrelation: "Korreláció",
         navAbout: "Rólunk",
         heroTitle: "Levegőminőség-kutatás Miskolcon",
         heroSubtitle: "Mobil szenzorokkal végzett hosszútávú mérések a szennyezett levegő és az éghajlatváltozás hatásainak vizsgálatára",
@@ -207,11 +204,9 @@
       en: {
         title: "About Us - Geography - Institute of Geoinformatics",
         navHome: "Home",
-        navMap: "PM2.5 Map",
-        navMapCO2: "CO₂ Map",
+        navMap: "Map",
         navHeatmap: "Heatmap",
-        navComparison: "Comparison",
-        navCorrelation: "Correlation", // <-- EZ AZ ÚJ SOR
+        navCorrelation: "Correlation",
         navAbout: "About",
         heroTitle: "Air Quality Research in Miskolc",
         heroSubtitle: "Long-term measurements with mobile sensors to study the effects of polluted air and climate change",
@@ -247,9 +242,7 @@
       document.getElementById('main-title').textContent = langData.title;
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
-      document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('hero-title').textContent = langData.heroTitle;

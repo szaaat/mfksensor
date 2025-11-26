@@ -4,24 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Korreláció Elemzés - MFKSensor</title>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin=""/>
     <script src="https://cdn.tailwindcss.com/3.4.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
-
+    <link rel="stylesheet" href="style.css">
     <style>
         .controls {
-            padding: 10px; background-color: #f4f4f4;
+            padding: 8px; background-color: #f4f4f4;
             text-align: center; border-bottom: 1px solid #ccc;
         }
-        .controls select, .controls button { margin: 5px; }
+        .controls select, .controls button { margin: 4px; }
         
         #chart-container {
-            width: 90%; max-width: 800px;
-            height: 60vh; margin: 20px auto; position: relative;
+            width: 95%; max-width: 800px;
+            height: 55vh; margin: 15px auto; position: relative;
         }
         
         #loading-spinner {
@@ -40,13 +39,13 @@
         .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
         
         .mode-btn {
-            padding: 5px 12px; border-radius: 5px; border: 1px solid #aaa;
+            padding: 4px 10px; border-radius: 5px; border: 1px solid #aaa;
             background-color: #fff; color: #555; cursor: pointer;
             font-weight: bold; transition: all 0.3s;
         }
         .mode-btn.active {
-            background-color: #22c55e; /* green-500 */
-            color: white; border-color: #16a34a; /* green-600 */
+            background-color: #22c55e;
+            color: white; border-color: #16a34a;
         }
         .mode-btn:hover:not(.active) { background-color: #f0f0f0; }
         
@@ -54,35 +53,32 @@
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
 
-<header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
-    <div class="absolute top-4 right-4 flex space-x-2">
+<header class="bg-green-700 text-white text-center py-4 shadow-lg relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
       <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
       <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
     </div>
-    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Korreláció Elemzés</h1>
+    <h1 id="main-title" class="text-lg md:text-2xl font-extrabold tracking-tight mobile-title">Korreláció Elemzés</h1>
 </header>
 
-<nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
-      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
-      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
-      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors">Hőtérkép</a>
-      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
-      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Korreláció</a>
-      <a href="/mfksensor/analytics.html" id="nav-analytics" class="text-lg font-semibold hover:text-green-200 transition-colors">Analitika</a>
-      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
+<nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
+      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Kezdőlap</a>
+      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
+      <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
+      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Korreláció</a>
+      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
 </nav>
 
 <div class="controls space-y-2">
     <div class="space-x-2">
-        <button id="mode-btn-polluted" class="mode-btn active">Szennyezett adatsor</button>
-        <button id="mode-btn-all" class="mode-btn">Teljes adatsor</button>
+        <button id="mode-btn-polluted" class="mode-btn active mobile-text">Szennyezett adatsor</button>
+        <button id="mode-btn-all" class="mode-btn mobile-text">Teljes adatsor</button>
     </div>
     
-    <div>
-        <select id="period-select" class="p-2 rounded border border-gray-300">
+    <div class="flex flex-wrap justify-center gap-2">
+        <select id="period-select" class="p-1 rounded border border-gray-300 mobile-text">
             <option id="period-all" value="annual">Összes</option>
             <option id="period-winter" value="winter" selected>Tél</option>
             <option id="period-spring" value="spring">Tavasz</option>
@@ -90,31 +86,39 @@
             <option id="period-autumn" value="autumn">Ősz</option>
         </select>
         
-        <label id="metric1-label" for="metric-select-1" class="font-semibold">X tengely:</label>
-        <select id="metric-select-1" class="p-2 rounded border border-gray-300">
+        <label id="metric1-label" for="metric-select-1" class="font-semibold mobile-text">X tengely:</label>
+        <select id="metric-select-1" class="p-1 rounded border border-gray-300 mobile-text">
             <option value="pm2_5" selected>PM2.5</option>
             <option value="co2">CO2</option>
             <option value="nox">NOx</option>
             <option value="voc">VOC</option>
             <option value="pm10_0">PM10.0</option>
-            
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
-            <option value="altitude">Magasság</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2_diff">CO2 Különbség</option> <option value="pm25_bg">PM2.5 Háttér</option> <option value="co2_bg">CO2 Háttér</option> </select>
+            <option value="altitude">Magasság</option>
+            <option value="pm25_diff">PM2.5 Különbség</option>
+            <option value="co2_diff">CO2 Különbség</option>
+            <option value="pm25_bg">PM2.5 Háttér</option>
+            <option value="co2_bg">CO2 Háttér</option>
+        </select>
         
-        <label id="metric2-label" for="metric-select-2" class="font-semibold">Y tengely:</label>
-        <select id="metric-select-2" class="p-2 rounded border border-gray-300">
+        <label id="metric2-label" for="metric-select-2" class="font-semibold mobile-text">Y tengely:</label>
+        <select id="metric-select-2" class="p-1 rounded border border-gray-300 mobile-text">
             <option value="pm2_5">PM2.5</option>
             <option value="co2">CO2</option>
             <option value="nox">NOx</option>
             <option value="voc" selected>VOC</option>
             <option value="pm10_0">PM10.0</option>
-            
             <option value="temperature">Hőmérséklet</option>
             <option value="humidity">Páratartalom</option>
-            <option value="altitude">Magasság</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2_diff">CO2 Különbség</option> <option value="pm25_bg">PM2.5 Háttér</option> <option value="co2_bg">CO2 Háttér</option> </select>
+            <option value="altitude">Magasság</option>
+            <option value="pm25_diff">PM2.5 Különbség</option>
+            <option value="co2_diff">CO2 Különbség</option>
+            <option value="pm25_bg">PM2.5 Háttér</option>
+            <option value="co2_bg">CO2 Háttér</option>
+        </select>
         
-        <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Export CSV</button>
+        <button id="export-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-sm mobile-text">Export CSV</button>
         <div id="loading-spinner"></div>
     </div>
 </div>
@@ -123,44 +127,41 @@
     <canvas id="correlationChart"></canvas>
 </div>
 
-<div class="text-center p-4 bg-white shadow-md max-w-lg mx-auto rounded-lg">
-    <h3 id="results-title" class="text-xl font-bold text-green-700">Korrelációs Eredmények</h3>
-    <p class="text-lg">Pearson's <span class="font-bold">r = <span id="r-value" class="text-blue-600">...</span></span></p>
-    <p class="text-lg"><span class="font-bold">p-value = <span id="p-value" class="text-red-600">...</span></span></p>
-    <p class="text-sm text-gray-600"><span id="n-value">N=...</span> (<span id="n-value-label">rácscella pár</span>)</p>
-    <p id="significance-note" class="text-sm font-semibold mt-2"></p>
+<div class="text-center p-3 bg-white shadow-md max-w-lg mx-auto rounded-lg mobile-container">
+    <h3 id="results-title" class="text-lg font-bold text-green-700 mobile-title">Korrelációs Eredmények</h3>
+    <p class="text-base mobile-text">Pearson's <span class="font-bold">r = <span id="r-value" class="text-blue-600">...</span></span></p>
+    <p class="text-base mobile-text"><span class="font-bold">p-value = <span id="p-value" class="text-red-600">...</span></span></p>
+    <p class="text-xs text-gray-600 mobile-text"><span id="n-value">N=...</span> (<span id="n-value-label">rácscella pár</span>)</p>
+    <p id="significance-note" class="text-xs font-semibold mt-1 mobile-text"></p>
 </div>
 
-<div class="bg-white p-6 rounded-xl shadow-lg max-w-3xl mx-auto my-6 text-sm text-left">
-    <h3 id="method-title" class="text-xl font-bold text-green-700 mb-3">Módszertani leírás</h3>
+<div class="bg-white p-4 rounded-xl shadow-lg max-w-3xl mx-auto my-4 text-sm text-left mobile-container">
+    <h3 id="method-title" class="text-lg font-bold text-green-700 mb-2 mobile-title">Módszertani leírás</h3>
     
-    <p id="method-intro" class="mb-4 text-gray-700">Ez az oldal két kiválasztott szenzoradat (pl. NOx és VOC) közötti statisztikai összefüggést vizsgálja, a térben aggregált adatok alapján.</p>
+    <p id="method-intro" class="mb-3 text-gray-700 mobile-text">Ez az oldal két kiválasztott szenzoradat (pl. NOx és VOC) közötti statisztikai összefüggést vizsgálja, a térben aggregált adatok alapján.</p>
     
-    <strong id="method-scatter-title" class="font-semibold text-gray-800">A pontdiagram (Scatter Plot):</strong>
-    <p id="method-scatter-desc" class="mb-4 text-gray-700">A diagram nem a nyers méréseket, hanem a két adatpár területi átlagait ábrázolja (kb. 200x200m-es rácsra aggregálva). Minden egyes pont a diagramon egy-egy rácscella átlagos értékpárját (X, Y) jelöli.</p>
+    <strong id="method-scatter-title" class="font-semibold text-gray-800 mobile-text">A pontdiagram (Scatter Plot):</strong>
+    <p id="method-scatter-desc" class="mb-3 text-gray-700 mobile-text">A diagram nem a nyers méréseket, hanem a két adatpár területi átlagait ábrázolja (kb. 200x200m-es rácsra aggregálva). Minden egyes pont a diagramon egy-egy rácscella átlagos értékpárját (X, Y) jelöli.</p>
     
-    <strong id="method-r-title" class="font-semibold text-gray-800">Korrelációs Együttható (r):</strong>
-    <p id="method-r-desc" class="mb-4 text-gray-700">A Pearson-féle `r` érték azt méri, milyen erős *lineáris* kapcsolat van a két változó között (-1 és +1 között). Az `r=1` tökéletes pozitív (együtt mozognak), `r=-1` tökéletes negatív (ellentétesen mozognak), `r=0` nincs lineáris kapcsolat.</p>
+    <strong id="method-r-title" class="font-semibold text-gray-800 mobile-text">Korrelációs Együttható (r):</strong>
+    <p id="method-r-desc" class="mb-3 text-gray-700 mobile-text">A Pearson-féle `r` érték azt méri, milyen erős *lineáris* kapcsolat van a két változó között (-1 és +1 között). Az `r=1` tökéletes pozitív (együtt mozognak), `r=-1` tökéletes negatív (ellentétesen mozognak), `r=0` nincs lineáris kapcsolat.</p>
     
-    <strong id="method-p-title" class="font-semibold text-gray-800">Szignifikancia (p-érték):</strong>
-    <p id="method-p-desc" class="mb-4 text-gray-700">A `p-érték` mutatja, mennyire statisztikailag szignifikáns a kapcsolat (vagyis mennyire valószínű, hogy nem véletlen). Általában `p < 0.05` esetén a korrelációt szignifikánsnak tekintjük.</p>
+    <strong id="method-p-title" class="font-semibold text-gray-800 mobile-text">Szignifikancia (p-érték):</strong>
+    <p id="method-p-desc" class="mb-3 text-gray-700 mobile-text">A `p-érték` mutatja, mennyire statisztikailag szignifikáns a kapcsolat (vagyis mennyire valószínű, hogy nem véletlen). Általában `p < 0.05` esetén a korrelációt szignifikánsnak tekintjük.</p>
     
-    <strong id="method-mode-title" class="font-semibold text-gray-800">Elemzési Módok:</strong>
-    <p id="method-mode-polluted" class="mb-2 text-gray-700"><strong class="text-gray-900">Szennyezett Adatsor:</strong> Csak azok a rácscellák szerepelnek, ahol az átlagértékek a "tiszta" háttérszint fölött vannak (pl. NOx > 1 és VOC > 100). Ez a "hotspotok" belső korrelációja.</p>
-    <p id="method-mode-all" class="mb-4 text-gray-700"><strong class="text-gray-900">Teljes Adatsor:</strong> Minden rácscella szerepel, beleértve a tiszta területeket is. Ez a teljes rendszer viselkedését mutatja ("áttekintő").</p>
+    <strong id="method-mode-title" class="font-semibold text-gray-800 mobile-text">Elemzési Módok:</strong>
+    <p id="method-mode-polluted" class="mb-1 text-gray-700 mobile-text"><strong class="text-gray-900">Szennyezett Adatsor:</strong> Csak azok a rácscellák szerepelnek, ahol az átlagértékek a "tiszta" háttérszint fölött vannak (pl. NOx > 1 és VOC > 100). Ez a "hotspotok" belső korrelációja.</p>
+    <p id="method-mode-all" class="mb-3 text-gray-700 mobile-text"><strong class="text-gray-900">Teljes Adatsor:</strong> Minden rácscella szerepel, beleértve a tiszta területeket is. Ez a teljes rendszer viselkedését mutatja ("áttekintő").</p>
 </div>
 
-<footer class="bg-green-700 text-white text-center py-4 mt-auto">
-    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
-    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+<footer class="bg-green-700 text-white text-center py-2 mt-auto">
+    <p id="footer-text" class="text-sm mobile-text">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-1 font-semibold mobile-text">A mérési adatok nem hitelesítettek.</p>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-    // -----------------------------------------------------------------
-    // 1. SUPABASE ÉS GLOBÁLIS VÁLTOZÓK
-    // -----------------------------------------------------------------
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -183,9 +184,6 @@
     let correlationChart;
     let currentData = { x: [], y: [] };
 
-    // -----------------------------------------------------------------
-    // 2. STATISZTIKAI FÜGGVÉNYEK
-    // -----------------------------------------------------------------
     function pearsonCorrelation(x, y) {
         if (typeof jStat === 'undefined' || typeof jStat.corrcoeff !== 'function') {
             console.error("jStat library or jStat.corrcoeff is not loaded!");
@@ -224,9 +222,6 @@
         return langData.sigNone;
     }
 
-    // -----------------------------------------------------------------
-    // 3. DIAGRAM FRISSÍTŐ
-    // -----------------------------------------------------------------
     async function updateCorrelationChart() {
         const m1 = metricSelect1.value;
         const m2 = metricSelect2.value;
@@ -242,7 +237,6 @@
         loadingSpinner.style.display = 'inline-block';
     
         try {
-            // Az RPC függvényednek támogatnia kell a dinamikus oszlopneveket!
             const { data, error } = await supabaseClient.rpc('get_correlation_pairs_flexible', {
                 metric1: m1,
                 metric2: m2,
@@ -317,9 +311,6 @@
         }
     }
 
-    // -----------------------------------------------------------------
-    // 4. EXPORT FUNKCIÓ
-    // -----------------------------------------------------------------
     function exportData() {
         const m1 = metricSelect1.value;
         const m2 = metricSelect2.value;
@@ -341,17 +332,22 @@
         document.body.removeChild(link);
     }
 
-    // -----------------------------------------------------------------
-    // 5. NYELVVÁLTÓ ÉS INDÍTÁS
-    // -----------------------------------------------------------------
     const translations = {
       hu: {
         title: "Korreláció Elemzés - MFKSensor",
         mainTitle: "Korreláció Elemzés",
-        navHome: "Kezdőlap", navMap: "PM2.5 Térkép", navMapCO2: "CO₂ Térkép", navHeatmap: "Hőtérkép",
-        navComparison: "Összehasonlítás", navCorrelation: "Korreláció", navAnalytics: "Analitika", navAbout: "Rólunk",
-        periodAll: "Összes", periodWinter: "Tél", periodSpring: "Tavasz", periodSummer: "Nyár", periodAutumn: "Ősz",
-        metric1Label: "X tengely:", metric2Label: "Y tengely:",
+        navHome: "Kezdőlap",
+        navMap: "Térkép",
+        navHeatmap: "Hőtérkép",
+        navCorrelation: "Korreláció",
+        navAbout: "Rólunk",
+        periodAll: "Összes",
+        periodWinter: "Tél",
+        periodSpring: "Tavasz",
+        periodSummer: "Nyár",
+        periodAutumn: "Ősz",
+        metric1Label: "X tengely:",
+        metric2Label: "Y tengely:",
         exportBtn: "Export CSV",
         resultsTitle: "Korrelációs Eredmények",
         nValueLabel: "rácscella pár",
@@ -380,10 +376,18 @@
       en: {
         title: "Correlation Analysis - MFKSensor",
         mainTitle: "Correlation Analysis",
-        navHome: "Home", navMap: "PM2.5 Map", navMapCO2: "CO₂ Map", navHeatmap: "Heatmap",
-        navComparison: "Comparison", navCorrelation: "Correlation", navAnalytics: "Analytics", navAbout: "About",
-        periodAll: "All", periodWinter: "Winter", periodSpring: "Spring", periodSummer: "Summer", periodAutumn: "Autumn",
-        metric1Label: "X-Axis:", metric2Label: "Y-Axis:",
+        navHome: "Home",
+        navMap: "Map",
+        navHeatmap: "Heatmap",
+        navCorrelation: "Correlation",
+        navAbout: "About",
+        periodAll: "All",
+        periodWinter: "Winter",
+        periodSpring: "Spring",
+        periodSummer: "Summer",
+        periodAutumn: "Autumn",
+        metric1Label: "X-Axis:",
+        metric2Label: "Y-Axis:",
         exportBtn: "Export CSV",
         resultsTitle: "Correlation Results",
         nValueLabel: "grid cell pairs",
@@ -420,16 +424,11 @@
       const langData = translations[lang];
       document.title = langData.title;
       document.getElementById('main-title').textContent = langData.mainTitle;
-      // Navigáció
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
-      document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
-      document.getElementById('nav-analytics').textContent = langData.navAnalytics;
       document.getElementById('nav-about').textContent = langData.navAbout;
-      // Vezérlők
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;
       document.getElementById('period-spring').textContent = langData.periodSpring;
@@ -440,10 +439,8 @@
       document.getElementById('export-btn').textContent = langData.exportBtn;
       document.getElementById('mode-btn-polluted').textContent = langData.modePolluted;
       document.getElementById('mode-btn-all').textContent = langData.modeAll;
-      // Eredmények
       document.getElementById('results-title').textContent = langData.resultsTitle;
       document.getElementById('n-value-label').textContent = langData.nValueLabel;
-      // Módszertani leírás
       document.getElementById('method-title').textContent = langData.methodTitle;
       document.getElementById('method-intro').textContent = langData.methodIntro;
       document.getElementById('method-scatter-title').textContent = langData.methodScatterTitle;
@@ -455,7 +452,6 @@
       document.getElementById('method-mode-title').textContent = langData.methodModeTitle;
       document.getElementById('method-mode-polluted').innerHTML = langData.methodModePolluted;
       document.getElementById('method-mode-all').innerHTML = langData.methodModeAll;
-      // Lábléc
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
       document.documentElement.lang = lang;

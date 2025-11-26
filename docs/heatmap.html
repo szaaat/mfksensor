@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Szezonális Hőtérkép - MFKSensor</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hőtérkép Elemzés - MFKSensor</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin=""/>
     <script src="https://cdn.tailwindcss.com/3.4.0"></script>
-
+    <link rel="stylesheet" href="style.css">
     <style>
-        #map { height: 75vh; width: 100%; }
+        #map { height: 70vh; width: 100%; }
         #loading-spinner {
             display: none; margin-left: 15px; border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db; border-radius: 50%;
@@ -25,44 +25,42 @@
         .lang-btn.active { background: white; color: green; font-weight: bold; }
         .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
         
-        /* Jelmagyarázat stílusa */
         .info.legend {
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
+            padding: 8px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            line-height: 1.5;
+            line-height: 1.4;
         }
         .legend-title {
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             text-align: center;
         }
         .legend-gradient {
-            width: 30px;
-            height: 150px;
+            width: 25px;
+            height: 120px;
             border: 1px solid #ccc;
         }
         .legend-labels {
             position: relative;
-            height: 150px;
-            width: 30px;
+            height: 120px;
+            width: 25px;
             float: right;
-            margin-left: 5px;
+            margin-left: 4px;
         }
         .legend-labels span {
             position: absolute;
-            left: 5px;
-            font-size: 12px;
+            left: 4px;
+            font-size: 10px;
             color: #333;
         }
         .legend-labels .max { top: 0; }
         .legend-labels .mid { top: 50%; transform: translateY(-50%); }
         .legend-labels .min { bottom: 0; }
         
-        /* Aktív gomb stílusa */
         .controls button.active {
-            background-color: #16a34a; /* Zöld */
+            background-color: #16a34a;
             color: white;
             font-weight: bold;
         }
@@ -73,29 +71,27 @@
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
 
-<header class="bg-green-700 text-white text-center py-8 shadow-lg relative">
-    <div class="absolute top-4 right-4 flex space-x-2">
+<header class="bg-green-700 text-white text-center py-4 shadow-lg relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
       <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
       <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
     </div>
-    <h1 id="main-title" class="text-2xl md:text-4xl font-extrabold tracking-tight">Hőtérkép Elemzés</h1>
+    <h1 id="main-title" class="text-lg md:text-2xl font-extrabold tracking-tight mobile-title">Hőtérkép Elemzés</h1>
 </header>
 
-<nav class="bg-green-600 text-white py-4 shadow-md">
-    <div class="container mx-auto px-6 flex flex-wrap justify-center gap-x-8 gap-y-2">
-      <a href="/mfksensor/" id="nav-home" class="text-lg font-semibold hover:text-green-200 transition-colors">Kezdőlap</a>
-      <a href="/mfksensor/map.html" id="nav-map" class="text-lg font-semibold hover:text-green-200 transition-colors">PM2.5 Térkép</a>
-      <a href="/mfksensor/map_co2.html" id="nav-map-co2" class="text-lg font-semibold hover:text-green-200 transition-colors">CO₂ Térkép</a>
-      <a href="/mfksensor/heatmap.html" id="nav-heatmap" class="text-lg font-semibold hover:text-green-200 transition-colors underline decoration-2">Hőtérkép</a>
-      <a href="/mfksensor/comparison.html" id="nav-comparison" class="text-lg font-semibold hover:text-green-200 transition-colors">Összehasonlítás</a>
-      <a href="/mfksensor/correlation.html" id="nav-correlation" class="text-lg font-semibold hover:text-green-200 transition-colors">Korreláció</a>
-      <a href="/mfksensor/about.html" id="nav-about" class="text-lg font-semibold hover:text-green-200 transition-colors">Rólunk</a>
+<nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
+      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Kezdőlap</a>
+      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
+      <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Hőtérkép</a>
+      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
+      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
 </nav>
 
-<div class="controls text-center p-4 bg-gray-100 shadow-sm">
-    <label for="period-select" id="period-label" class="font-semibold text-gray-700">Válassz időszakot:</label>
-    <select id="period-select" class="mx-2 p-2 rounded border border-gray-300">
+<div class="controls text-center p-3 bg-gray-100 shadow-sm">
+    <label for="period-select" id="period-label" class="font-semibold text-gray-700 mobile-text">Válassz időszakot:</label>
+    <select id="period-select" class="mx-1 p-1 rounded border border-gray-300 mobile-text">
         <option id="period-all" value="annual">Összes (teljes átlag)</option>
         <option id="period-winter" value="winter">Tél (Dec, Jan, Feb)</option>
         <option id="period-spring" value="spring">Tavasz (Már, Ápr, Máj)</option>
@@ -103,41 +99,48 @@
         <option id="period-autumn" value="autumn">Ősz (Szep, Okt, Nov)</option>
     </select>
     
-    <label for="metric-select" id="metric-label" class="ml-4 font-semibold text-gray-700">Válassz adatot:</label>
-    <select id="metric-select" class="mx-2 p-2 rounded border border-gray-300">
+    <label for="metric-select" id="metric-label" class="ml-2 font-semibold text-gray-700 mobile-text">Válassz adatot:</label>
+    <select id="metric-select" class="mx-1 p-1 rounded border border-gray-300 mobile-text">
         <option value="pm2_5">PM2.5</option>
-        <option value="pm25_bg">PM2.5 Háttér</option> <option value="pm25_diff">PM2.5 Különbség</option> <option value="co2">CO2</option>
-        <option value="co2_bg">CO2 Háttér</option> <option value="co2_diff">CO2 Különbség</option> <option value="altitude">Magasság</option> <option value="voc">VOC Index</option>
+        <option value="pm25_bg">PM2.5 Háttér</option>
+        <option value="pm25_diff">PM2.5 Különbség</option>
+        <option value="co2">CO2</option>
+        <option value="co2_bg">CO2 Háttér</option>
+        <option value="co2_diff">CO2 Különbség</option>
+        <option value="altitude">Magasság</option>
+        <option value="voc">VOC Index</option>
         <option value="nox">NOx Index</option>
         <option value="temperature">Hőmérséklet</option>
         <option value="humidity">Páratartalom</option>
     </select>
 
-    <label for="min-value" class="ml-4 font-semibold text-gray-700">Skála Min:</label>
-    <input type="number" id="min-value" class="mx-1 p-2 rounded border border-gray-300 w-20">
-    
-    <label for="max-value" class="ml-2 font-semibold text-gray-700">Skála Max:</label>
-    <input type="number" id="max-value" class="mx-1 p-2 rounded border border-gray-300 w-20">
-    
-    <button id="update-scale-btn" class="ml-2 p-2 bg-green-600 text-white rounded hover:bg-green-700">Frissít</button>
-    <button id="polluted-btn" class="ml-4 p-2 rounded bg-gray-300">Szennyezett</button>
-    <button id="all-btn" class="ml-2 p-2 rounded bg-gray-300">Teljes adatsor</button>
-    
-    <div id="loading-spinner"></div>
+    <div class="mt-2 flex flex-wrap justify-center gap-2">
+        <label for="min-value" class="font-semibold text-gray-700 mobile-text">Skála Min:</label>
+        <input type="number" id="min-value" class="mx-1 p-1 rounded border border-gray-300 w-16 mobile-text">
+        
+        <label for="max-value" class="font-semibold text-gray-700 mobile-text">Skála Max:</label>
+        <input type="number" id="max-value" class="mx-1 p-1 rounded border border-gray-300 w-16 mobile-text">
+        
+        <button id="update-scale-btn" class="ml-1 p-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm mobile-text">Frissít</button>
+        <button id="polluted-btn" class="ml-2 p-1 rounded bg-gray-300 text-sm mobile-text">Szennyezett</button>
+        <button id="all-btn" class="ml-1 p-1 rounded bg-gray-300 text-sm mobile-text">Teljes adatsor</button>
+        
+        <div id="loading-spinner"></div>
+    </div>
 </div>
 
 <div id="map" class="flex-grow"></div>
 
-<div class="container mx-auto px-6 py-8 mt-8 bg-white shadow-lg rounded-lg">
-    <h2 id="about-title" class="text-2xl font-bold text-green-700 mb-4">Az oldal működése</h2>
-    <p id="about-text" class="text-gray-700 leading-relaxed">
+<div class="container mx-auto px-4 py-4 mt-4 bg-white shadow-lg rounded-lg mobile-container">
+    <h2 id="about-title" class="text-lg font-bold text-green-700 mb-3 mobile-title">Az oldal működése</h2>
+    <p id="about-text" class="text-gray-700 leading-relaxed mobile-text">
         Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat.
     </p>
 </div>
 
-<footer class="bg-green-700 text-white text-center py-4 mt-auto">
-    <p id="footer-text" class="text-sm">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
-    <p id="disclaimer-text" class="text-sm text-red-600 mt-2 font-semibold">A mérési adatok nem hitelesítettek.</p>
+<footer class="bg-green-700 text-white text-center py-2 mt-auto">
+    <p id="footer-text" class="text-sm mobile-text">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+    <p id="disclaimer-text" class="text-sm text-red-600 mt-1 font-semibold mobile-text">A mérési adatok nem hitelesítettek.</p>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -149,14 +152,11 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // -----------------------------------------------------------------
-    // 2. METRIKA KONFIG (ÚJ SKÁLÁK HOZZÁADVA)
-    // -----------------------------------------------------------------
     const METRIC_CONFIG = {
         'pm1_0':       { max: 20, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm2_5':       { max: 20, min: 5, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
-        'pm25_bg':     { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'orange' } }, // Tiszta
-        'pm25_diff':   { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.0: 'white', 0.2: 'yellow', 0.5: 'orange', 1: 'red' } },   // Szennyezés
+        'pm25_bg':     { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'orange' } },
+        'pm25_diff':   { max: 15, min: 0, unit: 'µg/m³', gradient: { 0.0: 'white', 0.2: 'yellow', 0.5: 'orange', 1: 'red' } },
         'pm4_0':       { max: 30, min: 0, unit: 'µg/m³', gradient: { 0.4: 'blue', 0.6: 'green', 0.8: 'yellow', 1: 'red' } },
         'pm10_0':      { max: 40, min: 10, unit: 'µg/m³', gradient: { 0.1: 'blue', 0.4: 'green', 0.8: 'yellow', 1: 'red' } }, 
         'temperature': { 
@@ -181,7 +181,6 @@
         },
         'altitude': { 
             max: 1000, min: 0, unit: 'm', 
-            // Domborzati színek: Zöld (alföld) -> Sárga -> Barna (hegy)
             gradient: { 0.0: 'green', 0.3: 'yellow', 0.6: 'orange', 1: 'brown' } 
         },
         'voc': { 
@@ -212,27 +211,21 @@
     
     const pollutedBtn = document.getElementById('polluted-btn');
     const allBtn = document.getElementById('all-btn');
-    let currentAnalysisMode = 'polluted'; // Kezdőérték
+    let currentAnalysisMode = 'polluted';
 
-    // Helper függvény a CSS színátmenet generálásához
     function createGradientCSS(gradient) {
         const stops = Object.entries(gradient).sort(([a], [b]) => a - b);
         const cssStops = stops.map(([stop, color]) => `${color} ${stop * 100}%`);
         return `linear-gradient(to top, ${cssStops.join(', ')})`;
     }
 
-    // -----------------------------------------------------------------
-    // 4. ADATLEKÉRÉS
-    // -----------------------------------------------------------------
     async function updateHeatmap() {
         const period = periodSelect.value;
         const metric = metricSelect.value;
         loadingSpinner.style.display = 'inline-block';
         
-        // 1. Alapértelmezett config betöltése
         let config = METRIC_CONFIG[metric] || DEFAULT_CONFIG;
 
-        // 2. Felülírás a felhasználói bemenettel
         const userMin = parseFloat(minInput.value);
         const userMax = parseFloat(maxInput.value);
 
@@ -248,8 +241,6 @@
         }
         
         try {
-            // Itt hívjuk meg a Supabase függvényt. Fontos, hogy az SQL függvény
-            // támogassa az új oszlopneveket (pl. 'pm25_bg')!
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
@@ -269,16 +260,13 @@
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
             heatLayer = L.heatLayer(heatData, {
-                radius: 14,
-                blur: 6,
+                radius: 12,
+                blur: 5,
                 maxZoom: 18,
                 max: config.max,
                 gradient: config.gradient
             }).addTo(map);
 
-            // -----------------------------------------------------------------
-            // 5. JELMAGYARÁZAT
-            // -----------------------------------------------------------------
             legendControl = L.control({position: 'bottomright'});
             legendControl.onAdd = function (map) {
                 const div = L.DomUtil.create('div', 'info legend');
@@ -287,13 +275,13 @@
                 const title = translations[currentLang].legendTitle + ` (${config.unit})`;
 
                 div.innerHTML = `
-                    <div class="legend-title">${title}</div>
+                    <div class="legend-title mobile-text">${title}</div>
                     <div style="display: flex;">
                         <div class="legend-gradient" style="background: ${gradientCSS};"></div>
                         <div class="legend-labels">
-                            <span class="max">${config.max}</span>
-                            <span class="mid">${((config.max + config.min) / 2).toPrecision(3)}</span>
-                            <span class="min">${config.min}</span>
+                            <span class="max mobile-text">${config.max}</span>
+                            <span class="mid mobile-text">${((config.max + config.min) / 2).toPrecision(3)}</span>
+                            <span class="min mobile-text">${config.min}</span>
                         </div>
                     </div>
                 `;
@@ -315,19 +303,14 @@
         updateHeatmap();
     });
     updateScaleBtn.addEventListener('click', updateHeatmap);
-
-    // -----------------------------------------------------------------
-    // 6. NYELVI RÉSZ (ÚJ ELEMEK KIEGÉSZÍTVE)
-    // -----------------------------------------------------------------
+    
     const translations = {
       hu: {
-        title: "Szezonális Hőtérkép - MFKSensor",
+        title: "Hőtérkép Elemzés - MFKSensor",
         mainTitle: "Hőtérkép Elemzés",
         navHome: "Kezdőlap",
-        navMap: "PM2.5 Térkép",
-        navMapCO2: "CO₂ Térkép",
-        navHeatmap: "Hőtérkép",
-        navComparison: "Összehasonlítás",
+        navMap: "Térkép",
+        navHeatmap: "Hőtérkép", 
         navCorrelation: "Korreláció",
         navAbout: "Rólunk",
         periodLabel: "Válassz időszakot:",
@@ -335,36 +318,44 @@
         periodAll: "Összes (teljes átlag)",
         periodWinter: "Tél (Dec, Jan, Feb)",
         periodSpring: "Tavasz (Már, Ápr, Máj)",
-        periodSummer: "Nyár (Jún, Júl, Aug)",
+        periodSummer: "Nyár (Jún, Júl, Aug)", 
         periodAutumn: "Ősz (Szep, Okt, Nov)",
+        scaleMinLabel: "Skála Min:",
+        scaleMaxLabel: "Skála Max:",
+        updateScaleBtn: "Frissít",
+        pollutedBtn: "Szennyezett",
+        allBtn: "Teljes adatsor",
         legendTitle: "Jelmagyarázat",
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek.",
         aboutTitle: "Az oldal működése",
-        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen..."
+        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat."
       },
       en: {
-        title: "Seasonal Heatmap - MFKSensor",
+        title: "Heatmap Analysis - MFKSensor", 
         mainTitle: "Heatmap Analysis",
         navHome: "Home",
-        navMap: "PM2.5 Map",
-        navMapCO2: "CO₂ Map",
+        navMap: "Map",
         navHeatmap: "Heatmap",
-        navComparison: "Comparison",
         navCorrelation: "Correlation",
         navAbout: "About",
         periodLabel: "Select period:",
-        metricLabel: "Select metric:",
+        metricLabel: "Select metric:", 
         periodAll: "All (total average)",
         periodWinter: "Winter (Dec, Jan, Feb)",
         periodSpring: "Spring (Mar, Apr, May)",
         periodSummer: "Summer (Jun, Jul, Aug)",
         periodAutumn: "Autumn (Sep, Oct, Nov)",
+        scaleMinLabel: "Scale Min:",
+        scaleMaxLabel: "Scale Max:", 
+        updateScaleBtn: "Update",
+        pollutedBtn: "Polluted",
+        allBtn: "Full dataset",
         legendTitle: "Legend",
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified.",
         aboutTitle: "How This Page Works",
-        aboutText: "This page displays aggregated air quality data..."
+        aboutText: "This page displays aggregated air quality data collected by mobile sensors (e.g., PM2.5, CO2, NOx) on an interactive heatmap. The data is averaged onto a grid to show spatial distribution. Using the controls, you can select the time period to examine (seasonal or annual average) and the type of measured data. The 'Scale Min' and 'Scale Max' fields allow you to fine-tune the visual scale to highlight value ranges important to you."
       }
     };
 
@@ -377,13 +368,15 @@
       const langData = translations[lang];
       document.title = langData.title;
       document.getElementById('main-title').textContent = langData.mainTitle;
+      
+      // Navigáció
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-map-co2').textContent = langData.navMapCO2;
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
-      document.getElementById('nav-comparison').textContent = langData.navComparison;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       document.getElementById('nav-about').textContent = langData.navAbout;
+      
+      // Vezérlők
       document.getElementById('period-label').innerHTML = langData.periodLabel; 
       document.getElementById('metric-label').innerHTML = langData.metricLabel; 
       document.getElementById('period-all').textContent = langData.periodAll;
@@ -391,17 +384,27 @@
       document.getElementById('period-spring').textContent = langData.periodSpring;
       document.getElementById('period-summer').textContent = langData.periodSummer;
       document.getElementById('period-autumn').textContent = langData.periodAutumn;
+      
+      // Skála és gombok
+      document.querySelector('label[for="min-value"]').textContent = langData.scaleMinLabel;
+      document.querySelector('label[for="max-value"]').textContent = langData.scaleMaxLabel;
+      document.getElementById('update-scale-btn').textContent = langData.updateScaleBtn;
+      document.getElementById('polluted-btn').textContent = langData.pollutedBtn;
+      document.getElementById('all-btn').textContent = langData.allBtn;
+      
+      // Lábléc és leírás
       document.getElementById('footer-text').textContent = langData.footer;
       document.getElementById('disclaimer-text').textContent = langData.disclaimer;
       document.getElementById('about-title').textContent = langData.aboutTitle;
       document.getElementById('about-text').textContent = langData.aboutText;
+      
       document.documentElement.lang = lang;
       
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
       
-      // Frissítjük a legördülő menü szövegeit is!
+      // Metrika opciók fordítása
       const metricOptions = {
         'pm2_5': 'PM2.5',
         'pm25_bg': lang === 'hu' ? 'PM2.5 Háttér' : 'PM2.5 Background',
@@ -423,11 +426,11 @@
       Array.from(select.options).forEach(opt => {
           if(metricOptions[opt.value]) opt.text = metricOptions[opt.value];
       });
-
+    
       if (legendControl) {
           updateHeatmap(); 
       }
-    }
+    }   
     
     function setAnalysisMode(mode) {
         currentAnalysisMode = mode;
