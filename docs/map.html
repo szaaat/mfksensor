@@ -57,7 +57,7 @@
     /* Háttér információs doboz */
     .background-info {
         position: absolute;
-        bottom: 260px; /* A jelmagyarázat fölé */
+        bottom: 260px;
         left: 10px;
         background: rgba(255, 255, 255, 0.95);
         border: 1px solid #ddd;
@@ -163,8 +163,7 @@
 
     <div id="legend" class="legend hidden bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
       <h3 id="legend-title" class="font-bold mb-2 text-sm">Jelmagyarázat</h3>
-      <div id="legend-content">
-          </div>
+      <div id="legend-content"></div>
     </div>
     
     <p id="map-disclaimer" class="text-sm text-red-600 text-center mt-2 font-semibold">
@@ -190,7 +189,7 @@
     let fpInstance = null;
     let currentMetric = 'pm2_5';
 
-    // IDŐZÓNA KEZELÉS
+    // --- IDŐZÓNA JAVÍTÁS ---
     function formatDateToLocal(isoString) {
         if (!isoString) return '-';
         const date = new Date(isoString);
@@ -205,7 +204,7 @@
         });
     }
 
-    // METRIKA KONFIGURÁCIÓ (Színek és határértékek)
+    // --- METRIKA KONFIG ---
     const METRIC_CONFIG = {
         'pm2_5': {
             label: 'PM2.5 (µg/m³)',
@@ -311,11 +310,9 @@
         const newLocale = (lang === 'hu') ? 'hu' : 'default';
         fpInstance.set('locale', newLocale);
       }
-      // Opciók frissítése nyelvváltáskor
+      // Opciók frissítése
       document.querySelector('option[value="pm25_diff"]').textContent = lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Diff';
-      document.querySelector('option[value="pm25_bg"]').textContent = lang === 'hu' ? 'PM2.5 Háttér' : 'PM2.5 Background';
       document.querySelector('option[value="co2_diff"]').textContent = lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Diff';
-      document.querySelector('option[value="co2_bg"]').textContent = lang === 'hu' ? 'CO₂ Háttér' : 'CO₂ Background';
       document.querySelector('option[value="temperature"]').textContent = lang === 'hu' ? 'Hőmérséklet' : 'Temperature';
       document.querySelector('option[value="humidity"]').textContent = lang === 'hu' ? 'Páratartalom' : 'Humidity';
       document.querySelector('option[value="altitude"]').textContent = lang === 'hu' ? 'Magasság' : 'Altitude';
@@ -352,22 +349,33 @@
       return null;
     };
 
+    // --- VISSZAÁLLÍTVA: RÉGI DÁTUM BETÖLTŐ (RPC) ---
     async function loadAvailableDates() {
       try {
-        const { data, error } = await supabaseClient
-          .from('available_dates')
-          .select('date')
-          .order('date', { ascending: true });
+        // RPC hívás, ami a te régi függvényedet használja
+        const { data, error } = await supabaseClient.rpc('get_distinct_dates');
 
         if (error) throw error;
-        return data.map(row => row.date).filter(Boolean);
+        
+        // Feltételezzük, hogy az RPC [{date: "YYYY-MM-DD"}, ...] formátumot ad
+        if (data && data.length > 0 && data[0].date) {
+             return data.map(item => item.date);
+        }
+        return data || [];
       } catch (err) {
         console.error('Hiba a dátumoknál:', err);
-        throw err;
+        // Fallback: az elmúlt 7 nap
+        const today = new Date();
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          dates.push(date.toISOString().split('T')[0]);
+        }
+        return dates;
       }
     }
 
-    // JAVÍTOTT HÁTTÉR INFÓ (UNDEFINED HIBA ELLEN)
     function updateBackgroundInfo(data) {
         const bgInfo = document.getElementById('background-info');
         const bgMorning = document.getElementById('bg-morning');
@@ -516,16 +524,23 @@
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
 
         const datePicker = document.getElementById('datePicker');
-        const validDates = await loadAvailableDates();
         
+        // --- IDŐZÍTÉS JAVÍTÁSA ---
+        const validDates = await loadAvailableDates();
         const today = new Date().toISOString().split('T')[0];
-        if (!validDates.includes(today)) validDates.push(today);
-        const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
+        
+        // MINDIG hozzáadjuk a mait a listához (akkor is, ha még nincs adat)
+        if (!validDates.includes(today)) {
+            validDates.push(today);
+        }
+
+        // Alapértelmezett dátum mindig a MAI nap
+        const defaultDate = today;
 
         fpInstance = flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
           enable: validDates,
-          defaultDate: latestDate,
+          defaultDate: defaultDate,
           onChange: () => updateMapData(),
           locale: savedLang
         });
@@ -570,7 +585,6 @@
 
             updateMapPaintProperties();
 
-            // --- POPUP BŐVÍTVE ---
             map.on('click', 'air_quality_points', async e => {
                 const lang = localStorage.getItem('language') || 'hu';
                 const langData = mapTranslations[lang];
@@ -613,11 +627,11 @@
           }
         }
 
-        if (latestDate) {
+        if (defaultDate) {
           updateMapData();
         }
 
-        // EXPORT FUNKCIÓ
+        // EXPORT FUNKCIÓ (TELJES)
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
@@ -651,7 +665,7 @@
               const coords = getCoordinates(p.location);
               const row = [
                 p.id || '',
-                formatDateToLocal(p.timestamp), // IDŐZÓNA JAVÍTVA
+                formatDateToLocal(p.timestamp),
                 coords ? coords.lng.toFixed(6) : '',
                 coords ? coords.lat.toFixed(6) : '',
                 p.pm1_0 || '',
