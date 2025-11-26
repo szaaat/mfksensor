@@ -349,30 +349,23 @@
       return null;
     };
 
-    // --- VISSZAÁLLÍTVA: RÉGI DÁTUM BETÖLTŐ (RPC) ---
+    // --- JAVÍTVA: VISSZA A RÉGI RPC-HEZ ---
     async function loadAvailableDates() {
       try {
-        // RPC hívás, ami a te régi függvényedet használja
         const { data, error } = await supabaseClient.rpc('get_distinct_dates');
 
         if (error) throw error;
         
-        // Feltételezzük, hogy az RPC [{date: "YYYY-MM-DD"}, ...] formátumot ad
+        // Ha az RPC objektumokat ad (pl. [{date: "2023-01-01"}]), kinyerjük a dátumot
         if (data && data.length > 0 && data[0].date) {
              return data.map(item => item.date);
         }
+        // Ha sima stringeket ad, akkor jó így
         return data || [];
       } catch (err) {
         console.error('Hiba a dátumoknál:', err);
-        // Fallback: az elmúlt 7 nap
-        const today = new Date();
-        const dates = [];
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() - i);
-          dates.push(date.toISOString().split('T')[0]);
-        }
-        return dates;
+        // Fallback: üres lista (a "ma" logika úgyis hozzáadja a mai napot)
+        return [];
       }
     }
 
@@ -525,22 +518,22 @@
 
         const datePicker = document.getElementById('datePicker');
         
-        // --- IDŐZÍTÉS JAVÍTÁSA ---
+        // --- JAVÍTOTT LOGIKA: MAI NAP MINDIG ELÉRHETŐ ---
         const validDates = await loadAvailableDates();
         const today = new Date().toISOString().split('T')[0];
         
-        // MINDIG hozzáadjuk a mait a listához (akkor is, ha még nincs adat)
+        // Ha a mai nap nincs a listában, hozzáadjuk a VÉGÉRE
         if (!validDates.includes(today)) {
             validDates.push(today);
         }
 
-        // Alapértelmezett dátum mindig a MAI nap
-        const defaultDate = today;
+        // Alapértelmezett dátum a lista legvége (ami vagy az utolsó adat, vagy a mai nap)
+        const latestDate = validDates[validDates.length - 1];
 
         fpInstance = flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
           enable: validDates,
-          defaultDate: defaultDate,
+          defaultDate: latestDate, // Mindig a legfrissebb (mai) dátumot választja
           onChange: () => updateMapData(),
           locale: savedLang
         });
@@ -627,11 +620,11 @@
           }
         }
 
-        if (defaultDate) {
+        if (latestDate) {
           updateMapData();
         }
 
-        // EXPORT FUNKCIÓ (TELJES)
+        // EXPORT FUNKCIÓ
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
