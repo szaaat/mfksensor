@@ -244,7 +244,7 @@
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
-                grid_size: 0.001,
+                grid_size: 0.003,
                 analysis_mode: currentAnalysisMode
             });
 
@@ -260,9 +260,9 @@
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
             heatLayer = L.heatLayer(heatData, {
-                radius: 12,
-                blur: 5,
-                maxZoom: 18,
+                radius: 15,      // NÖVELD MEG (Eredeti: 12) - Ez a "pötty" mérete
+                blur: 20,        // NÖVELD MEG (Eredeti: 5)  - Ez mossa össze őket
+                maxZoom: 3,     // CSÖKKENTSD (Eredeti: 18) - Ez trükkös, lásd lent a magyarázatot!
                 max: config.max,
                 gradient: config.gradient
             }).addTo(map);
