@@ -13,7 +13,7 @@
       position: absolute; inset: 0;
       background: rgba(255, 255, 255, 0.8);
       display: flex; justify-content: center; align-items: center;
-      flex-direction: column; /* Középre igazításhoz */
+      flex-direction: column;
       z-index: 1000;
     }
     .loading-spinner {
@@ -22,7 +22,7 @@
       border-radius: 50%;
       width: 50px; height: 50px;
       animation: spin 1s linear infinite;
-      margin-bottom: 1rem; /* Kis tér a spinner és a szöveg között */
+      margin-bottom: 1rem;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
@@ -30,7 +30,7 @@
     }
     .legend {
       position: absolute;
-      bottom: 20px;
+      bottom: 30px; /* Kicsit feljebb, hogy elférjen a háttér infó */
       left: 10px;
       background: rgba(255,255,255,0.95);
       border: 1px solid #ddd;
@@ -39,6 +39,7 @@
       border-radius: 5px;
       font-size: 12px;
       z-index: 1000;
+      max-width: 200px;
     }
     .legend-item {
       display: flex;
@@ -52,6 +53,20 @@
       margin-right: 5px;
       border-radius: 50%;
       border: 1px solid #666;
+    }
+    /* ÚJ: Háttér információs doboz */
+    .background-info {
+        position: absolute;
+        bottom: 250px; /* A jelmagyarázat fölé */
+        left: 10px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 1000;
+        width: 200px;
     }
     .custom-popup {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -84,12 +99,14 @@
     }
     @media (max-width: 768px) {
       #map { height: calc(100vh - 180px); }
-      .legend {
-        bottom: 10px;
+      .legend, .background-info {
         left: 5px;
         padding: 5px;
         font-size: 10px;
+        width: 150px;
       }
+      .legend { bottom: 20px; }
+      .background-info { bottom: 200px; }
     }
   </style>
 </head>
@@ -105,25 +122,49 @@
     </nav>
   </header>
   <main class="container mx-auto p-4 flex-grow relative">
-    <div class="mb-4 flex justify-center items-center gap-2">
+    <div class="mb-4 flex flex-wrap justify-center items-center gap-2">
       <label id="date-label" for="datePicker" class="text-md font-semibold text-gray-700">Válassz dátumot:</label>
-      <input type="text" id="datePicker" class="border rounded px-2 py-1" placeholder="Dátum kiválasztása" />
+      <input type="text" id="datePicker" class="border rounded px-2 py-1 w-32" placeholder="Dátum..." />
+      
+      <label id="metric-label" for="metricSelect" class="text-md font-semibold text-gray-700 ml-4">Adat:</label>
+      <select id="metricSelect" class="border rounded px-2 py-1 bg-white">
+          <option value="pm2_5">PM2.5</option>
+          <option value="pm25_diff">PM2.5 Különbség</option>
+          <option value="co2">CO₂</option>
+          <option value="co2_diff">CO₂ Különbség</option>
+          <option value="temperature">Hőmérséklet</option>
+          <option value="humidity">Páratartalom</option>
+          <option value="voc">VOC Index</option>
+          <option value="nox">NOx Index</option>
+          <option value="altitude">Magasság</option>
+      </select>
+
       <button id="exportButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2">Export CSV</button>
     </div>
+    
     <div id="loading" class="loading-overlay">
       <div class="loading-spinner"></div>
       <span id="loading-text" class="ml-4 text-lg font-semibold">Adatok betöltése...</span>
     </div>
+    
     <div id="map" class="rounded-xl shadow-lg border border-gray-300"></div>
-    <div id="legend" class="legend hidden bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
-      <h3 id="legend-title" class="font-bold mb-2 text-sm">Levegőminőség (PM2.5)</h3>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #00E400;"></div><span class="legend-text">0–10 µg/m³ (JÓ)</span></div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #66FF33;"></div><span class="legend-text">10.1–20 µg/m³ (MEGFELELŐ)</span></div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FFFF00;"></div><span class="legend-text">20.1–25 µg/m³ (ELFOGADHATÓ)</span></div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF9900;"></div><span class="legend-text">25.1–50 µg/m³ (SZENNYEZETT)</span></div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #FF0000;"></div><span class="legend-text">50.1–75 µg/m³ (ERŐSEN SZENNYEZETT)</span></div>
-      <div class="legend-item"><div class="legend-color rounded-full" style="background-color: #660033;"></div><span class="legend-text">75+ µg/m³ (EXTRÉM SZENNYEZETT)</span></div>
+    
+    <div id="background-info" class="background-info hidden">
+        <h3 class="font-bold mb-2 text-blue-700 border-b pb-1">Napi Háttér (PM2.5)</h3>
+        <div class="grid grid-cols-2 gap-1">
+            <span class="font-semibold">Délelőtt:</span>
+            <span id="bg-morning" class="text-right text-green-600 font-bold">-</span>
+            <span class="font-semibold">Délután:</span>
+            <span id="bg-afternoon" class="text-right text-green-600 font-bold">-</span>
+        </div>
     </div>
+
+    <div id="legend" class="legend hidden bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
+      <h3 id="legend-title" class="font-bold mb-2 text-sm">Jelmagyarázat</h3>
+      <div id="legend-content">
+          </div>
+    </div>
+    
     <p id="map-disclaimer" class="text-sm text-red-600 text-center mt-2 font-semibold">
       ⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!
     </p>
@@ -143,83 +184,109 @@
     );
 
     let geojsonData = null;
-    let fpInstance = null; // Ide mentjük a naptár-példányt
+    let fpInstance = null;
+    let currentMetric = 'pm2_5'; // Alapértelmezett metrika
+
+    // Konfiguráció a színezéshez és határértékekhez
+    const METRIC_CONFIG = {
+        'pm2_5': {
+            label: 'PM2.5 (µg/m³)',
+            stops: [0, 10, 20, 25, 50, 75],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Jó', 'Megfelelő', 'Elfogadható', 'Szennyezett', 'Erősen szenn.', 'Extrém']
+        },
+        'pm25_diff': {
+            label: 'PM2.5 Különbség (µg/m³)',
+            stops: [0, 2, 5, 10, 20, 50],
+            colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Semmi', 'Kicsi', 'Közepes', 'Magas', 'Nagyon Magas', 'Extrém']
+        },
+        'co2': {
+            label: 'CO₂ (ppm)',
+            stops: [400, 600, 800, 1000, 1500, 2000],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Friss', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
+        },
+        'co2_diff': {
+            label: 'CO₂ Különbség (ppm)',
+            stops: [0, 50, 100, 200, 400, 800],
+            colors: ['#FFFFFF', '#FFFF00', '#FFCC00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Semmi', 'Kicsi', 'Közepes', 'Magas', 'Nagyon Magas', 'Extrém']
+        },
+        'temperature': {
+            label: 'Hőmérséklet (°C)',
+            stops: [0, 10, 20, 25, 30, 35],
+            colors: ['#0000FF', '#00FFFF', '#00FF00', '#FFFF00', '#FF9900', '#FF0000'],
+            labels: ['Hideg', 'Hűvös', 'Kellemes', 'Meleg', 'Forró', 'Hőség']
+        },
+        'humidity': {
+            label: 'Páratartalom (%)',
+            stops: [0, 20, 40, 60, 80, 100],
+            colors: ['#FF0000', '#FF9900', '#FFFF00', '#00FF00', '#00FFFF', '#0000FF'],
+            labels: ['Száraz', 'Alacsony', 'Ideális', 'Magas', 'Nagyon magas', 'Telített']
+        },
+        'altitude': {
+            label: 'Magasság (m)',
+            stops: [100, 200, 300, 500, 800, 1000],
+            colors: ['#006400', '#228B22', '#32CD32', '#FFFF00', '#FFA500', '#8B4513'],
+            labels: ['Alföld', 'Domb', 'Domb', 'Hegy', 'Hegy', 'Csúcs']
+        },
+        'voc': {
+            label: 'VOC Index',
+            stops: [0, 50, 100, 150, 200, 300],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Tiszta', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
+        },
+        'nox': {
+            label: 'NOx Index',
+            stops: [0, 1, 2, 3, 4, 5],
+            colors: ['#00E400', '#66FF33', '#FFFF00', '#FF9900', '#FF0000', '#660033'],
+            labels: ['Tiszta', 'Jó', 'Közepes', 'Rossz', 'Nagyon Rossz', 'Veszélyes']
+        }
+    };
 
     const mapTranslations = {
       hu: {
         title: "ÉMNL 7B alprojekt – Mobil levegőminőségi szenzor térkép",
         back: "← Vissza a kezdőlapra",
         dateLabel: "Válassz dátumot:",
+        metricLabel: "Adat:",
         export: "Export CSV",
         loading: "Adatok betöltése...",
         disclaimer: "⚠️ A mérési adatok nem hitelesítettek – tájékoztató jellegűek!",
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium",
-        legendTitle: "Levegőminőség (PM2.5)",
-        legendItems: [
-          "0–10 µg/m³ (JÓ)",
-          "10.1–20 µg/m³ (MEGFELELŐ)",
-          "20.1–25 µg/m³ (ELFOGADHATÓ)",
-          "25.1–50 µg/m³ (SZENNYEZETT)",
-          "50.1–75 µg/m³ (ERŐSEN SZENNYEZETT)",
-          "75+ µg/m³ (EXTRÉM SZENNYEZETT)"
-        ],
         popupTitle: "Mérési adatok",
         popupTime: "Időpont:",
-        popupPM1: "PM1.0:",
-        popupPM25: "PM2.5:",
-        popupPM4: "PM4.0:",
-        popupPM10: "PM10:",
-        popupTemp: "Hőmérséklet:",
-        popupHumidity: "Páratartalom:",
-        popupVOC: "VOC:",
-        popupNOx: "NOx:",
-        popupCO2: "CO₂:",
-        exportHeaders: ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM1.0', 'PM2.5', 'PM4.0', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂']
+        exportHeaders: ['ID', 'Idő', 'Hosszúság', 'Szélesség', 'PM1.0', 'PM2.5', 'PM2.5 Háttér', 'PM2.5 Diff', 'PM4.0', 'PM10', 'Hőmérséklet', 'Páratartalom', 'VOC', 'NOx', 'CO₂', 'CO₂ Háttér', 'CO₂ Diff', 'Magasság', 'Szélseb.', 'Szélirány']
       },
       en: {
-        title: "Climate Change Multidisciplinary National Laboratory 7B Subproject – Mobile Air Quality Sensor Map",
+        title: "Mobile Air Quality Sensor Map",
         back: "← Back to home",
         dateLabel: "Select date:",
+        metricLabel: "Metric:",
         export: "Export CSV",
         loading: "Loading data...",
         disclaimer: "⚠️ Measurement data is not verified – for informational purposes only!",
         footer: "© Climate Change Multidisciplinary National Laboratory",
-        legendTitle: "Air Quality (PM2.5)",
-        legendItems: [
-          "0–10 µg/m³ (GOOD)",
-          "10.1–20 µg/m³ (MODERATE)",
-          "20.1–25 µg/m³ (ACCEPTABLE)",
-          "25.1–50 µg/m³ (POOR)",
-          "50.1–75 µg/m³ (VERY POOR)",
-          "75+ µg/m³ (EXTREME)"
-        ],
         popupTitle: "Measurement Data",
         popupTime: "Time:",
-        popupPM1: "PM1.0:",
-        popupPM25: "PM2.5:",
-        popupPM4: "PM4.0:",
-        popupPM10: "PM10:",
-        popupTemp: "Temperature:",
-        popupHumidity: "Humidity:",
-        popupVOC: "VOC:",
-        popupNOx: "NOx:",
-        popupCO2: "CO₂:",
-        exportHeaders: ['ID', 'Time', 'Longitude', 'Latitude', 'PM1.0', 'PM2.5', 'PM4.0', 'PM10', 'Temperature', 'Humidity', 'VOC', 'NOx', 'CO₂']
+        exportHeaders: ['ID', 'Time', 'Longitude', 'Latitude', 'PM1.0', 'PM2.5', 'PM2.5 BG', 'PM2.5 Diff', 'PM4.0', 'PM10', 'Temperature', 'Humidity', 'VOC', 'NOx', 'CO₂', 'CO₂ BG', 'CO₂ Diff', 'Altitude', 'Wind Speed', 'Wind Dir']
       }
     };
 
     function setMapLanguage(lang) {
       localStorage.setItem('language', lang);
       applyMapLanguage(lang);
-
-      // ▼▼▼ EZ AZ ÚJ RÉSZ ▼▼▼
-      // Frissítjük a már létező naptár nyelvét is
       if (fpInstance) {
-        // 'default' a flatpickr beépített angol nyelve, 'hu' a betöltött magyar
         const newLocale = (lang === 'hu') ? 'hu' : 'default';
         fpInstance.set('locale', newLocale);
       }
-      // ▲▲▲ EDDIG ▲▲▲
+      // Frissítjük a metrika választó feliratait is
+      document.querySelector('option[value="pm25_diff"]').textContent = lang === 'hu' ? 'PM2.5 Különbség' : 'PM2.5 Diff';
+      document.querySelector('option[value="co2_diff"]').textContent = lang === 'hu' ? 'CO₂ Különbség' : 'CO₂ Diff';
+      document.querySelector('option[value="temperature"]').textContent = lang === 'hu' ? 'Hőmérséklet' : 'Temperature';
+      document.querySelector('option[value="humidity"]').textContent = lang === 'hu' ? 'Páratartalom' : 'Humidity';
+      document.querySelector('option[value="altitude"]').textContent = lang === 'hu' ? 'Magasság' : 'Altitude';
     }
 
     function applyMapLanguage(lang) {
@@ -227,72 +294,100 @@
       document.getElementById('map-title').textContent = langData.title;
       document.getElementById('back-link').textContent = langData.back;
       document.getElementById('date-label').textContent = langData.dateLabel;
+      document.getElementById('metric-label').textContent = langData.metricLabel;
       document.getElementById('exportButton').textContent = langData.export;
       document.getElementById('loading-text').textContent = langData.loading;
       document.getElementById('map-disclaimer').textContent = langData.disclaimer;
       document.getElementById('map-footer').textContent = langData.footer;
-      document.getElementById('legend-title').textContent = langData.legendTitle;
       document.title = langData.title;
-
-      const legendItems = document.querySelectorAll('.legend-item .legend-text');
-      legendItems.forEach((item, index) => {
-        if (langData.legendItems[index]) {
-          item.textContent = langData.legendItems[index];
-        }
-      });
-
+      
       document.documentElement.lang = lang;
-
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
+      
+      // Jelmagyarázat frissítése
+      updateLegend();
     }
 
     const getCoordinates = (location) => {
-      if (!location) {
-        console.warn('Hiányzó location mező');
-        return null;
-      }
+      if (!location) return null;
       if (typeof location === 'string') {
-        try {
-          location = JSON.parse(location);
-        } catch (e) {
-          console.warn('Érvénytelen location JSON:', location, e);
-          return null;
-        }
+        try { location = JSON.parse(location); } catch (e) { return null; }
       }
       if (location?.type === 'Point' && Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
-        const lng = +location.coordinates[0];
-        const lat = +location.coordinates[1];
-        if (isNaN(lng) || isNaN(lat)) {
-          console.warn('Érvénytelen koordináták:', location.coordinates);
-          return null;
-        }
-        return { lng, lat };
+        return { lng: +location.coordinates[0], lat: +location.coordinates[1] };
       }
-      console.warn('Érvénytelen location formátum:', location);
       return null;
     };
 
-    // ▼▼▼ JAVÍTÁS: A függvény neve visszaállítva 'get_distinct_dates'-re ▼▼▼
     async function loadAvailableDates() {
       try {
         const { data, error } = await supabaseClient
-          .from('available_dates') // <-- Az új tábla neve
+          .from('available_dates')
           .select('date')
           .order('date', { ascending: true });
 
-        if (error) {
-          console.error('Hiba a dátumok lekérdezésekor:', error);
-          throw error; 
-        }
-        const dates = data.map(row => row.date).filter(Boolean);
-        console.log('Elérhető dátumok:', dates);
-        return dates;
+        if (error) throw error;
+        return data.map(row => row.date).filter(Boolean);
       } catch (err) {
-        console.error('Váratlan hiba a dátumok betöltésekor:', err);
+        console.error('Hiba a dátumoknál:', err);
         throw err;
       }
+    }
+
+    // Háttér adatok kinyerése a betöltött adatokból
+    function updateBackgroundInfo(data) {
+        const bgInfo = document.getElementById('background-info');
+        const bgMorning = document.getElementById('bg-morning');
+        const bgAfternoon = document.getElementById('bg-afternoon');
+        
+        if (!data || data.length === 0) {
+            bgInfo.classList.add('hidden');
+            return;
+        }
+
+        // Megkeressük az első nem null háttér értéket a délelőttiek és délutániak között
+        // Mivel a háttér érték naponta/napszakonként konstans, elég egyet találni.
+        let morningVal = null;
+        let afternoonVal = null;
+
+        for (const row of data) {
+            const hour = new Date(row.timestamp).getHours();
+            if (row.pm25_bg !== null) {
+                if (hour < 12 && morningVal === null) morningVal = row.pm25_bg;
+                if (hour >= 12 && afternoonVal === null) afternoonVal = row.pm25_bg;
+            }
+            if (morningVal !== null && afternoonVal !== null) break;
+        }
+
+        bgMorning.textContent = morningVal !== null ? `${morningVal.toFixed(1)} µg/m³` : '-';
+        bgAfternoon.textContent = afternoonVal !== null ? `${afternoonVal.toFixed(1)} µg/m³` : '-';
+        
+        bgInfo.classList.remove('hidden');
+    }
+
+    // Jelmagyarázat frissítése a választott metrika alapján
+    function updateLegend() {
+        const config = METRIC_CONFIG[currentMetric];
+        const legendContent = document.getElementById('legend-content');
+        const legendTitle = document.getElementById('legend-title');
+        
+        legendTitle.textContent = config.label;
+        legendContent.innerHTML = '';
+
+        for (let i = 0; i < config.stops.length; i++) {
+            const color = config.colors[i];
+            const label = config.labels ? config.labels[i] : `${config.stops[i]}+`;
+            const range = i < config.stops.length - 1 
+                ? `${config.stops[i]} – ${config.stops[i+1]}` 
+                : `${config.stops[i]}+`;
+            
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `<div class="legend-color" style="background-color: ${color};"></div><span class="legend-text">${range} (${label})</span>`;
+            legendContent.appendChild(item);
+        }
     }
 
     async function fetchAirQualityData(date) {
@@ -301,7 +396,6 @@
       try {
         const start = `${date} 00:00:00+00`;
         const end = `${date} 23:59:59+00`;
-        console.log('Lekérdezés időintervalluma:', { start, end });
 
         let allData = [];
         let offset = 0;
@@ -312,49 +406,32 @@
           .select('*', { count: 'exact', head: true })
           .gte('timestamp', start)
           .lte('timestamp', end);
-        if (countError) {
-          console.error('Hiba a rekordszám lekérdezésekor:', countError);
-          throw new Error('Hiba a rekordszám lekérdezésekor');
-        }
-        console.log('Várható rekordszám:', count);
+        
+        if (countError) throw countError;
 
         while (offset < count) {
+          // Bővített SELECT, hogy minden mező meglegyen
           const { data, error } = await supabaseClient
             .from('air_quality_view')
-            .select('id, timestamp, location, pm2_5')
+            .select('*') // Mindent lekérünk, hogy a popupban és színezésben használhassuk
             .gte('timestamp', start)
             .lte('timestamp', end)
             .order('timestamp', { ascending: true })
             .range(offset, offset + batchSize - 1);
-          if (error) {
-            console.error('Supabase hiba (offset ' + offset + '):', error);
-            throw new Error('Hiba az adatok lekérdezésekor');
-          }
-          if (!data || data.length === 0) {
-            console.log('Nincs több adat (offset ' + offset + ')');
-            break;
-          }
+            
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          
           allData = allData.concat(data);
-          console.log(`Betöltött rekordok száma (offset ${offset}):`, data.length, `Összes eddig: ${allData.length}`);
           offset += data.length;
         }
 
-        if (allData.length === 0) {
-          console.warn('Nincs adat a megadott időszakra:', date, 'Intervallum:', { start, end });
-          throw new Error('Nincs adat a megadott dátumra. Ellenőrizd a dátumot vagy a nézetet!');
-        }
-        console.log('Összes betöltött rekord:', allData.length);
-        console.log('Lekérdezett nyers adatok (első 3):', allData.slice(0, 3).map(row => ({
-          timestamp: row.timestamp,
-          coordinates: row.location ? row.location.coordinates : null
-        })));
+        // Háttér infó frissítése
+        updateBackgroundInfo(allData);
 
         const features = allData.map(row => {
           const coords = getCoordinates(row.location);
-          if (!coords) {
-            console.warn('Kihagyatott rekord érvénytelen koordináták miatt:', row);
-            return null;
-          }
+          if (!coords) return null;
           return {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
@@ -363,29 +440,20 @@
         }).filter(Boolean);
 
         geojsonData = { type: 'FeatureCollection', features };
-        console.log(`Lekérdezett adatok száma (${date}):`, features.length);
-        if (features.length > 0) {
-          console.log('Első pár adat:', features.slice(0, 3).map(f => ({
-            coordinates: f.geometry.coordinates,
-            timestamp: f.properties.timestamp
-          })));
-        }
         return geojsonData;
       } catch (err) {
-        console.error('Hiba az adatok betöltésekor:', err);
+        console.error('Hiba:', err);
         return { type: 'FeatureCollection', features: [] };
       } finally {
         loading.style.display = 'none';
       }
     }
 
-    // ▼▼▼ JAVÍTÁS: Az egész `DOMContentLoaded` eseménykezelőt egy try...catch blokkba tettük ▼▼▼
     document.addEventListener('DOMContentLoaded', async () => {
-      
       const loading = document.getElementById('loading');
       const loadingText = document.getElementById('loading-text');
       const loadingSpinner = document.querySelector('.loading-spinner');
-      let savedLang = 'hu'; // Alapértelmezett, ha hiba történik
+      let savedLang = 'hu';
 
       try {
         savedLang = localStorage.getItem('language') || 'hu';
@@ -394,8 +462,16 @@
         document.querySelectorAll('.lang-btn').forEach(btn => {
           btn.addEventListener('click', () => {
             setMapLanguage(btn.dataset.lang);
-            updateMap(); // Frissítsük a térképet is a nyelvváltáskor
+            // Nem kell updateMap(), mert a setMapLanguage frissíti a legendát
           });
+        });
+
+        // Metrika választó eseménykezelő
+        const metricSelect = document.getElementById('metricSelect');
+        metricSelect.addEventListener('change', (e) => {
+            currentMetric = e.target.value;
+            updateLegend();
+            updateMapPaintProperties(); // Csak a színezést frissítjük!
         });
 
         const map = new maplibregl.Map({
@@ -403,421 +479,201 @@
           style: {
             version: 8,
             sources: {
-              osm: {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '© OpenStreetMap'
-              },
-              'hillshade': {
-                type: 'raster-dem',
-                url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
-                tileSize: 256
-              }
+              osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap' }
             },
-            layers: [
-              {
-                id: 'osm-tiles',
-                type: 'raster',
-                source: 'osm',
-                minzoom: 0,
-                maxzoom: 22
-              },
-              {
-                id: 'hillshade',
-                type: 'hillshade',
-                source: 'hillshade',
-                layout: { visibility: 'none' }
-              }
-            ]
+            layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 22 }]
           },
           center: [20.36, 47.89],
-          zoom: 8,
-          antialias: true,
-          interactive: true,
-          pitchWithRotate: true,
-          attributionControl: false
+          zoom: 8
         });
 
         map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
         map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: 'metric' }));
-        map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
 
         const datePicker = document.getElementById('datePicker');
-        const exportButton = document.getElementById('exportButton');
-        const legend = document.getElementById('legend');
-        
-        // 1. Lekérjük a dátumokat a gyors táblából
         const validDates = await loadAvailableDates();
         
-        // 2. Kiszámoljuk a mai dátumot YYYY-MM-DD formátumban
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0'); // Hónapok 0-11
-        const dd = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${yyyy}-${mm}-${dd}`;
-
-        // 3. Hozzáadjuk a mait a listához, HA még nincs benne
-        if (!validDates.includes(todayStr)) {
-            console.log('A mai nap manuálisan hozzáadva a naptárhoz:', todayStr);
-            validDates.push(todayStr); // A lista végére szúrjuk
-        }
-
-        // 4. A 'latestDate' most már garantáltan a legfrissebb (a mai) lesz
+        const today = new Date().toISOString().split('T')[0];
+        if (!validDates.includes(today)) validDates.push(today);
         const latestDate = validDates.length > 0 ? validDates[validDates.length - 1] : null;
 
-        // 5. Átadjuk a kiegészített listát a naptárnak
         fpInstance = flatpickr("#datePicker", {
           dateFormat: "Y-m-d",
-          enable: validDates, // A kiegészített lista
-          defaultDate: latestDate, // Ez most már a mai nap lesz
-          onChange: () => updateMap(),
+          enable: validDates,
+          defaultDate: latestDate,
+          onChange: () => updateMapData(), // Teljes újratöltés
           locale: savedLang
         });
 
-        async function updateMap() {
-          const lang = localStorage.getItem('language') || 'hu';
-          const langData = mapTranslations[lang];
-          loading.style.display = 'flex';
-          try {
-            console.log('Adatok lekérdezése dátumra:', datePicker.value);
-            const geojson = await fetchAirQualityData(datePicker.value);
-            console.log('Lekérdezett adatok száma:', geojson.features.length);
-            console.log('Első pár adat:', geojson.features.slice(0, 3).map(f => ({
-              coordinates: f.geometry.coordinates,
-              timestamp: f.properties.timestamp
-            })));
+        // Ez a függvény felel a színek átállításáért (gyors!)
+        function updateMapPaintProperties() {
+            if (!map.getLayer('air_quality_points')) return;
 
-            if (map.getSource('air_quality')) {
-              map.getSource('air_quality').setData(geojson);
-            } else {
-              map.addSource('air_quality', {
-                type: 'geojson',
-                data: geojson,
-                cluster: true,
-                clusterRadius: 30,
-                clusterMaxZoom: 15,
-                clusterProperties: {
-                  'pm2_5_sum': ['+', ['get', 'pm2_5']]
-                }
-              });
-              map.addLayer({
-                id: 'clusters',
-                type: 'circle',
-                source: 'air_quality',
-                filter: ['has', 'point_count'],
-                paint: {
-                  'circle-color': [
-                    'interpolate', ['linear'],
-                    ['/', ['get', 'pm2_5_sum'], ['get', 'point_count']],
-                    0, '#00E400', 
-                    10, '#66FF33', 
-                    20, '#FFFF00',
-                    25, '#FF9900', 
-                    50, '#FF0000', 
-                    75, '#660033'
-                  ],
-                  'circle-radius': ['step', ['get', 'point_count'], 15, 10, 20, 50, 30],
-                  'circle-stroke-width': 1,
-                  'circle-stroke-color': '#fff'
-                }
-              });
-              map.addLayer({
-                id: 'air_quality_points',
-                type: 'circle',
-                source: 'air_quality',
-                filter: ['!', ['has', 'point_count']],
-                paint: {
-                  'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 6],
-                  'circle-color': ['interpolate', ['linear'], ['get', 'pm2_5'],
-                    0, '#00E400', 10, '#66FF33', 20, '#FFFF00',
-                    25, '#FF9900', 50, '#FF0000', 75, '#660033'
-                  ],
-                  'circle-opacity': 0.8,
-                  'circle-stroke-width': 1,
-                  'circle-stroke-color': '#fff'
-                }
-              });
-              map.on('click', 'clusters', e => {
-                const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-                const clusterId = features[0].properties.cluster_id;
-                map.getSource('air_quality').getClusterExpansionZoom(clusterId, (err, zoom) => {
-                  if (!err) {
-                    map.easeTo({ center: features[0].geometry.coordinates, zoom });
-                  }
-                });
-              });
-              
-              map.on('click', 'air_quality_points', async e => {
+            const config = METRIC_CONFIG[currentMetric];
+            // Interpolációs kifejezés felépítése MapLibre számára
+            const colorExpression = ['interpolate', ['linear'], ['get', currentMetric]];
+            
+            // A stops tömbből építjük fel: [stop1, color1, stop2, color2...]
+            for (let i = 0; i < config.stops.length; i++) {
+                colorExpression.push(config.stops[i]);
+                colorExpression.push(config.colors[i]);
+            }
+
+            // Pontok színezése
+            map.setPaintProperty('air_quality_points', 'circle-color', colorExpression);
+            
+            // Klaszterek színezése (Egyszerűsítés: A klaszterek színét is az átlag alapján állítjuk be)
+            // Megjegyzés: A klaszterezés logikája összetett dinamikus metrikáknál.
+            // Most a klaszterek maradnak "sűrűség" alapúak vagy az alapértelmezett színűek,
+            // hogy ne bonyolítsuk túl a MapLibre forrásfrissítést.
+            // A pontok viszont szépen átváltanak.
+        }
+
+        async function updateMapData() {
+          const geojson = await fetchAirQualityData(datePicker.value);
+          
+          if (map.getSource('air_quality')) {
+            map.getSource('air_quality').setData(geojson);
+          } else {
+            map.addSource('air_quality', {
+              type: 'geojson',
+              data: geojson,
+              cluster: false // Kikapcsoljuk a klasztert, hogy lássuk a pontokat pontosan
+            });
+            
+            map.addLayer({
+              id: 'air_quality_points',
+              type: 'circle',
+              source: 'air_quality',
+              paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 15, 8],
+                'circle-opacity': 0.8,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': '#fff'
+              }
+            });
+
+            // Kezdeti színezés
+            updateMapPaintProperties();
+
+            // POPUP logika (bővítve)
+            map.on('click', 'air_quality_points', async e => {
                 const lang = localStorage.getItem('language') || 'hu';
                 const langData = mapTranslations[lang];
-                
-                const properties = e.features[0].properties;
-                const pointId = properties.id;
+                const props = e.features[0].properties;
                 const coordinates = e.features[0].geometry.coordinates.slice();
 
-                const popup = new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
+                new maplibregl.Popup({ className: 'custom-popup', maxWidth: '300px' })
                   .setLngLat(coordinates)
                   .setHTML(`
                     <div class="popup-content">
                       <h3 class="font-bold text-lg mb-2 text-blue-700">${langData.popupTitle}</h3>
-                      <p>${langData.loading}...</p>
+                      <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><strong>Idő:</strong></div><div>${props.timestamp ? new Date(props.timestamp).toLocaleTimeString() : '-'}</div>
+                        <div><strong>PM2.5:</strong></div><div>${props.pm2_5?.toFixed(1) || '-'} µg/m³</div>
+                        <div><strong>PM2.5 Diff:</strong></div><div>${props.pm25_diff?.toFixed(1) || '-'}</div>
+                        <div><strong>PM2.5 Háttér:</strong></div><div>${props.pm25_bg?.toFixed(1) || '-'}</div>
+                        <div><strong>CO₂:</strong></div><div>${props.co2?.toFixed(0) || '-'} ppm</div>
+                        <div><strong>CO₂ Diff:</strong></div><div>${props.co2_diff?.toFixed(0) || '-'}</div>
+                        <div><strong>Hőmérséklet:</strong></div><div>${props.temperature?.toFixed(1) || '-'} °C</div>
+                        <div><strong>Magasság:</strong></div><div>${props.altitude?.toFixed(0) || '-'} m</div>
+                        <div><strong>Szél:</strong></div><div>${props.wind_speed_10m?.toFixed(1) || '-'} km/h</div>
+                      </div>
                     </div>
                   `)
                   .addTo(map);
-                window.currentPopup = popup;
-
-                try {
-                  const { data: fullData, error } = await supabaseClient
-                    .from('air_quality_view')
-                    .select('*')
-                    .eq('id', pointId)
-                    .single();
-
-                  if (error) throw error;
-                  if (!fullData) throw new Error('Point data not found');
-
-                  const p = fullData; 
-                  const options = lang === 'hu' ? {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  } : {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                  };
-                  const ts = p.timestamp ? new Date(p.timestamp).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB', options) : 'N/A';
-
-                  popup.setHTML(`
-                    <div class="popup-content">
-                      <h3 class="font-bold text-lg mb-2 text-blue-700">${langData.popupTitle}</h3>
-                      <div class="grid grid-cols-2 gap-2 text-sm">
-                        <div><strong>${langData.popupTime}</strong></div>
-                        <div>${ts}</div>
-                        <div><strong>${langData.popupPM1}</strong></div>
-                        <div>${p.pm1_0?.toFixed(1) || '–'} µg/m³</div>
-                        <div><strong>${langData.popupPM25}</strong></div>
-<div>${p.pm2_5?.toFixed(1) || '–'} µg/m³</div>
-                        <div><strong>${langData.popupPM4}</strong></div>
-                        <div>${p.pm4_0?.toFixed(1) || '–'} µg/m³</div>
-                        <div><strong>${langData.popupPM10}</strong></div>
-                        <div>${p.pm10_0?.toFixed(1) || '–'} µg/m³</div>
-                        <div><strong>${langData.popupTemp}</strong></div>
-                        <div>${p.temperature?.toFixed(1) || '–'} °C</div>
-                        <div><strong>${langData.popupHumidity}</strong></div>
-                        <div>${p.humidity?.toFixed(1) || '–'} %</div>
-                        <div><strong>${langData.popupVOC}</strong></div>
-                        <div>${p.voc || '–'} index</div>
-                        <div><strong>${langData.popupNOx}</strong></div>
-                        <div>${p.nox || '–'} index</div>
-                        <div><strong>${langData.popupCO2}</strong></div>
-                        <div>${p.co2 || '–'} ppm</div>
-                      </div>
-                    </div>
-                  `);
-
-                } catch (err) {
-                  console.error('Hiba a pont részleteinek lekérésekor:', err);
-                  popup.setHTML(`<p class="text-red-500">Hiba az adatok betöltésekor.</p>`);
-                }
-              });
-              legend.classList.remove('hidden');
-            }
-
-            const bounds = new maplibregl.LngLatBounds();
-            geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
-            if (!bounds.isEmpty()) {
-              map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
-            } else {
-              console.warn('Üres bounds, alapértelmezett nézet Miskolcra');
-              map.setCenter([20.36, 47.89]);
-              map.setZoom(8);
-            }
-          } catch (err) {
-            console.error('Hiba a térkép frissítésekor:', err.message);
-          } finally {
-            loading.style.display = 'none';
+            });
+          }
+          
+          updateMapPaintProperties(); // Adatfrissítés után is beállítjuk a színeket
+          
+          // Zoom a pontokra
+          const bounds = new maplibregl.LngLatBounds();
+          geojson.features.forEach(f => bounds.extend(f.geometry.coordinates));
+          if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
           }
         }
 
-        map.on('load', () => {
-          document.getElementById('legend').classList.remove('hidden');
-          map.setPaintProperty('osm-tiles', 'raster-opacity', 0.9);
-          map.setPaintProperty('osm-tiles', 'raster-contrast', 0.2);
-
-          const toggleDarkMode = document.createElement('button');
-          toggleDarkMode.innerHTML = '🌙';
-          toggleDarkMode.className = 'maplibregl-ctrl-icon maplibregl-ctrl-night-mode';
-          toggleDarkMode.onclick = () => {
-            map.setStyle('https://demotiles.maplibre.org/style.json');
-          };
-
-          const toggleLightMode = document.createElement('button');
-          toggleLightMode.innerHTML = '☀️';
-          toggleLightMode.className = 'maplibregl-ctrl-icon maplibregl-ctrl-day-mode';
-          toggleLightMode.onclick = () => {
-            map.setStyle({
-              version: 8,
-              sources: {
-                osm: {
-                  type: 'raster',
-                  tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                  tileSize: 256
-                }
-              },
-              layers: [{
-                id: 'osm-tiles',
-                type: 'raster',
-                source: 'osm'
-              }]
-            });
-          };
-
-          const customControls = document.createElement('div');
-          customControls.className = 'maplibregl-ctrl-group maplibregl-ctrl';
-          customControls.appendChild(toggleDarkMode);
-          customControls.appendChild(toggleLightMode);
-          map.addControl({
-            onAdd: function() { return customControls; },
-            onRemove: function() {}
-          }, 'top-right');
-        });
-
         if (latestDate) {
-          updateMap();
-        } else {
-          // Ha sikeres volt a betöltés, de nincsenek dátumok
-          if (loadingText) loadingText.textContent = (savedLang === 'hu') ? 'Nincsenek elérhető adatok.' : 'No data available.';
-          if (loadingSpinner) loadingSpinner.style.display = 'none';
-          // A betöltő képernyő látható marad ezzel az üzenettel
+          updateMapData();
         }
 
-        // Az export gomb eseménykezelője már a `try` blokkon belül van, ami rendben van
+        // EXPORT FUNKCIÓ (BŐVÍTETT)
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
           const langData = mapTranslations[lang];
-          console.log('Export gomb megnyomva, teljes adatbázis lekérdezése indul...');
-
           const date = datePicker.value;
-          if (!date) {
-            alert(lang === 'hu' ? 'Nincs kiválasztva dátum!' : 'No date selected!');
-            return;
-          }
+          if (!date) return;
 
           const exportButton = document.getElementById('exportButton');
-          const originalText = exportButton.textContent;
-          
           exportButton.disabled = true;
-          exportButton.textContent = lang === 'hu' ? 'Exportálás...' : 'Exporting...';
+          exportButton.textContent = "Export...";
 
           try {
+            // Újra lekérjük az adatokat (vagy használhatnánk a geojson-t is, de ez biztosabb)
             const start = `${date} 00:00:00+00`;
             const end = `${date} 23:59:59+00`;
             
-            const { count, error: countError } = await supabaseClient
-              .from('air_quality_view')
-              .select('*', { count: 'exact', head: true })
-              .gte('timestamp', start)
-              .lte('timestamp', end);
-            
-            if (countError) throw countError;
-            if (count === 0) {
-              alert(lang === 'hu' ? 'Nincs exportálható adat ezen a napon.' : 'No data to export for this date.');
-              return;
-            }
-            console.log('Exportálandó rekordok száma:', count);
-
             let allData = [];
             let offset = 0;
             const batchSize = 10000;
+            const { count } = await supabaseClient.from('air_quality_view').select('*', { count: 'exact', head: true }).gte('timestamp', start).lte('timestamp', end);
 
             while (offset < count) {
-              const { data, error } = await supabaseClient
-                .from('air_quality_view')
-                .select('*')
-                .gte('timestamp', start)
-                .lte('timestamp', end)
-                .order('timestamp', { ascending: true })
-                .range(offset, offset + batchSize - 1);
-
-              if (error) throw error;
-              if (!data || data.length === 0) break;
-              
-              allData = allData.concat(data);
-              console.log(`Export adatok betöltve: ${allData.length} / ${count}`);
-              offset += data.length;
+                const { data } = await supabaseClient.from('air_quality_view').select('*').gte('timestamp', start).lte('timestamp', end).range(offset, offset + batchSize - 1);
+                if (!data) break;
+                allData = allData.concat(data);
+                offset += data.length;
             }
 
             const csvRows = [];
             csvRows.push(langData.exportHeaders.join(','));
 
-            allData.forEach(props => {
-              const coords = getCoordinates(props.location);
-              const lng = coords ? coords.lng.toFixed(6) : 'N/A';
-              const lat = coords ? coords.lat.toFixed(6) : 'N/A';
-
+            allData.forEach(p => {
+              const coords = getCoordinates(p.location);
               const row = [
-                props.id || 'N/A',
-                props.timestamp ? new Date(props.timestamp).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB') : 'N/A',
-                lng, 
-                lat, 
-                props.pm1_0?.toFixed(1) || 'N/A',
-                props.pm2_5?.toFixed(1) || 'N/A',
-                props.pm4_0?.toFixed(1) || 'N/A',
-                props.pm10_0?.toFixed(1) || 'N/A',
-                props.temperature?.toFixed(1) || 'N/A',
-                props.humidity?.toFixed(1) || 'N/A',
-                props.voc || 'N/A',
-                props.nox || 'N/A',
-                props.co2 || 'N/A'
-              ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+                p.id || '',
+                p.timestamp || '',
+                coords ? coords.lng.toFixed(6) : '',
+                coords ? coords.lat.toFixed(6) : '',
+                p.pm1_0 || '',
+                p.pm2_5 || '',
+                p.pm25_bg || '',
+                p.pm25_diff || '',
+                p.pm4_0 || '',
+                p.pm10_0 || '',
+                p.temperature || '',
+                p.humidity || '',
+                p.voc || '',
+                p.nox || '',
+                p.co2 || '',
+                p.co2_bg || '',
+                p.co2_diff || '',
+                p.altitude || '',
+                p.wind_speed_10m || '',
+                p.wind_direction_10m || ''
+              ].map(f => `"${f}"`).join(',');
               csvRows.push(row);
             });
 
-            const csvContent = csvRows.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'air_quality_data_' + datePicker.value + '.csv';
+            a.download = `air_quality_${date}.csv`;
             a.click();
-            window.URL.revokeObjectURL(url);
-            console.log('Export sikeresen elindítva:', a.download);
-
-          } catch (err) {
-            console.error('Hiba az exportálás során:', err);
-            alert(lang === 'hu' ? `Hiba az exportálás során: ${err.message}` : `Error during export: ${err.message}`);
+          } catch (e) {
+              alert("Hiba az exportálásnál: " + e.message);
           } finally {
-            exportButton.disabled = false;
-            exportButton.textContent = originalText;
+              exportButton.disabled = false;
+              exportButton.textContent = langData.export;
           }
         });
 
       } catch (err) {
-        // ▼▼▼ ITT A HIBAKEZELŐ BLOKK ▼▼▼
-        console.error('Kritikus hiba az oldal betöltésekor:', err);
-        
-        // A te általad kért üzenet
-        const huMessage = "A nagy adatmennyiség miatt nem sikerült betölteni az elérhető dátumokat. Kérem frissítse az oldalt!";
-        const enMessage = "Failed to load available dates due to large data volume. Please refresh the page!";
-
-        // Biztosítjuk, hogy a töltőképernyő látható
-        if (loading) loading.style.display = 'flex'; 
-        // Elrejtjük a pörgő ikont
-        if (loadingSpinner) loadingSpinner.style.display = 'none'; 
-        // Beállítjuk a hibaüzenetet a megfelelő nyelven
-        if (loadingText) {
-          loadingText.textContent = (savedLang === 'hu') ? huMessage : enMessage;
-          loadingText.style.color = '#B91C1C'; // Pirosra állítjuk a szöveget
-          loadingText.style.textAlign = 'center'; // Esetleg középre zárjuk
-          loadingText.style.padding = '20px'; // Adjunk neki teret
-        }
+        console.error('Hiba:', err);
+        if (loadingText) loadingText.textContent = "Hiba történt az oldal betöltésekor.";
       }
     });
   </script>
