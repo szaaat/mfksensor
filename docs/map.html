@@ -56,20 +56,6 @@
       border-radius: 50%;
       border: 1px solid #666;
     }
-    .background-info {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        bottom: auto;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid #ddd;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 12px;
-        z-index: 1000;
-        width: 200px;
-    }
     .custom-popup {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       border-radius: 8px;
@@ -149,18 +135,8 @@
     </div>
     
     <div id="map" class="rounded-lg shadow-lg border border-gray-300"></div>
-    
-    <div id="background-info" class="background-info hidden">
-        <h3 id="background-title" class="font-bold mb-1 text-blue-700 border-b pb-1 mobile-text">Napi Háttér (PM2.5)</h3>
-        <div class="grid grid-cols-2 gap-1">
-            <span id="bg-morning-label" class="font-semibold mobile-text">Délelőtt:</span>
-            <span id="bg-morning" class="text-right text-green-600 font-bold mobile-text">-</span>
-            <span id="bg-afternoon-label" class="font-semibold mobile-text">Délután:</span>
-            <span id="bg-afternoon" class="text-right text-green-600 font-bold mobile-text">-</span>
-        </div>
-    </div>
 
-    <!-- JELMAGYARÁZAT VISSZATEVE -->
+    <!-- JELMAGYARÁZAT -->
     <div id="legend" class="legend bg-white bg-opacity-90 p-2 rounded-lg shadow-md">
       <h3 id="legend-title" class="font-bold mb-1 text-sm mobile-text">Jelmagyarázat</h3>
       <div id="legend-content"></div>
@@ -217,31 +193,6 @@
         const minutes = pad(date.getMinutes());
         const seconds = pad(date.getSeconds());
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    }
-
-    // CSV mezők formázása QGIS számára
-    function formatCSVField(value) {
-        if (value === null || value === undefined || value === '') {
-            return '';
-        }
-        
-        // Ha dátum string, ne legyen idézőjelben
-        if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
-            return value;
-        }
-        
-        // Számok esetén pontos tizedesjel és nincs felesleges formázás
-        if (typeof value === 'number') {
-            return value.toString();
-        }
-        
-        // String esetén ellenőrizzük, kell-e idézőjel
-        const str = String(value);
-        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
-        
-        return str;
     }
 
     const METRIC_CONFIG = {
@@ -371,9 +322,6 @@
         popupHumidity: "Páratartalom:",
         popupAltitude: "Magasság:",
         popupWind: "Szél:",
-        backgroundTitle: "Napi Háttér (PM2.5)",
-        backgroundMorning: "Délelőtt:",
-        backgroundAfternoon: "Délután:",
         legendTitle: "Jelmagyarázat",
         exportHeaders: ['ID', 'Time', 'Longitude', 'Latitude', 'PM1_0', 'PM2_5', 'PM25_Background', 'PM25_Diff', 'PM4_0', 'PM10_0', 'Temperature', 'Humidity', 'VOC', 'NOx', 'CO2', 'CO2_Background', 'CO2_Diff', 'Altitude', 'Wind_Speed', 'Wind_Direction']
       },
@@ -401,9 +349,6 @@
         popupHumidity: "Humidity:",
         popupAltitude: "Altitude:",
         popupWind: "Wind:",
-        backgroundTitle: "Daily Background (PM2.5)",
-        backgroundMorning: "Morning:",
-        backgroundAfternoon: "Afternoon:",
         legendTitle: "Legend",
         exportHeaders: ['ID', 'Time', 'Longitude', 'Latitude', 'PM1_0', 'PM2_5', 'PM25_Background', 'PM25_Diff', 'PM4_0', 'PM10_0', 'Temperature', 'Humidity', 'VOC', 'NOx', 'CO2', 'CO2_Background', 'CO2_Diff', 'Altitude', 'Wind_Speed', 'Wind_Direction']
       }
@@ -437,11 +382,6 @@
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       document.getElementById('nav-about').textContent = langData.navAbout;
-      
-      // Háttér információk fordítása
-      document.getElementById('background-title').textContent = langData.backgroundTitle;
-      document.getElementById('bg-morning-label').textContent = langData.backgroundMorning;
-      document.getElementById('bg-afternoon-label').textContent = langData.backgroundAfternoon;
       
       // Jelmagyarázat cím fordítása
       document.getElementById('legend-title').textContent = langData.legendTitle;
@@ -480,37 +420,6 @@
         console.error('Hiba a dátumoknál:', err);
         return [];
       }
-    }
-
-    function updateBackgroundInfo(data) {
-        const bgInfo = document.getElementById('background-info');
-        const bgMorning = document.getElementById('bg-morning');
-        const bgAfternoon = document.getElementById('bg-afternoon');
-        
-        if (!data || data.length === 0) {
-            bgInfo.classList.add('hidden');
-            return;
-        }
-
-        let morningVal = null;
-        let afternoonVal = null;
-
-        for (const row of data) {
-            if (!row.timestamp) continue;
-            const hour = new Date(row.timestamp).getHours();
-            
-            if (typeof row.pm25_bg === 'number') {
-                if (hour < 12 && morningVal === null) morningVal = row.pm25_bg;
-                if (hour >= 12 && afternoonVal === null) afternoonVal = row.pm25_bg;
-            }
-            if (morningVal !== null && afternoonVal !== null) break;
-        }
-
-        const formatVal = (val) => (typeof val === 'number') ? `${val.toFixed(1)} µg/m³` : '-';
-        bgMorning.textContent = formatVal(morningVal);
-        bgAfternoon.textContent = formatVal(afternoonVal);
-        
-        bgInfo.classList.remove('hidden');
     }
 
     function updateLegend() {
@@ -571,8 +480,6 @@
           offset += data.length;
         }
 
-        updateBackgroundInfo(allData);
-
         const features = allData.map(row => {
           const coords = getCoordinates(row.location);
           if (!coords) return null;
@@ -593,32 +500,28 @@
       }
     }
 
-    // WKT (Well-Known Text) formátumú export
-    function createWKTExport(allData) {
+    // Egyszerű CSV export - Optimalizálva QGIS számára
+    function createCSVForQGIS(allData) {
         const csvRows = [];
         
-        // WKT fejléc - QGIS számára optimalizálva
+        // Angol, ékezetmentes fejlécek
         const headers = [
-          'wkt_geom', 'ID', 'Time', 'Longitude', 'Latitude', 'PM1_0', 'PM2_5',
-          'PM25_Background', 'PM25_Diff', 'PM4_0', 'PM10_0',
-          'Temperature', 'Humidity', 'VOC', 'NOx', 'CO2',
-          'CO2_Background', 'CO2_Diff', 'Altitude',
-          'Wind_Speed', 'Wind_Direction'
+          'id', 'time', 'longitude', 'latitude', 'pm1_0', 'pm2_5',
+          'pm25_background', 'pm25_diff', 'pm4_0', 'pm10_0',
+          'temperature', 'humidity', 'voc', 'nox', 'co2',
+          'co2_background', 'co2_diff', 'altitude',
+          'wind_speed', 'wind_direction'
         ];
         csvRows.push(headers.join(','));
 
         allData.forEach(p => {
           const coords = getCoordinates(p.location);
           
-          // WKT geometria: POINT (x y) - 15 tizedesjegy pontossággal
-          const wkt = coords ? `POINT (${parseFloat(coords.lng.toFixed(15))} ${parseFloat(coords.lat.toFixed(15))})` : '';
-          
           const row = [
-            wkt,
-            p.id || '',
-            formatDateForCSV(p.timestamp),
-            coords ? parseFloat(coords.lng.toFixed(6)) : '',
-            coords ? parseFloat(coords.lat.toFixed(6)) : '',
+            p.id || '', // ID idézőjelek nélkül
+            formatDateForCSV(p.timestamp), // Dátum idézőjelek nélkül
+            coords ? parseFloat(coords.lng.toFixed(6)) : 0,
+            coords ? parseFloat(coords.lat.toFixed(6)) : 0,
             p.pm1_0 || 0,
             p.pm2_5 || 0,
             p.pm25_bg || 0,
@@ -635,53 +538,13 @@
             p.altitude || 0,
             p.wind_speed_10m || 0,
             p.wind_direction_10m || 0
-          ].map(field => formatCSVField(field)).join(',');
-          
-          csvRows.push(row);
-        });
-
-        return csvRows.join('\r\n');
-    }
-
-    // Egyszerű CSV export (csak koordinátákkal)
-    function createSimpleCSV(allData) {
-        const csvRows = [];
-        
-        // QGIS-barát fejlécek (angol, ékezetmentes)
-        const headers = [
-          'ID', 'Time', 'Longitude', 'Latitude', 'PM1_0', 'PM2_5',
-          'PM25_Background', 'PM25_Diff', 'PM4_0', 'PM10_0',
-          'Temperature', 'Humidity', 'VOC', 'NOx', 'CO2',
-          'CO2_Background', 'CO2_Diff', 'Altitude',
-          'Wind_Speed', 'Wind_Direction'
-        ];
-        csvRows.push(headers.join(','));
-
-        allData.forEach(p => {
-          const coords = getCoordinates(p.location);
-          
-          const row = [
-            p.id || '',
-            formatDateForCSV(p.timestamp),
-            coords ? parseFloat(coords.lng.toFixed(6)) : '',
-            coords ? parseFloat(coords.lat.toFixed(6)) : '',
-            p.pm1_0 || 0,
-            p.pm2_5 || 0,
-            p.pm25_bg || 0,
-            p.pm25_diff || 0,
-            p.pm4_0 || 0,
-            p.pm10_0 || 0,
-            p.temperature || 0,
-            p.humidity || 0,
-            p.voc || 0,
-            p.nox || 0,
-            p.co2 || 0,
-            p.co2_bg || 0,
-            p.co2_diff || 0,
-            p.altitude || 0,
-            p.wind_speed_10m || 0,
-            p.wind_direction_10m || 0
-          ].map(field => formatCSVField(field)).join(',');
+          ].map(field => {
+            // Ha a field string és tartalmaz vesszőt vagy idézőjelet, akkor idézőjelbe tesszük
+            if (typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n'))) {
+              return '"' + field.replace(/"/g, '""') + '"';
+            }
+            return field.toString();
+          }).join(',');
           
           csvRows.push(row);
         });
@@ -833,7 +696,6 @@
 
         document.getElementById('exportButton').addEventListener('click', async () => {
           const lang = localStorage.getItem('language') || 'hu';
-          const langData = mapTranslations[lang];
           const date = datePicker.value;
           if (!date) return;
 
@@ -850,16 +712,12 @@
             let offset = 0;
             const batchSize = 10000;
             
-            // Összes rekord száma
             const { count } = await supabaseClient
               .from('air_quality_view')
               .select('*', { count: 'exact', head: true })
               .gte('timestamp', start)
               .lte('timestamp', end);
 
-            console.log(`${count} rekord exportálása...`);
-
-            // Összes adat letöltése
             while (offset < count) {
                 const { data, error } = await supabaseClient
                   .from('air_quality_view')
@@ -876,34 +734,29 @@
                 offset += data.length;
             }
 
-            console.log(`${allData.length} rekord összegyűjtve CSV generáláshoz.`);
-
-            // Válassz export formátumot:
-            // 1. WKT formátum (pontos geometriával) - QGIS barát
-            // 2. Egyszerű CSV (csak koordinátákkal)
+            const csvContent = createCSVForQGIS(allData);
             
-            const exportFormat = 'wkt'; // vagy 'simple'
-            let csvContent;
-            
-            if (exportFormat === 'wkt') {
-              csvContent = createWKTExport(allData);
-            } else {
-              csvContent = createSimpleCSV(allData);
-            }
-
-            // UTF-8 BOM és Windows sortörés
+            // UTF-8 BOM hozzáadása (fontos QGIS számára)
             const fullContent = '\uFEFF' + csvContent;
             const blob = new Blob([fullContent], { type: 'text/csv;charset=utf-8' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `air_quality_${date}_${exportFormat}.csv`;
+            a.download = `air_quality_${date}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            console.log(`CSV export sikeres: ${allData.length} rekord, formátum: ${exportFormat}`);
+            console.log(`Export sikeres: ${allData.length} rekord`);
+            
+            // Információ a felhasználónak
+            if (lang === 'hu') {
+              alert(`Export sikeres!\n${allData.length} rekord exportálva.\n\nQGIS importáláshoz:\n1. Fájl → Adatforrásként megnyitás\n2. Formátum: CSV\n3. Geometria: X=longitude, Y=latitude\n4. Koordináta-rendszer: EPSG:4326 (WGS 84)`);
+            } else {
+              alert(`Export successful!\n${allData.length} records exported.\n\nFor QGIS import:\n1. File → Open Data Source\n2. Format: CSV\n3. Geometry: X=longitude, Y=latitude\n4. Coordinate System: EPSG:4326 (WGS 84)`);
+            }
+            
           } catch (e) {
               console.error("Export error:", e);
               alert(lang === 'hu' 
