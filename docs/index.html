@@ -83,7 +83,7 @@
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const dataTable = document.getElementById('dataTable');
     const lastUpdated = document.getElementById('lastUpdated');
@@ -211,7 +211,7 @@
         console.log('Adatok lekérése a következőhöz:', selectedSensorId);
 
         // Lekérdezés a Supabase 'fixed_measurements' táblából
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('fixed_measurements')
             .select('*')
             .eq('station_id', selectedSensorId)
