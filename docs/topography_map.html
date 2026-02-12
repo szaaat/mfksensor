@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topográfia - MFK Sensor</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+  
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    #map { flex-grow: 1; width: 100%; position: relative; }
+    
+    .map-overlay {
+      position: absolute; top: 1rem; left: 1rem;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1rem; border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      width: 300px; z-index: 10;
+      max-height: 85vh; overflow-y: auto;
+    }
+    
+    .legend-gradient { 
+      height: 12px; width: 100%; border-radius: 6px; margin-top: 5px; 
+      background: linear-gradient(to right, #00e400, #ffff00, #ff7e00, #ff0000, #8f3f97);
+    }
+    
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 50; flex-direction: column;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3; border-top: 5px solid #3498db;
+      border-radius: 50%; width: 50px; height: 50px;
+      animation: spin 1s linear infinite; margin-bottom: 10px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .period-btn {
+      flex: 1; padding: 0.5rem; text-align: center; cursor: pointer;
+      border: 1px solid #d1d5db; transition: all 0.2s; font-weight: 600; font-size: 0.85rem;
+    }
+    .period-btn:first-child { border-radius: 0.5rem 0 0 0.5rem; }
+    .period-btn:last-child { border-radius: 0 0.5rem 0.5rem 0; }
+    .period-btn.active { background-color: #15803d; color: white; border-color: #15803d; }
+    .period-btn:not(.active):hover { background-color: #f3f4f6; }
+    .period-btn.disabled { opacity: 0.5; cursor: not-allowed; background-color: #e5e7eb; color: #9ca3af; }
+
+    /* About.html gomb stílusok */
+    .lang-btn {
+      padding: 2px 10px; border: 1px solid white; border-radius: 4px;
+      background: transparent; color: white; cursor: pointer; font-size: 0.8rem;
+      transition: all 0.3s;
+    }
+    .lang-btn.active { background: white; color: green; font-weight: bold; }
+    .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
+    
+    input[type=range] { width: 100%; accent-color: #15803d; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+
+  <header class="bg-green-700 text-white text-center py-4 shadow-lg flex-none relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" onclick="setLang('hu')">HU</button>
+      <button id="lang-en" class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight mobile-title" data-translate="title">Topográfia és Levegőminőség</h1>
+  </header>
+
+  <nav class="bg-green-600 text-white py-2 shadow-md flex-none mobile-nav">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
+      <a href="index.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navHome">Kezdőlap</a>
+      <a href="map.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navMap">Térkép</a>
+      <a href="heatmap.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navHeatmap">Hőtérkép</a>
+      <a href="correlation.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navCorrelation">Korreláció</a>
+      <a href="topography_map.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2" data-translate="navTopo">Topográfia (3D)</a>
+      <a href="about.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navAbout">Rólunk</a>
+    </div>
+  </nav>
+
+  <div id="map">
+    <div id="loading" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <span id="loadingText" class="text-lg font-semibold text-green-800">Adatok feldolgozása...</span>
+    </div>
+
+    <div class="map-overlay font-sans text-gray-800">
+      
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-1" data-translate="selectDate">Dátum kiválasztása:</label>
+        <input type="text" id="datePicker" class="border rounded px-2 py-1 w-full text-sm">
+      </div>
+      
+      <hr class="my-2 border-gray-300">
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-2" data-translate="selectPeriod">Napszak:</label>
+        <div class="flex w-full">
+          <button id="btnMorning" class="period-btn active" onclick="setPeriod('morning')">
+            <span data-translate="morning">Délelőtt</span><br>
+            <span class="text-xs font-normal" data-translate="morningTime">(0-12h)</span>
+          </button>
+          <button id="btnAfternoon" class="period-btn" onclick="setPeriod('afternoon')">
+            <span data-translate="afternoon">Délután</span><br>
+            <span class="text-xs font-normal" data-translate="afternoonTime">(12-24h)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-2" data-translate="selectLayer">Réteg:</label>
+        <div class="flex flex-col gap-1 text-sm">
+          <label class="flex items-center cursor-pointer">
+            <input type="radio" name="layerMode" value="local" checked class="mr-2 text-green-600">
+            <span class="font-semibold text-red-600" data-translate="layerLocal">Lokális Többlet</span>
+          </label>
+          <label class="flex items-center cursor-pointer">
+            <input type="radio" name="layerMode" value="background" class="mr-2 text-green-600">
+            <span class="font-semibold text-blue-600" data-translate="layerBg">Regionális Háttér</span>
+          </label>
+          <label class="flex items-center cursor-pointer">
+            <input type="radio" name="layerMode" value="total" class="mr-2 text-green-600">
+            <span data-translate="layerTotal">Teljes Koncentráció</span>
+          </label>
+        </div>
+      </div>
+
+      <hr class="my-2 border-gray-300">
+
+      <div class="mb-2">
+        <label class="block text-sm font-bold mb-1">
+          <span data-translate="sensitivity">Érzékenység (Max):</span> 
+          <span id="sensitivityValue" class="text-green-700">100</span> µg/m³
+        </label>
+        <input type="range" id="sensitivitySlider" min="10" max="300" step="10" value="100">
+        <div class="flex justify-between text-xs text-gray-400">
+          <span>10 (Nyár)</span>
+          <span>300 (Tél)</span>
+        </div>
+      </div>
+
+      <div class="mt-2">
+        <div class="legend-gradient"></div>
+        <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold">
+          <span>0</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/hu.js"></script>
+
+  <script>
+    // --- KONFIGURÁCIÓ ---
+    // A Token a korábbi fájlból
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic3phYWF0IiwiYSI6ImNsODl6dnhwbjBidnQzbm81ZnZkajlpYmEifQ.5-MSbqmQxN70T9u7IOfcpg'; 
+
+    const supabaseUrl = 'https://yuamroqhxrflusxeyylp.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+    
+    const sbClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let map;
+    let processedData = []; 
+    let currentPeriod = 'morning'; 
+    let hasMorningData = false;
+    let hasAfternoonData = false;
+    let currentLang = 'hu';
+
+    // --- FRISSÍTETT FORDÍTÁSOK (a docx alapján) ---
+    const translations = {
+      hu: {
+        title: "Topográfia és Levegőminőség (PM2.5)",
+        navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", 
+        navCorrelation: "Korreláció", navTopo: "Topográfia (3D)", navAbout: "Rólunk",
+        selectDate: "Dátum kiválasztása:",
+        selectPeriod: "Napszak:",
+        morning: "Délelőtt", morningTime: "(0-12h)",
+        afternoon: "Délután", afternoonTime: "(12-24h)",
+        selectLayer: "Réteg:",
+        layerLocal: "Lokális Többlet",
+        layerBg: "Regionális Háttér",
+        layerTotal: "Teljes Koncentráció",
+        sensitivity: "Érzékenység (Max):",
+        loading: "Adatok betöltése...",
+        processing: "Feldolgozás...",
+        noData: "Erre a napra nincs adat.",
+        noDataPeriod: "Nincs adat",
+        error: "Hiba történt."
+      },
+      en: {
+        title: "Topography & Air Quality (PM2.5)",
+        navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", 
+        navCorrelation: "Correlation", navTopo: "Topography (3D)", navAbout: "About",
+        selectDate: "Select Date:",
+        selectPeriod: "Time of Day:",
+        morning: "Morning", morningTime: "(0-12h)",
+        afternoon: "Afternoon", afternoonTime: "(12-24h)",
+        selectLayer: "Layer:",
+        layerLocal: "Local Excess",       //
+        layerBg: "Regional Background",   //
+        layerTotal: "Total Concentration",
+        sensitivity: "Sensitivity (Max):",
+        loading: "Loading data...",
+        processing: "Processing...",
+        noData: "No data for this day.",
+        noDataPeriod: "No data",
+        error: "An error occurred."
+      }
+    };
+
+    function setLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('language', lang);
+      document.getElementById('lang-hu').classList.toggle('active', lang === 'hu');
+      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+      document.querySelectorAll('[data-translate]').forEach(el => {
+        const key = el.getAttribute('data-translate');
+        if(translations[lang][key]) el.textContent = translations[lang][key];
+      });
+      updatePeriodButtons();
+    }
+
+    // Koordináta tisztítás
+    function parseCoordinates(row) {
+        if (row.latitude && row.longitude) return { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) };
+        if (row.lat && row.lng) return { lat: parseFloat(row.lat), lng: parseFloat(row.lng) };
+        const loc = row.location;
+        if (!loc) return null;
+        if (typeof loc === 'object' && loc.type === 'Point' && Array.isArray(loc.coordinates)) {
+            return { lng: loc.coordinates[0], lat: loc.coordinates[1] };
+        }
+        if (typeof loc === 'string') {
+            if (loc.trim().startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(loc);
+                    if (parsed.type === 'Point' && Array.isArray(parsed.coordinates)) return { lng: parsed.coordinates[0], lat: parsed.coordinates[1] };
+                } catch(e) {}
+            }
+            if (loc.length > 40) {
+                try {
+                    const buffer = new ArrayBuffer(8);
+                    const view = new DataView(buffer);
+                    const hexToFloat = (str) => {
+                        for (let i = 0; i < 8; i++) view.setUint8(i, parseInt(str.substr(i * 2, 2), 16));
+                        return view.getFloat64(0, true);
+                    };
+                    const lon = hexToFloat(loc.substring(18, 34));
+                    const lat = hexToFloat(loc.substring(34, 50));
+                    if (!isNaN(lon) && !isNaN(lat)) return { lng: lon, lat: lat };
+                } catch(e) {}
+            }
+        }
+        return null;
+    }
+
+    function initMap() {
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-streets-v12', 
+        center: [20.79, 48.10], 
+        zoom: 10, pitch: 60, bearing: -20, antialias: true
+      });
+
+      map.on('load', () => {
+        map.addSource('mapbox-dem', {
+          'type': 'raster-dem',
+          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          'tileSize': 512, 'maxzoom': 14
+        });
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+        map.addSource('measurements', {
+          type: 'geojson', data: { type: 'FeatureCollection', features: [] }
+        });
+
+        // Heatmap réteg (Dinamikus)
+        map.addLayer({
+          id: 'heatmap-layer', type: 'heatmap', source: 'measurements',
+          paint: {
+            'heatmap-intensity': [
+              'interpolate', ['linear'], ['zoom'],
+              0, 1,
+              15, 3
+            ],
+            'heatmap-radius': [
+              'interpolate', ['linear'], ['zoom'],
+              0, 2,
+              9, 20,
+              15, 100, 
+              22, 200
+            ],
+            'heatmap-weight': [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, 0,
+                100, 1 
+            ],
+            'heatmap-opacity': 0.7,
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0,0,0,0)', 
+              0.2, '#00e400',
+              0.4, '#ffff00',
+              0.6, '#ff7e00',
+              0.8, '#ff0000',
+              1,   '#8f3f97'
+            ]
+          }
+        });
+
+        loadAvailableDates();
+      });
+    }
+
+    async function loadAvailableDates() {
+        try {
+            let dates = [];
+            const { data: rpcData, error: rpcError } = await sbClient.rpc('get_distinct_dates');
+            if (!rpcError && rpcData) {
+                dates = rpcData.map(d => d.date);
+            } else {
+                const { data: viewData } = await sbClient.from('available_dates').select('date').order('date', {ascending: false});
+                if(viewData) dates = viewData.map(d => d.date);
+            }
+            dates = dates.filter(Boolean).sort().reverse();
+            if(dates.length === 0) dates = [new Date().toISOString().split('T')[0]];
+
+            flatpickr("#datePicker", {
+                locale: 'hu', dateFormat: "Y-m-d", enable: dates, defaultDate: dates[0],
+                onChange: (selectedDates, dateStr) => { if (dateStr) loadData(dateStr); }
+            });
+            if(dates.length > 0) loadData(dates[0]);
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadData(date) {
+        const loadingEl = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+        loadingEl.classList.remove('hidden');
+        loadingText.textContent = translations[currentLang].loading;
+        
+        let allData = [];
+        let offset = 0;
+        const batchSize = 1000; 
+        let hasMore = true;
+
+        try {
+            while (hasMore) {
+                loadingText.textContent = `${translations[currentLang].loading} (${allData.length})`;
+                const { data, error } = await sbClient
+                    .from('air_quality_view')
+                    .select('*')
+                    .gte('timestamp', `${date}T00:00:00`)
+                    .lte('timestamp', `${date}T23:59:59`)
+                    .order('timestamp')
+                    .range(offset, offset + batchSize - 1);
+
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    allData = allData.concat(data);
+                    offset += batchSize;
+                    if (data.length < batchSize) hasMore = false;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            loadingText.textContent = translations[currentLang].processing;
+            if (allData.length > 0) {
+                processDecomposition(allData);
+            } else {
+                alert(translations[currentLang].noData);
+                processedData = [];
+                updateMapDisplay();
+                loadingEl.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error(err);
+            alert(translations[currentLang].error);
+            loadingEl.classList.add('hidden');
+        }
+    }
+
+    function processDecomposition(data) {
+        const validData = [];
+        data.forEach(d => {
+            const coords = parseCoordinates(d);
+            if (coords && d.pm2_5 !== null) {
+                d.lat = coords.lat;
+                d.lng = coords.lng;
+                const hour = new Date(d.timestamp).getHours();
+                d.period = (hour < 12) ? 'morning' : 'afternoon';
+                validData.push(d);
+            }
+        });
+
+        if (validData.length === 0) {
+            document.getElementById('loading').classList.add('hidden');
+            return;
+        }
+
+        const morningVals = validData.filter(d => d.period === 'morning').map(d => d.pm2_5).sort((a,b)=>a-b);
+        const afternoonVals = validData.filter(d => d.period === 'afternoon').map(d => d.pm2_5).sort((a,b)=>a-b);
+
+        hasMorningData = morningVals.length > 0;
+        hasAfternoonData = afternoonVals.length > 0;
+
+        const bgMorning = morningVals.length ? morningVals[Math.floor(morningVals.length * 0.05)] : 0;
+        const bgAfternoon = afternoonVals.length ? afternoonVals[Math.floor(afternoonVals.length * 0.05)] : 0;
+
+        processedData = validData.map(d => {
+            const bg = (d.period === 'morning') ? bgMorning : bgAfternoon;
+            return {
+                ...d,
+                c_bg: bg,
+                c_local: Math.max(0, d.pm2_5 - bg),
+                c_total: d.pm2_5
+            };
+        });
+
+        updatePeriodButtons();
+        
+        const bounds = new mapboxgl.LngLatBounds();
+        processedData.forEach(p => bounds.extend([p.lng, p.lat]));
+        map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+
+        if (hasMorningData) setPeriod('morning');
+        else if (hasAfternoonData) setPeriod('afternoon');
+        else updateMapDisplay();
+
+        document.getElementById('loading').classList.add('hidden');
+    }
+
+    function updatePeriodButtons() {
+        const btnM = document.getElementById('btnMorning');
+        const btnA = document.getElementById('btnAfternoon');
+        const txt = translations[currentLang].noDataPeriod;
+
+        if (!hasMorningData) {
+            btnM.classList.add('disabled');
+            btnM.title = txt;
+        } else {
+            btnM.classList.remove('disabled');
+            btnM.title = "";
+        }
+
+        if (!hasAfternoonData) {
+            btnA.classList.add('disabled');
+            btnA.title = txt;
+        } else {
+            btnA.classList.remove('disabled');
+            btnA.title = "";
+        }
+    }
+
+    window.setPeriod = function(period) {
+        if (period === 'morning' && !hasMorningData) return;
+        if (period === 'afternoon' && !hasAfternoonData) return;
+        currentPeriod = period;
+        document.getElementById('btnMorning').classList.toggle('active', period === 'morning');
+        document.getElementById('btnAfternoon').classList.toggle('active', period === 'afternoon');
+        updateMapDisplay();
+    };
+
+    document.getElementById('sensitivitySlider').addEventListener('input', function(e) {
+        const maxVal = parseInt(e.target.value);
+        document.getElementById('sensitivityValue').innerText = maxVal;
+        if(map.getLayer('heatmap-layer')) {
+            map.setPaintProperty('heatmap-layer', 'heatmap-weight', [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, 0,
+                maxVal, 1 
+            ]);
+        }
+    });
+
+    function updateMapDisplay() {
+        const mode = document.querySelector('input[name="layerMode"]:checked').value;
+        const filtered = processedData.filter(d => d.period === currentPeriod);
+
+        const features = filtered.map(d => {
+            let val = (mode === 'local') ? d.c_local : (mode === 'background' ? d.c_bg : d.c_total);
+            return {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
+                properties: { displayValue: val }
+            };
+        });
+
+        if (map.getSource('measurements')) {
+            map.getSource('measurements').setData({ type: 'FeatureCollection', features: features });
+        }
+        
+        const maxVal = parseInt(document.getElementById('sensitivitySlider').value);
+        if(map.getLayer('heatmap-layer')) {
+             map.setPaintProperty('heatmap-layer', 'heatmap-weight', [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, 0,
+                maxVal, 1 
+            ]);
+        }
+    }
+
+    document.querySelectorAll('input[name="layerMode"]').forEach(r => r.addEventListener('change', updateMapDisplay));
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedLang = localStorage.getItem('language') || 'hu';
+        setLang(savedLang);
+    });
+
+    initMap();
+  </script>
+</body>
+</html>

@@ -67,6 +67,7 @@
       <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
       <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
       <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Korreláció</a>
+      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navTopo">Topográfia (3D)</a>
       <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
 </nav>
@@ -340,6 +341,7 @@
         navMap: "Térkép",
         navHeatmap: "Hőtérkép",
         navCorrelation: "Korreláció",
+        navTopo: "Topográfia (3D)",
         navAbout: "Rólunk",
         periodAll: "Összes",
         periodWinter: "Tél",
@@ -380,6 +382,7 @@
         navMap: "Map",
         navHeatmap: "Heatmap",
         navCorrelation: "Correlation",
+      navTopo: "Topography (3D)",
         navAbout: "About",
         periodAll: "All",
         periodWinter: "Winter",
@@ -428,6 +431,7 @@
       document.getElementById('nav-map').textContent = langData.navMap;
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
+      if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;
