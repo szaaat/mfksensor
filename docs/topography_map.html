@@ -16,12 +16,23 @@
     #map { flex-grow: 1; width: 100%; position: relative; }
     
     .map-overlay {
-      position: absolute; top: 1rem; left: 1rem;
+      position: absolute; 
       background: rgba(255, 255, 255, 0.95);
       padding: 1rem; border-radius: 0.5rem;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      width: 300px; z-index: 10;
-      max-height: 85vh; overflow-y: auto;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    @media (min-width: 768px) {
+      .map-overlay { top: 1rem; left: 1rem; width: 320px; max-height: 85vh; }
+    }
+
+    @media (max-width: 767px) {
+      .map-overlay { 
+        bottom: 1rem; left: 1rem; right: 1rem; 
+        max-height: 45vh; 
+      }
     }
     
     .legend-gradient { 
@@ -52,7 +63,6 @@
     .period-btn:not(.active):hover { background-color: #f3f4f6; }
     .period-btn.disabled { opacity: 0.5; cursor: not-allowed; background-color: #e5e7eb; color: #9ca3af; }
 
-    /* About.html gomb stílusok */
     .lang-btn {
       padding: 2px 10px; border: 1px solid white; border-radius: 4px;
       background: transparent; color: white; cursor: pointer; font-size: 0.8rem;
@@ -62,6 +72,27 @@
     .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
     
     input[type=range] { width: 100%; accent-color: #15803d; }
+
+    .toast {
+      position: fixed;
+      bottom: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #ef4444; 
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: bottom 0.3s ease-in-out;
+      z-index: 100;
+      font-weight: bold;
+    }
+    .toast.show { bottom: 20px; }
+
+    #infoModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 1.5rem; border-radius: 0.5rem; max-width: 420px; width: 90%; }
+    
+    .mapboxgl-popup-content { font-family: sans-serif; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
@@ -71,7 +102,7 @@
       <button id="lang-hu" class="lang-btn active" onclick="setLang('hu')">HU</button>
       <button id="lang-en" class="lang-btn" onclick="setLang('en')">EN</button>
     </div>
-    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight mobile-title" data-translate="title">Topográfia és Levegőminőség</h1>
+    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight mobile-title" data-translate="title">Topográfia és Levegőminőség (PM2.5)</h1>
   </header>
 
   <nav class="bg-green-600 text-white py-2 shadow-md flex-none mobile-nav">
@@ -86,6 +117,8 @@
   </nav>
 
   <div id="map">
+    <div id="toast" class="toast hidden"></div>
+
     <div id="loading" class="loading-overlay hidden">
       <div class="loading-spinner"></div>
       <span id="loadingText" class="text-lg font-semibold text-green-800">Adatok feldolgozása...</span>
@@ -93,6 +126,8 @@
 
     <div class="map-overlay font-sans text-gray-800">
       
+      <p class="text-xs text-gray-600 mb-3" data-translate="introText">A 3D oszlopok magassága és színe a PM2.5 koncentrációt mutatja. <strong>Kattints egy oszlopra</strong> a részletekért!</p>
+
       <div class="mb-3">
         <label class="block text-sm font-bold mb-1" data-translate="selectDate">Dátum kiválasztása:</label>
         <input type="text" id="datePicker" class="border rounded px-2 py-1 w-full text-sm">
@@ -115,7 +150,10 @@
       </div>
 
       <div class="mb-3">
-        <label class="block text-sm font-bold mb-2" data-translate="selectLayer">Réteg:</label>
+        <label class="block text-sm font-bold mb-2">
+          <span data-translate="selectLayer">Réteg:</span>
+          <button id="infoBtn" onclick="showInfoModal()" class="ml-2 text-green-700 hover:text-green-900 text-lg leading-none" title="Információ a rétegekről">ℹ️</button>
+        </label>
         <div class="flex flex-col gap-1 text-sm">
           <label class="flex items-center cursor-pointer">
             <input type="radio" name="layerMode" value="local" checked class="mr-2 text-green-600">
@@ -136,25 +174,50 @@
 
       <div class="mb-2">
         <label class="block text-sm font-bold mb-1">
-          <span data-translate="sensitivity">Érzékenység (Max):</span> 
-          <span id="sensitivityValue" class="text-green-700">100</span> µg/m³
+          <span data-translate="sensitivity">Szín- és magasságskála maximuma (µg/m³):</span> 
+          <span id="sensitivityValue" class="text-green-700">100</span>
         </label>
-        <input type="range" id="sensitivitySlider" min="10" max="300" step="10" value="100">
+        <input type="range" id="sensitivitySlider" min="10" max="300" step="10" value="100" title="Ez határozza meg a legerősebb színt és a legmagasabb oszlopot">
         <div class="flex justify-between text-xs text-gray-400">
-          <span>10 (Nyár)</span>
-          <span>300 (Tél)</span>
+          <span data-translate="summer">10 (Nyár)</span>
+          <span data-translate="winter">300 (Tél)</span>
         </div>
       </div>
 
       <div class="mt-2">
         <div class="legend-gradient"></div>
-        <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold">
+        <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold" id="legendLabels">
           <span>0</span>
-          <span>25%</span>
-          <span>50%</span>
-          <span>75%</span>
-          <span>100%</span>
+          <span>25</span>
+          <span>50</span>
+          <span>75</span>
+          <span>100+</span>
         </div>
+      </div>
+
+      <div class="mt-6 text-xs">
+        <h4 class="font-bold mb-2" data-translate="aqiTableTitle">AQI kategóriák (PM2.5) – egészségügyi hatás</h4>
+        <table class="w-full border-collapse text-left">
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">0–50</td><td class="font-bold text-green-600" data-translate="aqiGood">Jó</td><td class="text-gray-600" data-translate="aqiGoodDesc">Kis vagy semmi kockázat</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">51-100</td><td class="font-bold text-yellow-500" data-translate="aqiMod">Mérsékelt</td><td class="text-gray-600" data-translate="aqiModDesc">Érzékenyeknek kockázat</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">101-150</td><td class="font-bold text-orange-500" data-translate="aqiUnhSens">Egészségtelen*</td><td class="text-gray-600" data-translate="aqiUnhSensDesc">Érzékeny csoportoknak</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">151-200</td><td class="font-bold text-red-500" data-translate="aqiUnh">Egészségtelen</td><td class="text-gray-600" data-translate="aqiUnhDesc">Mindenki tapasztalhatja</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">201-300</td><td class="font-bold text-purple-600" data-translate="aqiVeryUnh">Nagyon eg.</td><td class="text-gray-600" data-translate="aqiVeryUnhDesc">Egészségügyi riasztás</td></tr>
+          <tr><td class="py-1 pr-3 font-bold">300+</td><td class="font-bold text-red-900" data-translate="aqiHaz">Veszélyes</td><td class="text-gray-600" data-translate="aqiHazDesc">Súlyos hatások</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="infoModal">
+    <div class="modal-content">
+      <h3 class="font-bold text-lg mb-3 border-b pb-2" data-translate="modalTitle">Rétegek magyarázata</h3>
+      <p class="mb-2" data-translate="modalLocal"><strong class="text-red-600">Lokális többlet</strong>: A mért érték mínusz a napi háttérkoncentráció (az 5%-os legkisebb érték). Ez mutatja a helyi kibocsátó forrásokat (pl. közeli forgalom, kémény).</p>
+      <p class="mb-2" data-translate="modalBg"><strong class="text-blue-600">Regionális háttér</strong>: A terület általános, kiterjedt szennyezettsége azon a napon (az alsó 5% átlaga).</p>
+      <p class="mb-4" data-translate="modalTotal"><strong>Teljes koncentráció</strong>: A műszer által abban a pillanatban mért teljes nyers érték (Helyi + Háttér).</p>
+      <div class="text-right">
+        <button onclick="hideInfoModal()" class="bg-green-700 hover:bg-green-800 transition-colors text-white px-6 py-2 rounded font-bold shadow-md" data-translate="closeBtn">Bezárás</button>
       </div>
     </div>
   </div>
@@ -164,8 +227,6 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/hu.js"></script>
 
   <script>
-    // --- KONFIGURÁCIÓ ---
-    // A Token a korábbi fájlból
     mapboxgl.accessToken = 'pk.eyJ1Ijoic3phYWF0IiwiYSI6ImNsODl6dnhwbjBidnQzbm81ZnZkajlpYmEifQ.5-MSbqmQxN70T9u7IOfcpg'; 
 
     const supabaseUrl = 'https://yuamroqhxrflusxeyylp.supabase.co';
@@ -180,61 +241,120 @@
     let hasAfternoonData = false;
     let currentLang = 'hu';
 
-    // --- FRISSÍTETT FORDÍTÁSOK (a docx alapján) ---
     const translations = {
       hu: {
         title: "Topográfia és Levegőminőség (PM2.5)",
         navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", 
         navCorrelation: "Korreláció", navTopo: "Topográfia (3D)", navAbout: "Rólunk",
-        selectDate: "Dátum kiválasztása:",
-        selectPeriod: "Napszak:",
-        morning: "Délelőtt", morningTime: "(0-12h)",
-        afternoon: "Délután", afternoonTime: "(12-24h)",
-        selectLayer: "Réteg:",
-        layerLocal: "Lokális Többlet",
-        layerBg: "Regionális Háttér",
-        layerTotal: "Teljes Koncentráció",
-        sensitivity: "Érzékenység (Max):",
-        loading: "Adatok betöltése...",
-        processing: "Feldolgozás...",
-        noData: "Erre a napra nincs adat.",
-        noDataPeriod: "Nincs adat",
-        error: "Hiba történt."
+        selectDate: "Dátum kiválasztása:", selectPeriod: "Napszak:",
+        morning: "Délelőtt", morningTime: "(0-12h)", afternoon: "Délután", afternoonTime: "(12-24h)",
+        selectLayer: "Réteg:", layerLocal: "Lokális Többlet", layerBg: "Regionális Háttér", layerTotal: "Teljes Koncentráció",
+        sensitivity: "Szín- és magasságskála maximuma (µg/m³):", summer: "10 (Nyár)", winter: "300 (Tél)",
+        loading: "Adatok betöltése...", processing: "Feldolgozás...",
+        noData: "Erre a napra nincs adat.", noDataPeriod: "Nincs adat", error: "Hiba történt.",
+        // ÚJ SZÖVEGEK
+        introText: "A 3D oszlopok magassága és színe a PM2.5 koncentrációt mutatja. <strong>Kattints egy oszlopra</strong> a részletekért!",
+        infoTitle: "Információ a rétegekről",
+        sliderTitle: "Ez határozza meg a legerősebb színt és a legmagasabb oszlopot",
+        aqiTableTitle: "AQI kategóriák (PM2.5) – egészségügyi hatás",
+        aqiGood: "Jó", aqiGoodDesc: "Kis vagy semmi kockázat",
+        aqiMod: "Mérsékelt", aqiModDesc: "Érzékenyeknek kockázat",
+        aqiUnhSens: "Egészségtelen*", aqiUnhSensDesc: "Érzékeny csoportoknak",
+        aqiUnh: "Egészségtelen", aqiUnhDesc: "Mindenki tapasztalhatja",
+        aqiVeryUnh: "Nagyon eg.", aqiVeryUnhDesc: "Egészségügyi riasztás",
+        aqiHaz: "Veszélyes", aqiHazDesc: "Súlyos hatások",
+        modalTitle: "Rétegek magyarázata",
+        modalLocal: "<strong class=\"text-red-600\">Lokális többlet</strong>: A mért érték mínusz a napi háttérkoncentráció (az 5%-os legkisebb érték). Ez mutatja a helyi kibocsátó forrásokat (pl. közeli forgalom, kémény).",
+        modalBg: "<strong class=\"text-blue-600\">Regionális háttér</strong>: A terület általános, kiterjedt szennyezettsége azon a napon (az alsó 5% átlaga).",
+        modalTotal: "<strong>Teljes koncentráció</strong>: A műszer által abban a pillanatban mért teljes nyers érték (Helyi + Háttér).",
+        closeBtn: "Bezárás",
+        popupEffect: "Hatás", popupAdvice: "Tanács",
+        advGood: "Kiváló idő a szabadtéri tevékenységekhez.",
+        advMod: "Korlátozd a hosszan tartó szabadtéri terhelést, ha érzékeny vagy.",
+        advUnhSens: "Kerüld a hosszan tartó szabadtéri terhelést.",
+        advUnh: "Kerüld a hosszan tartó szabadtéri erőfeszítést.",
+        advVeryUnh: "Kerüld minden szabadtéri erőfeszítést.",
+        advHaz: "Maradj zárt térben.",
+        healthGood: "Kis vagy semmi kockázat",
+        healthMod: "Mérsékelt egészségügyi aggodalom érzékeny csoportoknak",
+        healthUnhSens: "Az érzékeny csoportok tagjai egészségügyi hatásokat tapasztalhatnak",
+        healthUnh: "Mindenki tapasztalhat egészségügyi hatásokat",
+        healthVeryUnh: "Egészségügyi figyelmeztetés vészhelyzetekre",
+        healthHaz: "Súlyosabb egészségügyi hatások mindenkire"
       },
       en: {
         title: "Topography & Air Quality (PM2.5)",
         navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", 
         navCorrelation: "Correlation", navTopo: "Topography (3D)", navAbout: "About",
-        selectDate: "Select Date:",
-        selectPeriod: "Time of Day:",
-        morning: "Morning", morningTime: "(0-12h)",
-        afternoon: "Afternoon", afternoonTime: "(12-24h)",
-        selectLayer: "Layer:",
-        layerLocal: "Local Excess",       //
-        layerBg: "Regional Background",   //
-        layerTotal: "Total Concentration",
-        sensitivity: "Sensitivity (Max):",
-        loading: "Loading data...",
-        processing: "Processing...",
-        noData: "No data for this day.",
-        noDataPeriod: "No data",
-        error: "An error occurred."
+        selectDate: "Select Date:", selectPeriod: "Time of Day:",
+        morning: "Morning", morningTime: "(0-12h)", afternoon: "Afternoon", afternoonTime: "(12-24h)",
+        selectLayer: "Layer:", layerLocal: "Local Excess", layerBg: "Regional Background", layerTotal: "Total Concentration",
+        sensitivity: "Color & Height scale maximum (µg/m³):", summer: "10 (Summer)", winter: "300 (Winter)",
+        loading: "Loading data...", processing: "Processing...",
+        noData: "No data for this day.", noDataPeriod: "No data", error: "An error occurred.",
+        // NEW TEXTS
+        introText: "The height and color of the 3D columns show the PM2.5 concentration. <strong>Click on a column</strong> for details!",
+        infoTitle: "Information about layers",
+        sliderTitle: "This determines the strongest color and the tallest column",
+        aqiTableTitle: "AQI Categories (PM2.5) – Health Effects",
+        aqiGood: "Good", aqiGoodDesc: "Little to no risk",
+        aqiMod: "Moderate", aqiModDesc: "Risk for sensitive people",
+        aqiUnhSens: "Unhealthy*", aqiUnhSensDesc: "For sensitive groups",
+        aqiUnh: "Unhealthy", aqiUnhDesc: "Everyone may experience effects",
+        aqiVeryUnh: "Very Unh.", aqiVeryUnhDesc: "Health alert",
+        aqiHaz: "Hazardous", aqiHazDesc: "Serious effects",
+        modalTitle: "Explanation of Layers",
+        modalLocal: "<strong class=\"text-red-600\">Local excess</strong>: The measured value minus the daily background concentration (average of the lowest 5%). This shows local emission sources (e.g., nearby traffic, chimneys).",
+        modalBg: "<strong class=\"text-blue-600\">Regional background</strong>: The general, widespread pollution of the area on that day (average of the lowest 5%).",
+        modalTotal: "<strong>Total concentration</strong>: The raw value measured by the device at that moment (Local + Background).",
+        closeBtn: "Close",
+        popupEffect: "Effect", popupAdvice: "Advice",
+        advGood: "Great time for outdoor activities.",
+        advMod: "Limit prolonged outdoor exertion if sensitive.",
+        advUnhSens: "Avoid prolonged outdoor exertion.",
+        advUnh: "Avoid prolonged outdoor exertion.",
+        advVeryUnh: "Avoid all outdoor physical activities.",
+        advHaz: "Remain indoors.",
+        healthGood: "Little to no risk",
+        healthMod: "Moderate health concern for sensitive groups",
+        healthUnhSens: "Members of sensitive groups may experience health effects",
+        healthUnh: "Everyone may experience health effects",
+        healthVeryUnh: "Health warning of emergency conditions",
+        healthHaz: "Serious health effects for everyone"
       }
     };
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('show'), 10); 
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.classList.add('hidden'), 300); 
+      }, 3000);
+    }
 
     function setLang(lang) {
       currentLang = lang;
       localStorage.setItem('language', lang);
       document.getElementById('lang-hu').classList.toggle('active', lang === 'hu');
       document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+      
+      // JAVÍTÁS: textContent helyett innerHTML a formázások megtartása miatt
       document.querySelectorAll('[data-translate]').forEach(el => {
         const key = el.getAttribute('data-translate');
-        if(translations[lang][key]) el.textContent = translations[lang][key];
+        if(translations[lang][key]) el.innerHTML = translations[lang][key]; 
       });
+      
+      // Eszköztippek (tooltips) fordítása
+      document.getElementById('infoBtn').title = translations[lang].infoTitle;
+      document.getElementById('sensitivitySlider').title = translations[lang].sliderTitle;
+
       updatePeriodButtons();
     }
 
-    // Koordináta tisztítás
     function parseCoordinates(row) {
         if (row.latitude && row.longitude) return { lat: parseFloat(row.latitude), lng: parseFloat(row.longitude) };
         if (row.lat && row.lng) return { lat: parseFloat(row.lat), lng: parseFloat(row.lng) };
@@ -243,36 +363,78 @@
         if (typeof loc === 'object' && loc.type === 'Point' && Array.isArray(loc.coordinates)) {
             return { lng: loc.coordinates[0], lat: loc.coordinates[1] };
         }
-        if (typeof loc === 'string') {
-            if (loc.trim().startsWith('{')) {
-                try {
-                    const parsed = JSON.parse(loc);
-                    if (parsed.type === 'Point' && Array.isArray(parsed.coordinates)) return { lng: parsed.coordinates[0], lat: parsed.coordinates[1] };
-                } catch(e) {}
-            }
-            if (loc.length > 40) {
-                try {
-                    const buffer = new ArrayBuffer(8);
-                    const view = new DataView(buffer);
-                    const hexToFloat = (str) => {
-                        for (let i = 0; i < 8; i++) view.setUint8(i, parseInt(str.substr(i * 2, 2), 16));
-                        return view.getFloat64(0, true);
-                    };
-                    const lon = hexToFloat(loc.substring(18, 34));
-                    const lat = hexToFloat(loc.substring(34, 50));
-                    if (!isNaN(lon) && !isNaN(lat)) return { lng: lon, lat: lat };
-                } catch(e) {}
-            }
-        }
         return null;
     }
+
+    function createSquare(lat, lng, radiusInMeters) {
+        const earthRadius = 6378137; 
+        const rLat = (radiusInMeters / earthRadius) * (180 / Math.PI);
+        const rLng = (radiusInMeters / earthRadius) * (180 / Math.PI) / Math.cos(lat * Math.PI / 180);
+        return [[
+            [lng - rLng, lat - rLat],
+            [lng + rLng, lat - rLat],
+            [lng + rLng, lat + rLat],
+            [lng - rLng, lat + rLat],
+            [lng - rLng, lat - rLat]
+        ]];
+    }
+
+    // NYELV-FÜGGŐ AQI FÜGGVÉNY
+    function getAqiCategory(val) {
+      const t = translations[currentLang];
+      if (val <= 50) return { level: t.aqiGood, color: "#16a34a", health: t.healthGood, advice: t.advGood };
+      if (val <= 100) return { level: t.aqiMod, color: "#eab308", health: t.healthMod, advice: t.advMod };
+      if (val <= 150) return { level: t.aqiUnhSens, color: "#f97316", health: t.healthUnhSens, advice: t.advUnhSens };
+      if (val <= 200) return { level: t.aqiUnh, color: "#ef4444", health: t.healthUnh, advice: t.advUnh };
+      if (val <= 300) return { level: t.aqiVeryUnh, color: "#9333ea", health: t.healthVeryUnh, advice: t.advVeryUnh };
+      return { level: t.aqiHaz, color: "#7f1d1d", health: t.healthHaz, advice: t.advHaz };
+    }
+
+    function addPopupHandler() {
+      map.on('click', '3d-extrusion-layer', (e) => {
+        if (!e.features.length) return;
+        const props = e.features[0].properties;
+        const val = props.displayValue || 0;
+        
+        const mode = document.querySelector('input[name="layerMode"]:checked').value;
+        const t = translations[currentLang];
+        // Dinamikus rétegnév a Pop-upnak
+        const modeText = mode === 'local' ? t.layerLocal : (mode === 'background' ? t.layerBg : t.layerTotal);
+        
+        const cat = getAqiCategory(val);
+        
+        new mapboxgl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '280px' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="mb-1 text-sm text-gray-500">${modeText}</div>
+            <div class="text-2xl font-bold mb-1" style="color: ${cat.color}">
+              ${val.toFixed(1)} <span class="text-sm font-normal text-gray-600">µg/m³</span>
+            </div>
+            <div style="color: ${cat.color}; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 6px;">
+              ${cat.level}
+            </div>
+            <div class="text-xs text-gray-700 mb-1"><strong>${t.popupEffect}:</strong> ${cat.health}</div>
+            <div class="text-xs text-gray-500 italic"><strong>${t.popupAdvice}:</strong> ${cat.advice}</div>
+          `)
+          .addTo(map);
+      });
+      
+      map.on('mouseenter', '3d-extrusion-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', '3d-extrusion-layer', () => { map.getCanvas().style.cursor = ''; });
+    }
+
+    function showInfoModal() { document.getElementById('infoModal').style.display = 'flex'; }
+    function hideInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
+    document.getElementById('infoModal').addEventListener('click', function(e) {
+      if (e.target === this) hideInfoModal();
+    });
 
     function initMap() {
       map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/satellite-streets-v12', 
         center: [20.79, 48.10], 
-        zoom: 10, pitch: 60, bearing: -20, antialias: true
+        zoom: 12, pitch: 65, bearing: -20, antialias: true 
       });
 
       map.on('load', () => {
@@ -287,40 +449,30 @@
           type: 'geojson', data: { type: 'FeatureCollection', features: [] }
         });
 
-        // Heatmap réteg (Dinamikus)
         map.addLayer({
-          id: 'heatmap-layer', type: 'heatmap', source: 'measurements',
-          paint: {
-            'heatmap-intensity': [
-              'interpolate', ['linear'], ['zoom'],
-              0, 1,
-              15, 3
+          'id': '3d-extrusion-layer',
+          'type': 'fill-extrusion',
+          'source': 'measurements',
+          'paint': {
+            'fill-extrusion-color': [
+              'interpolate', ['linear'], ['get', 'displayValue'],
+              0, '#00e400',
+              25, '#ffff00',
+              50, '#ff7e00',
+              75, '#ff0000',
+              100, '#8f3f97'
             ],
-            'heatmap-radius': [
-              'interpolate', ['linear'], ['zoom'],
-              0, 2,
-              9, 20,
-              15, 100, 
-              22, 200
+            'fill-extrusion-height': [
+              'interpolate', ['linear'], ['get', 'displayValue'],
+              0, 0,
+              100, 800 
             ],
-            'heatmap-weight': [
-                'interpolate', ['linear'], ['get', 'displayValue'],
-                0, 0,
-                100, 1 
-            ],
-            'heatmap-opacity': 0.7,
-            'heatmap-color': [
-              'interpolate', ['linear'], ['heatmap-density'],
-              0, 'rgba(0,0,0,0)', 
-              0.2, '#00e400',
-              0.4, '#ffff00',
-              0.6, '#ff7e00',
-              0.8, '#ff0000',
-              1,   '#8f3f97'
-            ]
+            'fill-extrusion-base': 0, 
+            'fill-extrusion-opacity': 0.8 
           }
         });
 
+        addPopupHandler();
         loadAvailableDates();
       });
     }
@@ -339,7 +491,8 @@
             if(dates.length === 0) dates = [new Date().toISOString().split('T')[0]];
 
             flatpickr("#datePicker", {
-                locale: 'hu', dateFormat: "Y-m-d", enable: dates, defaultDate: dates[0],
+                locale: currentLang === 'hu' ? 'hu' : 'default', // Alapértelmezett naptár nyelv
+                dateFormat: "Y-m-d", enable: dates, defaultDate: dates[0],
                 onChange: (selectedDates, dateStr) => { if (dateStr) loadData(dateStr); }
             });
             if(dates.length > 0) loadData(dates[0]);
@@ -376,34 +529,44 @@
                 } else {
                     hasMore = false;
                 }
+                
+                await new Promise(resolve => requestAnimationFrame(resolve));
             }
 
             loadingText.textContent = translations[currentLang].processing;
             if (allData.length > 0) {
                 processDecomposition(allData);
             } else {
-                alert(translations[currentLang].noData);
+                showToast(translations[currentLang].noData); 
                 processedData = [];
                 updateMapDisplay();
                 loadingEl.classList.add('hidden');
             }
         } catch (err) {
             console.error(err);
-            alert(translations[currentLang].error);
+            showToast(translations[currentLang].error); 
             loadingEl.classList.add('hidden');
         }
     }
 
     function processDecomposition(data) {
         const validData = [];
+        const seenPoints = new Set(); 
+
         data.forEach(d => {
             const coords = parseCoordinates(d);
             if (coords && d.pm2_5 !== null) {
-                d.lat = coords.lat;
-                d.lng = coords.lng;
-                const hour = new Date(d.timestamp).getHours();
-                d.period = (hour < 12) ? 'morning' : 'afternoon';
-                validData.push(d);
+                const precision = 4; 
+                const gridKey = `${coords.lat.toFixed(precision)}|${coords.lng.toFixed(precision)}`;
+
+                if (!seenPoints.has(gridKey)) {
+                    d.lat = coords.lat;
+                    d.lng = coords.lng;
+                    const hour = new Date(d.timestamp).getHours();
+                    d.period = (hour < 12) ? 'morning' : 'afternoon';
+                    validData.push(d);
+                    seenPoints.add(gridKey);
+                }
             }
         });
 
@@ -478,24 +641,40 @@
     document.getElementById('sensitivitySlider').addEventListener('input', function(e) {
         const maxVal = parseInt(e.target.value);
         document.getElementById('sensitivityValue').innerText = maxVal;
-        if(map.getLayer('heatmap-layer')) {
-            map.setPaintProperty('heatmap-layer', 'heatmap-weight', [
+        
+        const labels = document.getElementById('legendLabels').children;
+        labels[0].innerText = '0';
+        labels[1].innerText = Math.round(maxVal * 0.25);
+        labels[2].innerText = Math.round(maxVal * 0.50);
+        labels[3].innerText = Math.round(maxVal * 0.75);
+        labels[4].innerText = maxVal + '+';
+
+        if(map.getLayer('3d-extrusion-layer')) {
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-color', [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, '#00e400',
+                maxVal * 0.25, '#ffff00',
+                maxVal * 0.50, '#ff7e00',
+                maxVal * 0.75, '#ff0000',
+                maxVal, '#8f3f97'
+            ]);
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-height', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
                 0, 0,
-                maxVal, 1 
+                maxVal, 800
             ]);
         }
     });
 
     function updateMapDisplay() {
-        const mode = document.querySelector('input[name="layerMode"]:checked').value;
+        const mode = document.querySelector('input[name=\"layerMode\"]:checked').value;
         const filtered = processedData.filter(d => d.period === currentPeriod);
 
         const features = filtered.map(d => {
             let val = (mode === 'local') ? d.c_local : (mode === 'background' ? d.c_bg : d.c_total);
             return {
                 type: 'Feature',
-                geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
+                geometry: { type: 'Polygon', coordinates: createSquare(d.lat, d.lng, 15) },
                 properties: { displayValue: val }
             };
         });
@@ -505,16 +684,24 @@
         }
         
         const maxVal = parseInt(document.getElementById('sensitivitySlider').value);
-        if(map.getLayer('heatmap-layer')) {
-             map.setPaintProperty('heatmap-layer', 'heatmap-weight', [
+        if(map.getLayer('3d-extrusion-layer')) {
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-color', [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, '#00e400',
+                maxVal * 0.25, '#ffff00',
+                maxVal * 0.50, '#ff7e00',
+                maxVal * 0.75, '#ff0000',
+                maxVal, '#8f3f97'
+            ]);
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-height', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
                 0, 0,
-                maxVal, 1 
+                maxVal, 800
             ]);
         }
     }
 
-    document.querySelectorAll('input[name="layerMode"]').forEach(r => r.addEventListener('change', updateMapDisplay));
+    document.querySelectorAll('input[name=\"layerMode\"]').forEach(r => r.addEventListener('change', updateMapDisplay));
 
     document.addEventListener('DOMContentLoaded', () => {
         const savedLang = localStorage.getItem('language') || 'hu';
