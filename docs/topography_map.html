@@ -37,7 +37,7 @@
     
     .legend-gradient { 
       height: 12px; width: 100%; border-radius: 6px; margin-top: 5px; 
-      background: linear-gradient(to right, #00e400, #ffff00, #ff7e00, #ff0000, #8f3f97);
+      background: linear-gradient(to right, #009966, #66cc99, #ffde33, #ff9933, #cc0033, #660099);
     }
     
     .loading-overlay {
@@ -188,22 +188,23 @@
         <div class="legend-gradient"></div>
         <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold" id="legendLabels">
           <span>0</span>
+          <span>10</span>
+          <span>20</span>
           <span>25</span>
           <span>50</span>
-          <span>75</span>
-          <span>100+</span>
+          <span>75+</span>
         </div>
       </div>
 
       <div class="mt-6 text-xs">
-        <h4 class="font-bold mb-2" data-translate="aqiTableTitle">AQI kategóriák (PM2.5) – egészségügyi hatás</h4>
+        <h4 class="font-bold mb-2" data-translate="aqiTableTitle">Levegőhigiénés Index kategóriák (PM2.5) – egészségügyi hatás</h4>
         <table class="w-full border-collapse text-left">
-          <tr class="border-b"><td class="py-1 pr-3 font-bold">0–50</td><td class="font-bold text-green-600" data-translate="aqiGood">Jó</td><td class="text-gray-600" data-translate="aqiGoodDesc">Kis vagy semmi kockázat</td></tr>
-          <tr class="border-b"><td class="py-1 pr-3 font-bold">51-100</td><td class="font-bold text-yellow-500" data-translate="aqiMod">Mérsékelt</td><td class="text-gray-600" data-translate="aqiModDesc">Érzékenyeknek kockázat</td></tr>
-          <tr class="border-b"><td class="py-1 pr-3 font-bold">101-150</td><td class="font-bold text-orange-500" data-translate="aqiUnhSens">Egészségtelen*</td><td class="text-gray-600" data-translate="aqiUnhSensDesc">Érzékeny csoportoknak</td></tr>
-          <tr class="border-b"><td class="py-1 pr-3 font-bold">151-200</td><td class="font-bold text-red-500" data-translate="aqiUnh">Egészségtelen</td><td class="text-gray-600" data-translate="aqiUnhDesc">Mindenki tapasztalhatja</td></tr>
-          <tr class="border-b"><td class="py-1 pr-3 font-bold">201-300</td><td class="font-bold text-purple-600" data-translate="aqiVeryUnh">Nagyon eg.</td><td class="text-gray-600" data-translate="aqiVeryUnhDesc">Egészségügyi riasztás</td></tr>
-          <tr><td class="py-1 pr-3 font-bold">300+</td><td class="font-bold text-red-900" data-translate="aqiHaz">Veszélyes</td><td class="text-gray-600" data-translate="aqiHazDesc">Súlyos hatások</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">0–10</td><td class="font-bold text-[#009966]" data-translate="aqiExcellent">Kiváló</td><td class="text-gray-600" data-translate="aqiExcellentDesc">Nincs kockázat</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">10-20</td><td class="font-bold text-[#66cc99]" data-translate="aqiGood">Jó</td><td class="text-gray-600" data-translate="aqiGoodDesc">Kis kockázat</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">20-25</td><td class="font-bold text-[#ffde33]" data-translate="aqiModerate">Megfelelő</td><td class="text-gray-600" data-translate="aqiModerateDesc">Érzékenyeknek kockázat</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">25-50</td><td class="font-bold text-[#ff9933]" data-translate="aqiPoor">Szennyezett</td><td class="text-gray-600" data-translate="aqiPoorDesc">Érzékeny csoportoknak egészségtelen</td></tr>
+          <tr class="border-b"><td class="py-1 pr-3 font-bold">50-75</td><td class="font-bold text-[#cc0033]" data-translate="aqiVeryPoor">Erősen szennyezett</td><td class="text-gray-600" data-translate="aqiVeryPoorDesc">Mindenki tapasztalhatja</td></tr>
+          <tr><td class="py-1 pr-3 font-bold">75+</td><td class="font-bold text-[#660099]" data-translate="aqiExtremelyPoor">Rendkívül szennyezett</td><td class="text-gray-600" data-translate="aqiExtremelyPoorDesc">Súlyos hatások</td></tr>
         </table>
       </div>
 
@@ -256,31 +257,31 @@
         introText: "A 3D oszlopok magassága és színe a PM2.5 koncentrációt mutatja. <strong>Kattints egy oszlopra</strong> a részletekért!",
         infoTitle: "Információ a rétegekről",
         sliderTitle: "Ez határozza meg a legerősebb színt és a legmagasabb oszlopot",
-        aqiTableTitle: "AQI kategóriák (PM2.5) – egészségügyi hatás",
-        aqiGood: "Jó", aqiGoodDesc: "Kis vagy semmi kockázat",
-        aqiMod: "Mérsékelt", aqiModDesc: "Érzékenyeknek kockázat",
-        aqiUnhSens: "Egészségtelen*", aqiUnhSensDesc: "Érzékeny csoportoknak",
-        aqiUnh: "Egészségtelen", aqiUnhDesc: "Mindenki tapasztalhatja",
-        aqiVeryUnh: "Nagyon eg.", aqiVeryUnhDesc: "Egészségügyi riasztás",
-        aqiHaz: "Veszélyes", aqiHazDesc: "Súlyos hatások",
+        aqiTableTitle: "Levegőhigiénés Index kategóriák (PM2.5) – egészségügyi hatás",
+        aqiExcellent: "Kiváló", aqiExcellentDesc: "Nincs kockázat",
+        aqiGood: "Jó", aqiGoodDesc: "Kis kockázat",
+        aqiModerate: "Megfelelő", aqiModerateDesc: "Érzékenyeknek kockázat",
+        aqiPoor: "Szennyezett", aqiPoorDesc: "Érzékeny csoportoknak egészségtelen",
+        aqiVeryPoor: "Erősen szennyezett", aqiVeryPoorDesc: "Mindenki tapasztalhatja",
+        aqiExtremelyPoor: "Rendkívül szennyezett", aqiExtremelyPoorDesc: "Súlyos hatások",
         modalTitle: "Rétegek magyarázata",
         modalLocal: "<strong class=\"text-red-600\">Lokális többlet</strong>: A mért érték mínusz a napi háttérkoncentráció (az 5%-os legkisebb érték). Ez mutatja a helyi kibocsátó forrásokat (pl. közeli forgalom, kémény).",
         modalBg: "<strong class=\"text-blue-600\">Regionális háttér</strong>: A terület általános, kiterjedt szennyezettsége azon a napon (az alsó 5% átlaga).",
         modalTotal: "<strong>Teljes koncentráció</strong>: A műszer által abban a pillanatban mért teljes nyers érték (Helyi + Háttér).",
         closeBtn: "Bezárás",
         popupEffect: "Hatás", popupAdvice: "Tanács",
-        advGood: "Kiváló idő a szabadtéri tevékenységekhez.",
-        advMod: "Korlátozd a hosszan tartó szabadtéri terhelést, ha érzékeny vagy.",
-        advUnhSens: "Kerüld a hosszan tartó szabadtéri terhelést.",
-        advUnh: "Kerüld a hosszan tartó szabadtéri erőfeszítést.",
-        advVeryUnh: "Kerüld minden szabadtéri erőfeszítést.",
-        advHaz: "Maradj zárt térben.",
-        healthGood: "Kis vagy semmi kockázat",
-        healthMod: "Mérsékelt egészségügyi aggodalom érzékeny csoportoknak",
-        healthUnhSens: "Az érzékeny csoportok tagjai egészségügyi hatásokat tapasztalhatnak",
-        healthUnh: "Mindenki tapasztalhat egészségügyi hatásokat",
-        healthVeryUnh: "Egészségügyi figyelmeztetés vészhelyzetekre",
-        healthHaz: "Súlyosabb egészségügyi hatások mindenkire"
+        advExcellent: "Kiváló idő a szabadtéri tevékenységekhez.",
+        advGood: "Jó idő a szabadtéri tevékenységekhez.",
+        advModerate: "Korlátozd a hosszan tartó szabadtéri terhelést, ha érzékeny vagy.",
+        advPoor: "Kerüld a hosszan tartó szabadtéri terhelést.",
+        advVeryPoor: "Kerüld a szabadtéri erőfeszítést.",
+        advExtremelyPoor: "Maradj zárt térben.",
+        healthExcellent: "Nincs kockázat",
+        healthGood: "Kis kockázat",
+        healthModerate: "Mérsékelt egészségügyi aggodalom érzékeny csoportoknak",
+        healthPoor: "Az érzékeny csoportok tagjai egészségügyi hatásokat tapasztalhatnak",
+        healthVeryPoor: "Mindenki tapasztalhat egészségügyi hatásokat",
+        healthExtremelyPoor: "Súlyos egészségügyi hatások mindenkire"
       },
       en: {
         title: "Topography & Air Quality (PM2.5)",
@@ -296,31 +297,31 @@
         introText: "The height and color of the 3D columns show the PM2.5 concentration. <strong>Click on a column</strong> for details!",
         infoTitle: "Information about layers",
         sliderTitle: "This determines the strongest color and the tallest column",
-        aqiTableTitle: "AQI Categories (PM2.5) – Health Effects",
-        aqiGood: "Good", aqiGoodDesc: "Little to no risk",
-        aqiMod: "Moderate", aqiModDesc: "Risk for sensitive people",
-        aqiUnhSens: "Unhealthy*", aqiUnhSensDesc: "For sensitive groups",
-        aqiUnh: "Unhealthy", aqiUnhDesc: "Everyone may experience effects",
-        aqiVeryUnh: "Very Unh.", aqiVeryUnhDesc: "Health alert",
-        aqiHaz: "Hazardous", aqiHazDesc: "Serious effects",
+        aqiTableTitle: "Air Quality Index Categories (PM2.5) – Health Effects",
+        aqiExcellent: "Excellent", aqiExcellentDesc: "No risk",
+        aqiGood: "Good", aqiGoodDesc: "Low risk",
+        aqiModerate: "Moderate", aqiModerateDesc: "Risk for sensitive people",
+        aqiPoor: "Poor", aqiPoorDesc: "Unhealthy for sensitive groups",
+        aqiVeryPoor: "Very Poor", aqiVeryPoorDesc: "Everyone may experience effects",
+        aqiExtremelyPoor: "Extremely Poor", aqiExtremelyPoorDesc: "Serious effects",
         modalTitle: "Explanation of Layers",
         modalLocal: "<strong class=\"text-red-600\">Local excess</strong>: The measured value minus the daily background concentration (average of the lowest 5%). This shows local emission sources (e.g., nearby traffic, chimneys).",
         modalBg: "<strong class=\"text-blue-600\">Regional background</strong>: The general, widespread pollution of the area on that day (average of the lowest 5%).",
         modalTotal: "<strong>Total concentration</strong>: The raw value measured by the device at that moment (Local + Background).",
         closeBtn: "Close",
         popupEffect: "Effect", popupAdvice: "Advice",
-        advGood: "Great time for outdoor activities.",
-        advMod: "Limit prolonged outdoor exertion if sensitive.",
-        advUnhSens: "Avoid prolonged outdoor exertion.",
-        advUnh: "Avoid prolonged outdoor exertion.",
-        advVeryUnh: "Avoid all outdoor physical activities.",
-        advHaz: "Remain indoors.",
-        healthGood: "Little to no risk",
-        healthMod: "Moderate health concern for sensitive groups",
-        healthUnhSens: "Members of sensitive groups may experience health effects",
-        healthUnh: "Everyone may experience health effects",
-        healthVeryUnh: "Health warning of emergency conditions",
-        healthHaz: "Serious health effects for everyone"
+        advExcellent: "Excellent time for outdoor activities.",
+        advGood: "Good time for outdoor activities.",
+        advModerate: "Limit prolonged outdoor exertion if sensitive.",
+        advPoor: "Avoid prolonged outdoor exertion.",
+        advVeryPoor: "Avoid outdoor exertion.",
+        advExtremelyPoor: "Remain indoors.",
+        healthExcellent: "No risk",
+        healthGood: "Low risk",
+        healthModerate: "Moderate health concern for sensitive groups",
+        healthPoor: "Members of sensitive groups may experience health effects",
+        healthVeryPoor: "Everyone may experience health effects",
+        healthExtremelyPoor: "Serious health effects for everyone"
       }
     };
 
@@ -379,15 +380,15 @@
         ]];
     }
 
-    // NYELV-FÜGGŐ AQI FÜGGVÉNY
+    // NYELV-FÜGGŐ AQI FÜGGVÉNY (Magyar Levegőhigiénés Index alapján)
     function getAqiCategory(val) {
       const t = translations[currentLang];
-      if (val <= 50) return { level: t.aqiGood, color: "#16a34a", health: t.healthGood, advice: t.advGood };
-      if (val <= 100) return { level: t.aqiMod, color: "#eab308", health: t.healthMod, advice: t.advMod };
-      if (val <= 150) return { level: t.aqiUnhSens, color: "#f97316", health: t.healthUnhSens, advice: t.advUnhSens };
-      if (val <= 200) return { level: t.aqiUnh, color: "#ef4444", health: t.healthUnh, advice: t.advUnh };
-      if (val <= 300) return { level: t.aqiVeryUnh, color: "#9333ea", health: t.healthVeryUnh, advice: t.advVeryUnh };
-      return { level: t.aqiHaz, color: "#7f1d1d", health: t.healthHaz, advice: t.advHaz };
+      if (val <= 10) return { level: t.aqiExcellent, color: "#009966", health: t.healthExcellent, advice: t.advExcellent };
+      if (val <= 20) return { level: t.aqiGood, color: "#66cc99", health: t.healthGood, advice: t.advGood };
+      if (val <= 25) return { level: t.aqiModerate, color: "#ffde33", health: t.healthModerate, advice: t.advModerate };
+      if (val <= 50) return { level: t.aqiPoor, color: "#ff9933", health: t.healthPoor, advice: t.advPoor };
+      if (val <= 75) return { level: t.aqiVeryPoor, color: "#cc0033", health: t.healthVeryPoor, advice: t.advVeryPoor };
+      return { level: t.aqiExtremelyPoor, color: "#660099", health: t.healthExtremelyPoor, advice: t.advExtremelyPoor };
     }
 
     function addPopupHandler() {
@@ -456,11 +457,12 @@
           'paint': {
             'fill-extrusion-color': [
               'interpolate', ['linear'], ['get', 'displayValue'],
-              0, '#00e400',
-              25, '#ffff00',
-              50, '#ff7e00',
-              75, '#ff0000',
-              100, '#8f3f97'
+              0, '#009966',
+              10, '#66cc99',
+              20, '#ffde33',
+              25, '#ff9933',
+              50, '#cc0033',
+              75, '#660099'
             ],
             'fill-extrusion-height': [
               'interpolate', ['linear'], ['get', 'displayValue'],
@@ -644,19 +646,21 @@
         
         const labels = document.getElementById('legendLabels').children;
         labels[0].innerText = '0';
-        labels[1].innerText = Math.round(maxVal * 0.25);
-        labels[2].innerText = Math.round(maxVal * 0.50);
-        labels[3].innerText = Math.round(maxVal * 0.75);
-        labels[4].innerText = maxVal + '+';
+        labels[1].innerText = 10;
+        labels[2].innerText = 20;
+        labels[3].innerText = 25;
+        labels[4].innerText = 50;
+        labels[5].innerText = '75+';
 
         if(map.getLayer('3d-extrusion-layer')) {
             map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-color', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
-                0, '#00e400',
-                maxVal * 0.25, '#ffff00',
-                maxVal * 0.50, '#ff7e00',
-                maxVal * 0.75, '#ff0000',
-                maxVal, '#8f3f97'
+                0, '#009966',
+                10, '#66cc99',
+                20, '#ffde33',
+                25, '#ff9933',
+                50, '#cc0033',
+                75, '#660099'
             ]);
             map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-height', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
@@ -687,11 +691,12 @@
         if(map.getLayer('3d-extrusion-layer')) {
             map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-color', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
-                0, '#00e400',
-                maxVal * 0.25, '#ffff00',
-                maxVal * 0.50, '#ff7e00',
-                maxVal * 0.75, '#ff0000',
-                maxVal, '#8f3f97'
+                0, '#009966',
+                10, '#66cc99',
+                20, '#ffde33',
+                25, '#ff9933',
+                50, '#cc0033',
+                75, '#660099'
             ]);
             map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-height', [
                 'interpolate', ['linear'], ['get', 'displayValue'],
