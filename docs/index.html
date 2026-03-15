@@ -40,14 +40,15 @@
     <h1 id="main-title" class="text-xl md:text-3xl font-extrabold tracking-tight mobile-title">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</h1>
   </header>
 
-  <nav class="bg-green-600 text-white py-3 shadow-md mobile-nav">
-    <div class="container mx-auto px-4 flex flex-wrap justify-center gap-x-4 gap-y-2 mobile-nav">
-      <a href="index.html" id="nav-home" class="text-base font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Kezdőlap</a>
-      <a href="map.html" id="nav-map" class="text-base font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
-      <a href="heatmap.html" id="nav-heatmap" class="text-base font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
-      <a href="correlation.html" id="nav-correlation" class="text-base font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
-      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navTopo">Topográfia (3D)</a>
-      <a href="about.html" id="nav-about" class="text-base font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
+  <nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
+      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Kezdőlap</a>
+      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
+      <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
+      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
+      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
+      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
+      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
   </nav>
 
@@ -97,7 +98,8 @@
         navMap: "Térkép",
         navHeatmap: "Hőtérkép",
         navCorrelation: "Korreláció",
-        navTopo: "Topográfia (3D)",
+        navTopo: "Napi 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "Rólunk",
         sensorLabel: "Válassz szenzort:",
         timestamp: "Időbélyeg",
@@ -120,7 +122,8 @@
         navMap: "Map",
         navHeatmap: "Heatmap",
         navCorrelation: "Correlation",
-        navTopo: "Topography (3D)",
+        navTopo: "Daily 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "About",
         sensorLabel: "Select sensor:",
         timestamp: "Timestamp",
@@ -139,7 +142,6 @@
       }
     };
     
-    // Frissítettem a kulcsokat a Supabase oszlopneveire (pl. pm1_0, pm2_5)
     function getColorForValue(key, value) {
         const v = parseFloat(value);
         if (isNaN(v)) return 'text-gray-800';
@@ -197,6 +199,7 @@
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
+      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('sensor-label').textContent = langData.sensorLabel;
       document.getElementById('footer-text').textContent = langData.footer;
@@ -206,7 +209,6 @@
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.lang === lang);
       });
-      // A fetchAndDisplayData újrahívása frissíti a címkéket is
     }
 
     async function fetchAndDisplayData() {
@@ -214,7 +216,6 @@
         const selectedSensorId = sensorSelect.value;
         console.log('Adatok lekérése a következőhöz:', selectedSensorId);
 
-        // Lekérdezés a Supabase 'fixed_measurements' táblából
         const { data, error } = await supabaseClient
             .from('fixed_measurements')
             .select('*')
@@ -234,7 +235,6 @@
         dataTable.innerHTML = '';
         const currentLang = localStorage.getItem('language') || 'hu';
 
-        // Mezők definíciója Supabase oszlopnevekkel
         const fields = [
             { key: 'created_at', label: translations[currentLang].timestamp, unit: '' },
             { key: 'pm1_0', label: translations[currentLang].pm1, unit: 'µg/m³' },
@@ -251,7 +251,6 @@
         fields.forEach(field => {
             let value = latestData[field.key];
             
-            // Dátum és szám formázás
             if (field.key === 'created_at' && value) {
                 const date = new Date(value);
                 value = date.toLocaleString(currentLang === 'en' ? 'en-US' : 'hu-HU');
@@ -263,7 +262,6 @@
             const valueColorClass = getColorForValue(field.key, value);
             
             const cell = document.createElement('div');
-            // Megőriztük az eredeti layout logikát (Timestamp szélesebb)
             cell.className = `p-3 md:p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
                 field.key === 'created_at' ? 'lg:col-span-3' : ''
             }`;
@@ -302,13 +300,8 @@
         });
       });
 
-      // Adatok betöltése
       fetchAndDisplayData();
-      
-      // Frissítés 15 másodpercenként
       setInterval(fetchAndDisplayData, 15000);
-      
-      // Ha szenzort váltanak
       sensorSelect.addEventListener('change', fetchAndDisplayData);
     });
   </script>

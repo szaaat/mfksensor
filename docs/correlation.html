@@ -67,7 +67,8 @@
       <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
       <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
       <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Korreláció</a>
-      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navTopo">Topográfia (3D)</a>
+      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
+      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
       <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
 </nav>
@@ -341,7 +342,8 @@
         navMap: "Térkép",
         navHeatmap: "Hőtérkép",
         navCorrelation: "Korreláció",
-        navTopo: "Topográfia (3D)",
+        navTopo: "Napi 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "Rólunk",
         periodAll: "Összes",
         periodWinter: "Tél",
@@ -382,7 +384,8 @@
         navMap: "Map",
         navHeatmap: "Heatmap",
         navCorrelation: "Correlation",
-      navTopo: "Topography (3D)",
+        navTopo: "Napi 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "About",
         periodAll: "All",
         periodWinter: "Winter",
@@ -432,6 +435,7 @@
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
+      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
       document.getElementById('nav-about').textContent = langData.navAbout;
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;

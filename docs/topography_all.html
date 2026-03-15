@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Hotspot Térkép - MFK Sensor</title>
+  
+  <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+  
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    #map { flex-grow: 1; width: 100%; position: relative; }
+    
+    .map-overlay {
+      position: absolute; 
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1rem; border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    @media (min-width: 768px) {
+      .map-overlay { top: 1rem; left: 1rem; width: 320px; max-height: 85vh; }
+    }
+
+    @media (max-width: 767px) {
+      .map-overlay { 
+        bottom: 1rem; left: 1rem; right: 1rem; 
+        max-height: 45vh; 
+      }
+    }
+    
+    .legend-gradient { 
+      height: 12px; width: 100%; border-radius: 6px; margin-top: 5px; 
+      background: linear-gradient(to right, #009966, #66cc99, #ffde33, #ff9933, #cc0033, #660099);
+    }
+    
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 50; flex-direction: column;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3; border-top: 5px solid #3498db;
+      border-radius: 50%; width: 50px; height: 50px;
+      animation: spin 1s linear infinite; margin-bottom: 10px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .period-btn {
+      flex: 1; padding: 0.5rem; text-align: center; cursor: pointer;
+      border: 1px solid #d1d5db; transition: all 0.2s; font-weight: 600; font-size: 0.85rem;
+    }
+    .period-btn:first-child { border-radius: 0.5rem 0 0 0.5rem; }
+    .period-btn:last-child { border-radius: 0 0.5rem 0.5rem 0; }
+    .period-btn.active { background-color: #15803d; color: white; border-color: #15803d; }
+    .period-btn:not(.active):hover { background-color: #f3f4f6; }
+
+    .lang-btn {
+      padding: 2px 10px; border: 1px solid white; border-radius: 4px;
+      background: transparent; color: white; cursor: pointer; font-size: 0.8rem;
+      transition: all 0.3s;
+    }
+    .lang-btn.active { background: white; color: green; font-weight: bold; }
+    .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
+    
+    input[type=range] { width: 100%; accent-color: #15803d; }
+
+    .toast {
+      position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
+      background-color: #ef4444; color: white; padding: 12px 24px;
+      border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: bottom 0.3s ease-in-out; z-index: 100; font-weight: bold;
+    }
+    .toast.show { bottom: 20px; }
+    
+    .mapboxgl-popup-content { font-family: sans-serif; border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
+
+  <header class="bg-green-700 text-white text-center py-4 shadow-lg flex-none relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" onclick="setLang('hu')">HU</button>
+      <button id="lang-en" class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight" data-translate="title">3D Hotspot Térkép</h1>
+  </header>
+
+  <nav class="bg-green-600 text-white py-2 shadow-md flex-none">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
+      <a href="index.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navHome">Kezdőlap</a>
+      <a href="map.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navMap">Térkép</a>
+      <a href="heatmap.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navHeatmap">Hőtérkép</a>
+      <a href="correlation.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navCorrelation">Korreláció</a>
+      <a href="topography_map.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navDailyTopo">Napi 3D</a>
+      <a href="topography_hotspot.html" class="text-sm font-semibold hover:text-green-200 transition-colors underline decoration-2" data-translate="navHotspot">3D Hotspot</a>
+      <a href="about.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navAbout">Rólunk</a>
+    </div>
+  </nav>
+
+  <div id="map">
+    <div id="toast" class="toast hidden"></div>
+
+    <div id="loading" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <span id="loadingText" class="text-lg font-semibold text-green-800" data-translate="loadingData">Adatok lekérése a szerverről...</span>
+    </div>
+
+    <div class="map-overlay font-sans text-gray-800">
+      
+      <p class="text-xs text-gray-600 mb-3" data-translate="introText">A 3D oszlopok a visszatérő helyi szennyezéseket (hotspotokat) mutatják. <strong>Kattints egy oszlopra</strong> a részletekért!</p>
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-1" data-translate="selectSeason">Évszak kiválasztása:</label>
+        <select id="seasonPicker" class="border rounded px-2 py-1 w-full text-sm font-semibold text-gray-700" onchange="loadSeasonalData()">
+          <option value="annual" data-translate="seasonAnnual">Teljes év</option>
+          <option value="winter" data-translate="seasonWinter" selected>Tél (Dec, Jan, Feb)</option>
+          <option value="spring" data-translate="seasonSpring">Tavasz (Már, Ápr, Máj)</option>
+          <option value="summer" data-translate="seasonSummer">Nyár (Jún, Júl, Aug)</option>
+          <option value="autumn" data-translate="seasonAutumn">Ősz (Szep, Okt, Nov)</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-1" data-translate="timeOfDayLabel">Napszak:</label>
+        <select id="timeOfDayPicker" class="border rounded px-2 py-1 w-full text-sm font-semibold text-gray-700" onchange="loadSeasonalData()">
+          <option value="all" data-translate="todAll">Összes</option>
+          <option value="morning" data-translate="todMorning">Délelőtt (0-12h)</option>
+          <option value="afternoon" data-translate="todAfternoon">Délután (12-24h)</option>
+        </select>
+      </div>
+      
+      <hr class="my-2 border-gray-300">
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold mb-2" data-translate="selectPollutant">Szennyezőanyag (Lokális többlet):</label>
+        <div class="flex w-full">
+          <button id="btnPM25" class="period-btn active" onclick="setPollutant('pm2_5')">PM2.5</button>
+          <button id="btnCO2" class="period-btn" onclick="setPollutant('co2')">CO₂</button>
+        </div>
+      </div>
+
+      <hr class="my-2 border-gray-300">
+
+      <div class="mb-2">
+        <label class="block text-sm font-bold mb-1">
+          <span data-translate="sensitivity">Skála maximuma:</span> 
+          <span id="sensitivityValue" class="text-green-700 font-bold">50</span> <span id="unitDisplay" class="text-xs">µg/m³</span>
+        </label>
+        <input type="range" id="sensitivitySlider" min="5" max="100" step="5" value="50">
+      </div>
+
+      <div class="mt-2">
+        <div class="legend-gradient" id="legendBar"></div>
+        <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold" id="legendLabels">
+          <span>0</span><span>10</span><span>20</span><span>25</span><span>40</span><span>50+</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic3phYWF0IiwiYSI6ImNsODl6dnhwbjBidnQzbm81ZnZkajlpYmEifQ.5-MSbqmQxN70T9u7IOfcpg'; 
+
+    const supabaseUrl = 'https://yuamroqhxrflusxeyylp.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
+    const sbClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let map;
+    let processedData = []; 
+    let currentLang = 'hu';
+    let currentPollutant = 'pm2_5'; 
+
+    // Skálák és színek a gázokhoz (lokális többlet)
+    const scales = {
+      pm2_5: {
+        max: 50, 
+        colors: [ [0, '#009966'], [10, '#66cc99'], [20, '#ffde33'], [25, '#ff9933'], [40, '#cc0033'], [50, '#660099'] ]
+      },
+      co2: {
+        max: 100, 
+        colors: [ [0, '#009966'], [20, '#66cc99'], [50, '#ffde33'], [75, '#ff9933'], [90, '#cc0033'], [100, '#660099'] ]
+      }
+    };
+
+    const translations = {
+      hu: {
+        title: "3D Hotspot Térkép",
+        navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", 
+        navCorrelation: "Korreláció", navDailyTopo: "Napi 3D", navHotspot: "3D Hotspot", navAbout: "Rólunk",
+        introText: "A 3D oszlopok a visszatérő helyi szennyezéseket (hotspotokat) mutatják. <strong>Kattints egy oszlopra</strong> a részletekért!",
+        selectSeason: "Évszak kiválasztása:",
+        seasonAnnual: "Teljes év", seasonWinter: "Tél (Dec, Jan, Feb)", seasonSpring: "Tavasz (Már, Ápr, Máj)", seasonSummer: "Nyár (Jún, Júl, Aug)", seasonAutumn: "Ősz (Szep, Okt, Nov)",
+        timeOfDayLabel: "Napszak:", todAll: "Összes", todMorning: "Délelőtt (0-12h)", todAfternoon: "Délután (12-24h)",
+        selectPollutant: "Szennyezőanyag (Lokális többlet):",
+        sensitivity: "Skála maximuma:",
+        loadingData: "Adatok lekérése a szerverről...",
+        noData: "Nincs adat erre a szűrésre.",
+        error: "Hiba történt az adatok letöltésekor.",
+        popupExcess: "Lokális többlet:",
+        aqiExcellent: "Kiváló", aqiGood: "Jó", aqiModerate: "Megfelelő", aqiPoor: "Szennyezett", aqiVeryPoor: "Erősen szennyezett", aqiExtremelyPoor: "Rendkívül szennyezett",
+        co2Low: "Alacsony többlet", co2Moderate: "Közepes többlet", co2High: "Magas többlet", co2VeryHigh: "Kiemelkedő forrás"
+      },
+      en: {
+        title: "3D Hotspot Map",
+        navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", 
+        navCorrelation: "Correlation", navDailyTopo: "Daily 3D", navHotspot: "3D Hotspot", navAbout: "About",
+        introText: "The 3D columns show recurring local pollution (hotspots). <strong>Click on a column</strong> for details!",
+        selectSeason: "Select Season:",
+        seasonAnnual: "Full Year", seasonWinter: "Winter (Dec, Jan, Feb)", seasonSpring: "Spring (Mar, Apr, May)", seasonSummer: "Summer (Jun, Jul, Aug)", seasonAutumn: "Autumn (Sep, Oct, Nov)",
+        timeOfDayLabel: "Time of Day:", todAll: "All", todMorning: "Morning (0-12h)", todAfternoon: "Afternoon (12-24h)",
+        selectPollutant: "Pollutant (Local Excess):",
+        sensitivity: "Scale Maximum:",
+        loadingData: "Fetching data from server...",
+        noData: "No data for this filter.",
+        error: "An error occurred while fetching data.",
+        popupExcess: "Local excess:",
+        aqiExcellent: "Excellent", aqiGood: "Good", aqiModerate: "Moderate", aqiPoor: "Poor", aqiVeryPoor: "Very Poor", aqiExtremelyPoor: "Extremely Poor",
+        co2Low: "Low excess", co2Moderate: "Moderate excess", co2High: "High excess", co2VeryHigh: "Prominent source"
+      }
+    };
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('show'), 10); 
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.classList.add('hidden'), 300); 
+      }, 3000);
+    }
+
+    function setLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('language', lang);
+      document.getElementById('lang-hu').classList.toggle('active', lang === 'hu');
+      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+      
+      document.querySelectorAll('[data-translate]').forEach(el => {
+        const key = el.getAttribute('data-translate');
+        if(translations[lang][key]) el.innerHTML = translations[lang][key]; 
+      });
+    }
+
+    function createSquare(lat, lng, radiusInMeters) {
+        const earthRadius = 6378137; 
+        const rLat = (radiusInMeters / earthRadius) * (180 / Math.PI);
+        const rLng = (radiusInMeters / earthRadius) * (180 / Math.PI) / Math.cos(lat * Math.PI / 180);
+        return [[
+            [lng - rLng, lat - rLat],
+            [lng + rLng, lat - rLat],
+            [lng + rLng, lat + rLat],
+            [lng - rLng, lat + rLat],
+            [lng - rLng, lat - rLat]
+        ]];
+    }
+
+    function getCategory(val, pollutant) {
+      const t = translations[currentLang];
+      if (pollutant === 'pm2_5') {
+          if (val <= 10) return { level: t.aqiExcellent, color: "#009966" };
+          if (val <= 20) return { level: t.aqiGood, color: "#66cc99" };
+          if (val <= 25) return { level: t.aqiModerate, color: "#ffde33" };
+          if (val <= 40) return { level: t.aqiPoor, color: "#ff9933" };
+          if (val <= 50) return { level: t.aqiVeryPoor, color: "#cc0033" };
+          return { level: t.aqiExtremelyPoor, color: "#660099" };
+      } else {
+          if (val <= 20) return { level: t.co2Low, color: "#009966" };
+          if (val <= 50) return { level: t.co2Moderate, color: "#ffde33" };
+          if (val <= 75) return { level: t.co2High, color: "#ff9933" };
+          return { level: t.co2VeryHigh, color: "#cc0033" };
+      }
+    }
+
+    function addPopupHandler() {
+      map.on('click', '3d-extrusion-layer', (e) => {
+        if (!e.features.length) return;
+        const props = e.features[0].properties;
+        const val = props.displayValue || 0;
+        const t = translations[currentLang];
+        const unit = currentPollutant === 'pm2_5' ? 'µg/m³' : 'ppm';
+        const title = currentPollutant === 'pm2_5' ? 'PM2.5' : 'CO₂';
+        const cat = getCategory(val, currentPollutant);
+        
+        new mapboxgl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '280px' })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="mb-1 text-sm text-gray-500 font-bold">${title} - ${t.popupExcess}</div>
+            <div class="text-2xl font-bold mb-1" style="color: ${cat.color}">
+              ${val.toFixed(1)} <span class="text-sm font-normal text-gray-600">${unit}</span>
+            </div>
+            <div style="color: ${cat.color}; font-weight: 700;">
+              ${cat.level}
+            </div>
+          `)
+          .addTo(map);
+      });
+      
+      map.on('mouseenter', '3d-extrusion-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', '3d-extrusion-layer', () => { map.getCanvas().style.cursor = ''; });
+    }
+
+    function initMap() {
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-streets-v12', 
+        center: [20.79, 48.10], 
+        zoom: 12, pitch: 65, bearing: -20, antialias: true 
+      });
+
+      map.on('load', () => {
+        map.addSource('mapbox-dem', {
+          'type': 'raster-dem',
+          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          'tileSize': 512, 'maxzoom': 14
+        });
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+        map.addSource('measurements', {
+          type: 'geojson', data: { type: 'FeatureCollection', features: [] }
+        });
+
+        const initScale = scales['pm2_5'];
+        const colorInterpolation = ['interpolate', ['linear'], ['get', 'displayValue']];
+        initScale.colors.forEach(c => { colorInterpolation.push(c[0], c[1]); });
+
+        map.addLayer({
+          'id': '3d-extrusion-layer',
+          'type': 'fill-extrusion',
+          'source': 'measurements',
+          'paint': {
+            'fill-extrusion-color': colorInterpolation,
+            'fill-extrusion-height': [
+              'interpolate', ['linear'], ['get', 'displayValue'],
+              0, 0,
+              initScale.max, 800 
+            ],
+            'fill-extrusion-base': 0, 
+            'fill-extrusion-opacity': 0.85 
+          }
+        });
+
+        addPopupHandler();
+        loadSeasonalData();
+      });
+    }
+
+    window.setPollutant = function(pollutant) {
+        currentPollutant = pollutant;
+        document.getElementById('btnPM25').classList.toggle('active', pollutant === 'pm2_5');
+        document.getElementById('btnCO2').classList.toggle('active', pollutant === 'co2');
+        
+        const unit = pollutant === 'pm2_5' ? 'µg/m³' : 'ppm';
+        document.getElementById('unitDisplay').innerText = unit;
+
+        const slider = document.getElementById('sensitivitySlider');
+        slider.max = scales[pollutant].max * 2; 
+        slider.value = scales[pollutant].max;
+        document.getElementById('sensitivityValue').innerText = slider.value;
+
+        const labels = document.getElementById('legendLabels').children;
+        const colors = scales[pollutant].colors;
+        for(let i = 0; i < 6; i++) {
+            labels[i].innerText = colors[i] ? colors[i][0] : '';
+        }
+        labels[5].innerText += '+';
+
+        loadSeasonalData();
+    };
+
+    async function loadSeasonalData() {
+        const season = document.getElementById('seasonPicker').value;
+        const timeOfDay = document.getElementById('timeOfDayPicker').value;
+        
+        // JAVÍTÁS 1: A nyers metrika nevet ('pm2_5' vagy 'co2') küldjük be
+        // a Supabase lekérdezésnek, mert az SQL CASE ágában ezek szerepelnek.
+        const metricToFetch = currentPollutant; 
+
+        const loadingEl = document.getElementById('loading');
+        loadingEl.classList.remove('hidden');
+        document.getElementById('loadingText').textContent = translations[currentLang].loadingData;
+
+        try {
+            const { data, error } = await sbClient.rpc('get_heatmap_data', {
+                period_filter: season,
+                metric: metricToFetch,
+                grid_size: 0.001,
+                analysis_mode: 'polluted', 
+                time_of_day: timeOfDay 
+            });
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                showToast(translations[currentLang].noData); 
+                processedData = [];
+                updateMapDisplay();
+                loadingEl.classList.add('hidden');
+                return;
+            }
+
+            // JAVÍTÁS 2: Mivel az RPC a teljes, nyers koncentrációt adja vissza
+            // (ami a szűrésnek megfelel, pl. CO2 > 500, PM2.5 > 10), itt kivonjuk 
+            // a hátteret, hogy valóban a lokális TÖBBLET jelenjen meg oszlopként!
+            const bgThreshold = currentPollutant === 'pm2_5' ? 10 : 500;
+
+            processedData = data.map(d => ({
+                lat: parseFloat(d.lat),
+                lng: parseFloat(d.lon), 
+                displayValue: Math.max(0, parseFloat(d.intensity) - bgThreshold)
+            }));
+
+            const bounds = new mapboxgl.LngLatBounds();
+            processedData.forEach(p => bounds.extend([p.lng, p.lat]));
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+            }
+
+            updateMapDisplay();
+        } catch (err) {
+            console.error(err);
+            showToast(translations[currentLang].error); 
+        } finally {
+            loadingEl.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('sensitivitySlider').addEventListener('input', function(e) {
+        document.getElementById('sensitivityValue').innerText = e.target.value;
+        updateMapDisplay();
+    });
+
+    function updateMapDisplay() {
+        const features = processedData.map(d => ({
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: createSquare(d.lat, d.lng, 15) },
+            properties: { displayValue: d.displayValue }
+        }));
+
+        if (map.getSource('measurements')) {
+            map.getSource('measurements').setData({ type: 'FeatureCollection', features: features });
+        }
+        
+        const maxVal = parseInt(document.getElementById('sensitivitySlider').value);
+        const currentScale = scales[currentPollutant];
+
+        const colorInterpolation = ['interpolate', ['linear'], ['get', 'displayValue']];
+        currentScale.colors.forEach(c => {
+            colorInterpolation.push(c[0], c[1]);
+        });
+
+        if(map.getLayer('3d-extrusion-layer')) {
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-color', colorInterpolation);
+            map.setPaintProperty('3d-extrusion-layer', 'fill-extrusion-height', [
+                'interpolate', ['linear'], ['get', 'displayValue'],
+                0, 0,
+                maxVal, 800
+            ]);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedLang = localStorage.getItem('language') || 'hu';
+        setLang(savedLang);
+    });
+
+    initMap();
+  </script>
+</body>
+</html>

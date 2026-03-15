@@ -85,7 +85,8 @@
       <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
       <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Hőtérkép</a>
       <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
-       <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navTopo">Topográfia (3D)</a>
+      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
+      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
       <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
 </nav>
@@ -98,6 +99,13 @@
         <option id="period-spring" value="spring">Tavasz (Már, Ápr, Máj)</option>
         <option id="period-summer" value="summer">Nyár (Jún, Júl, Aug)</option>
         <option id="period-autumn" value="autumn">Ősz (Szep, Okt, Nov)</option>
+    </select>
+
+    <label for="timeofday-select" id="timeofday-label" class="ml-2 font-semibold text-gray-700 mobile-text">Napszak:</label>
+    <select id="timeofday-select" class="mx-1 p-1 rounded border border-gray-300 mobile-text">
+        <option id="tod-all" value="all">Összes</option>
+        <option id="tod-morning" value="morning">Délelőtt (0-12h)</option>
+        <option id="tod-afternoon" value="afternoon">Délután (12-24h)</option>
     </select>
     
     <label for="metric-select" id="metric-label" class="ml-2 font-semibold text-gray-700 mobile-text">Válassz adatot:</label>
@@ -135,7 +143,7 @@
 <div class="container mx-auto px-4 py-4 mt-4 bg-white shadow-lg rounded-lg mobile-container">
     <h2 id="about-title" class="text-lg font-bold text-green-700 mb-3 mobile-title">Az oldal működése</h2>
     <p id="about-text" class="text-gray-700 leading-relaxed mobile-text">
-        Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat.
+        Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást (csak a legalább 7-szer érintett, megbízható pontok jelennek meg, ködös adatok szűrésével). A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag), a napszakot és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát.
     </p>
 </div>
 
@@ -205,6 +213,7 @@
     let legendControl = null;
     const loadingSpinner = document.getElementById('loading-spinner');
     const periodSelect = document.getElementById('period-select');
+    const timeOfDaySelect = document.getElementById('timeofday-select'); // ÚJ VÁLTOZÓ
     const metricSelect = document.getElementById('metric-select');
     const minInput = document.getElementById('min-value');
     const maxInput = document.getElementById('max-value');
@@ -222,6 +231,7 @@
 
     async function updateHeatmap() {
         const period = periodSelect.value;
+        const timeOfDay = timeOfDaySelect.value; // Napszak kiolvasása
         const metric = metricSelect.value;
         loadingSpinner.style.display = 'inline-block';
         
@@ -242,18 +252,20 @@
         }
         
         try {
+            // ÚJ: A time_of_day paraméter átadása az RPC-nek
             const { data, error } = await supabaseClient.rpc('get_heatmap_data', {
                 period_filter: period,
                 metric: metric,
                 grid_size: 0.003,
-                analysis_mode: currentAnalysisMode
+                analysis_mode: currentAnalysisMode,
+                time_of_day: timeOfDay 
             });
 
             if (error) throw error;
             if (heatLayer) map.removeLayer(heatLayer);
             if (legendControl) map.removeControl(legendControl); 
 
-            if (data.length === 0) {
+            if (!data || data.length === 0) {
                 console.log("Nincs adat erre a szűrésre.");
                 return;
             }
@@ -261,9 +273,9 @@
             const heatData = data.map(p => [p.lat, p.lon, p.intensity]);
             
             heatLayer = L.heatLayer(heatData, {
-                radius: 15,      // NÖVELD MEG (Eredeti: 12) - Ez a "pötty" mérete
-                blur: 20,        // NÖVELD MEG (Eredeti: 5)  - Ez mossa össze őket
-                maxZoom: 3,     // CSÖKKENTSD (Eredeti: 18) - Ez trükkös, lásd lent a magyarázatot!
+                radius: 15,
+                blur: 20,
+                maxZoom: 3,
                 max: config.max,
                 gradient: config.gradient
             }).addTo(map);
@@ -298,6 +310,7 @@
     }
 
     periodSelect.addEventListener('change', updateHeatmap);
+    timeOfDaySelect.addEventListener('change', updateHeatmap); // Eseménykezelő a napszakhoz
     metricSelect.addEventListener('change', () => {
         minInput.value = '';
         maxInput.value = '';
@@ -313,15 +326,20 @@
         navMap: "Térkép",
         navHeatmap: "Hőtérkép", 
         navCorrelation: "Korreláció",
-        navTopo: "Topográfia (3D)",
+        navTopo: "Napi 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "Rólunk",
         periodLabel: "Válassz időszakot:",
+        timeOfDayLabel: "Napszak:",
         metricLabel: "Válassz adatot:",
         periodAll: "Összes (teljes átlag)",
         periodWinter: "Tél (Dec, Jan, Feb)",
         periodSpring: "Tavasz (Már, Ápr, Máj)",
         periodSummer: "Nyár (Jún, Júl, Aug)", 
         periodAutumn: "Ősz (Szep, Okt, Nov)",
+        todAll: "Összes",
+        todMorning: "Délelőtt (0-12h)",
+        todAfternoon: "Délután (12-24h)",
         scaleMinLabel: "Skála Min:",
         scaleMaxLabel: "Skála Max:",
         updateScaleBtn: "Frissít",
@@ -331,7 +349,7 @@
         footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.",
         disclaimer: "A mérési adatok nem hitelesítettek.",
         aboutTitle: "Az oldal működése",
-        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást. A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag) és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát, hogy kiemelje az Ön számára fontos értéktartományokat."
+        aboutText: "Ez az oldal mobil szenzorok által gyűjtött, aggregált levegőminőségi adatokat (pl. PM2.5, CO2, NOx) jelenít meg egy interaktív hőtérképen. Az adatok rácsra vannak átlagolva, hogy bemutassák a területi eloszlást (csak a legalább 7-szer érintett, megbízható pontok jelennek meg, ködös adatok szűrésével). A vezérlőkkel kiválaszthatja a vizsgált időszakot (szezonális vagy éves átlag), a napszakot és a mért adat típusát. A 'Skála Min' és 'Skála Max' mezőkkel finomhangolhatja a vizuális skálát."
       },
       en: {
         title: "Heatmap Analysis - MFKSensor", 
@@ -340,15 +358,20 @@
         navMap: "Map",
         navHeatmap: "Heatmap",
         navCorrelation: "Correlation",
-        navTopo: "Topography (3D)",
+        navTopo: "Daily 3D",
+        navHotspot: "3D Hotspot",
         navAbout: "About",
         periodLabel: "Select period:",
+        timeOfDayLabel: "Time of Day:",
         metricLabel: "Select metric:", 
         periodAll: "All (total average)",
         periodWinter: "Winter (Dec, Jan, Feb)",
         periodSpring: "Spring (Mar, Apr, May)",
         periodSummer: "Summer (Jun, Jul, Aug)",
         periodAutumn: "Autumn (Sep, Oct, Nov)",
+        todAll: "All",
+        todMorning: "Morning (0-12h)",
+        todAfternoon: "Afternoon (12-24h)",
         scaleMinLabel: "Scale Min:",
         scaleMaxLabel: "Scale Max:", 
         updateScaleBtn: "Update",
@@ -358,7 +381,7 @@
         footer: "© Realized with the support of the National Multidisciplinary Laboratory for Climate Change project.",
         disclaimer: "Measurement data is not verified.",
         aboutTitle: "How This Page Works",
-        aboutText: "This page displays aggregated air quality data collected by mobile sensors (e.g., PM2.5, CO2, NOx) on an interactive heatmap. The data is averaged onto a grid to show spatial distribution. Using the controls, you can select the time period to examine (seasonal or annual average) and the type of measured data. The 'Scale Min' and 'Scale Max' fields allow you to fine-tune the visual scale to highlight value ranges important to you."
+        aboutText: "This page displays aggregated air quality data collected by mobile sensors (e.g., PM2.5, CO2, NOx) on an interactive heatmap. The data is averaged onto a grid to show spatial distribution (only reliable points with at least 7 measurements are shown, filtering out foggy data). Using the controls, you can select the time period to examine (seasonal or annual average), the time of day, and the type of measured data. The 'Scale Min' and 'Scale Max' fields allow you to fine-tune the visual scale."
       }
     };
 
@@ -378,16 +401,23 @@
       document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
+      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
       document.getElementById('nav-about').textContent = langData.navAbout;
       
-      // Vezérlők
+      // Vezérlők fordítása
       document.getElementById('period-label').innerHTML = langData.periodLabel; 
+      document.getElementById('timeofday-label').innerHTML = langData.timeOfDayLabel;
       document.getElementById('metric-label').innerHTML = langData.metricLabel; 
+      
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;
       document.getElementById('period-spring').textContent = langData.periodSpring;
       document.getElementById('period-summer').textContent = langData.periodSummer;
       document.getElementById('period-autumn').textContent = langData.periodAutumn;
+
+      document.getElementById('tod-all').textContent = langData.todAll;
+      document.getElementById('tod-morning').textContent = langData.todMorning;
+      document.getElementById('tod-afternoon').textContent = langData.todAfternoon;
       
       // Skála és gombok
       document.querySelector('label[for="min-value"]').textContent = langData.scaleMinLabel;
