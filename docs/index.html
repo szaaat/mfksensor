@@ -3,207 +3,281 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</title>
+  <title>Levegőminőség szenzor adatok</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com/3.4.0"></script>
-  <link rel="stylesheet" href="style.css">
   <style>
+    /* Elrejtjük a gördítősávot, mivel egy képernyőre tervezzük */
+    body { overflow-x: hidden; }
+    
     .lang-btn {
       padding: 2px 10px;
-      border: 1px solid white;
-      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 6px;
       background: transparent;
       color: white;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s;
+      font-size: 0.85rem;
     }
-    .lang-btn.active {
-      background: white;
-      color: green;
-      font-weight: bold;
-    }
-    .lang-btn:hover:not(.active) {
-      background: rgba(255,255,255,0.2);
-    }
+    .lang-btn.active { background: white; color: #15803d; font-weight: bold; border-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
     
-    #dataTable p {
-      transition: color 0.3s ease-in-out;
+    .circle-progress { transition: stroke-dashoffset 1s ease-out; }
+    
+    /* Üveg hatás (Glassmorphism) a kártyákon */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
     }
   </style>
 </head>
-<body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
-  <header class="bg-green-700 text-white text-center py-6 shadow-lg relative">
-    <div class="absolute top-4 right-4 flex space-x-2">
+<body class="bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200 font-sans h-screen flex flex-col text-gray-800">
+  
+  <header class="bg-green-700 text-white shadow-md relative z-10 flex-shrink-0">
+    <div class="absolute top-2 right-4 flex space-x-2">
       <button id="lang-hu" class="lang-btn active" data-lang="hu">HU</button>
       <button id="lang-en" class="lang-btn" data-lang="en">EN</button>
     </div>
-    <h1 id="main-title" class="text-xl md:text-3xl font-extrabold tracking-tight mobile-title">Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok</h1>
+    
+    <div class="container mx-auto px-4 pt-3 pb-2 flex flex-col md:flex-row items-center justify-between gap-3">
+        <h1 id="main-title" class="text-base md:text-lg font-extrabold tracking-tight text-center md:text-left mt-6 md:mt-0">Levegőminőség szenzor adatok</h1>
+        
+        <nav class="flex flex-wrap justify-center md:justify-end gap-x-3 gap-y-1.5 md:pr-16 w-full md:w-auto">
+          <a href="index.html" id="nav-home" class="text-xs font-semibold text-green-100 hover:text-white underline decoration-2 underline-offset-4 transition-colors">Kezdőlap</a>
+          <a href="map.html" id="nav-map" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Térkép</a>
+          <a href="heatmap.html" id="nav-heatmap" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Hőtérkép</a>
+          <a href="correlation.html" id="nav-correlation" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Korreláció</a>
+          <a href="topography_map.html" id="nav-topo" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Napi 3D</a>
+          <a href="topography_hotspot.html" id="nav-hotspot" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">3D Hotspot</a>
+          <a href="about.html" id="nav-about" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Rólunk</a>
+        </nav>
+    </div>
   </header>
 
-  <nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
-    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
-      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Kezdőlap</a>
-      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
-      <a href="heatmap.html" id="nav-heatmap" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Hőtérkép</a>
-      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
-      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
-      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
-      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
-    </div>
-  </nav>
-
-  <div class="container mx-auto p-4 flex-grow mobile-container">
-    <div class="flex justify-center space-x-6 my-6">
-      <img src="logos/logo1.png" alt="Logo 1" class="h-12 md:h-14 transition-transform hover:scale-105">
-      <img src="logos/logo2.png" alt="Logo 2" class="h-12 md:h-14 transition-transform hover:scale-105">
-      <img src="logos/logo3.png" alt="Logo 3" class="h-12 md:h-14 transition-transform hover:scale-105">
-    </div>
-
-    <div class="mb-6 max-w-md mx-auto">
-      <label for="sensorSelect" id="sensor-label" class="block text-base md:text-lg font-semibold text-gray-700 mb-2 mobile-text">Válassz szenzort:</label>
-      <select id="sensorSelect" class="w-full p-2 md:p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 mobile-text">
-        <option value="bukk_csillagd">Bükki Csillagda</option>
-        <option value="eger_hajduhegy_sensor">Egri Szenzor</option>
-      </select>
+  <div class="container mx-auto px-4 py-3 flex-1 flex flex-col justify-evenly">
+    
+    <div class="flex flex-wrap justify-between items-center bg-white rounded-xl shadow-sm px-4 py-2 border border-gray-100">
+      <div class="flex items-center gap-4">
+        <img src="logos/logo1.png" alt="Logo 1" class="h-8 md:h-10 object-contain">
+        <img src="logos/logo2.png" alt="Logo 2" class="h-8 md:h-10 object-contain">
+        <img src="logos/logo3.png" alt="Logo 3" class="h-8 md:h-10 object-contain">
+        <img src="logos/bnpi.jpg" alt="BNPI" class="h-8 md:h-10 object-contain rounded shadow-sm">
+      </div>
+      <div class="flex items-center gap-3">
+        <label for="sensorSelect" id="sensor-label" class="text-sm font-bold text-gray-600 uppercase tracking-wide">Válassz szenzort:</label>
+        <select id="sensorSelect" class="p-1.5 md:p-2 text-sm bg-gray-50 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-green-500 font-semibold cursor-pointer">
+          <option value="bukk_csillagd">Bükki Csillagda</option>
+          <option value="eger_hajduhegy_sensor">Egri Szenzor</option>
+        </select>
+      </div>
     </div>
 
-    <div id="dataContainer" class="bg-white p-4 md:p-6 rounded-xl shadow-xl max-w-4xl mx-auto">
-      <div id="dataTable" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 text-center"></div>
+    <div class="grid lg:grid-cols-12 gap-4 mt-2">
+        
+        <div id="aqi-banner" class="hidden lg:col-span-5 flex flex-col justify-center items-center text-center p-4 rounded-2xl shadow-lg border-l-8 transition-colors duration-500 glass-card">
+            <span class="text-xs font-black uppercase tracking-widest opacity-75 mb-1" id="aqi-status-prefix">Aktuális levegőminőség</span>
+            <h2 id="aqi-status-title" class="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2"></h2>
+            <p id="aqi-status-advice" class="text-sm md:text-base font-semibold leading-snug"></p>
+        </div>
+
+        <div id="aqi-info" class="hidden lg:col-span-7 bg-white p-4 rounded-2xl shadow-lg border border-gray-100 flex flex-col justify-center">
+            <div class="grid md:grid-cols-2 gap-4 items-center">
+                <div>
+                    <h3 id="info-title" class="text-sm font-black text-green-800 uppercase tracking-wide mb-1">Mi az a szálló por (PM10 / PM2.5)?</h3>
+                    <p id="info-desc1" class="text-xs text-gray-600 mb-1 leading-tight">Szabad szemmel láthatatlan mikroszkopikus részecskék. Főleg fűtésből/forgalomból származnak, és belélegezve a tüdőbe juthatnak.</p>
+                    <p id="info-desc2" class="text-xs text-green-700 font-bold leading-tight">A Bükk levegője országosan is kiemelkedően tiszta, itt általában kiváló értékeket mérünk.</p>
+                </div>
+                
+                <div>
+                    <h3 id="scale-title" class="text-xs font-bold text-gray-500 mb-2 text-center uppercase tracking-widest">Levegőminőségi Index (PM10 µg/m³)</h3>
+                    <div class="flex justify-between gap-1">
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-[9px] text-gray-400 font-bold mb-1">0-25</span>
+                            <div class="w-full h-2 rounded-full bg-green-500 shadow-sm group-hover:scale-y-150 transition-transform"></div>
+                            <span id="sc-good" class="text-[9px] font-black text-green-700 mt-1 uppercase tracking-wider">JÓ</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-[9px] text-gray-400 font-bold mb-1">25-40</span>
+                            <div class="w-full h-2 rounded-full bg-lime-400 shadow-sm group-hover:scale-y-150 transition-transform"></div>
+                            <span id="sc-fair" class="text-[9px] font-black text-lime-700 mt-1 uppercase tracking-wider">TŰRHETŐ</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-[9px] text-gray-400 font-bold mb-1">40-50</span>
+                            <div class="w-full h-2 rounded-full bg-yellow-400 shadow-sm group-hover:scale-y-150 transition-transform"></div>
+                            <span id="sc-mod" class="text-[9px] font-black text-yellow-700 mt-1 uppercase tracking-wider">ELFOGADHATÓ</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-[9px] text-gray-400 font-bold mb-1">50-75</span>
+                            <div class="w-full h-2 rounded-full bg-orange-500 shadow-sm group-hover:scale-y-150 transition-transform"></div>
+                            <span id="sc-poor" class="text-[9px] font-black text-orange-700 mt-1 uppercase tracking-wider">SZENNYEZETT</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-[9px] text-gray-400 font-bold mb-1">75+</span>
+                            <div class="w-full h-2 rounded-full bg-red-600 shadow-sm group-hover:scale-y-150 transition-transform"></div>
+                            <span id="sc-bad" class="text-[9px] font-black text-red-700 mt-1 uppercase tracking-wider">ERŐSEN</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="lastUpdated" class="text-center mt-4 text-gray-600 text-sm mobile-text"></div>
-    <div id="disclaimer-text" class="text-center mt-3 text-red-600 font-semibold mobile-text">A mérési adatok nem hitelesítettek.</div>
+    <div id="dataContainer" class="w-full mt-2 relative">
+      <div id="date-badge" class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full shadow-md text-[11px] font-bold text-gray-500 border border-gray-100 z-20 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        <span id="lastUpdated">Utolsó mérés betöltése...</span>
+      </div>
+      
+      <div id="dataTable" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-center bg-gray-50/50 p-4 pt-6 rounded-2xl border border-gray-100 shadow-inner">
+          </div>
+    </div>
+
   </div>
 
-  <footer class="bg-green-700 text-white text-center py-3 mt-auto">
-    <p id="footer-text" class="text-sm mobile-text">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg.</p>
+  <footer class="bg-gray-800 text-gray-300 text-center py-2 text-[10px] md:text-xs flex justify-center items-center gap-4 flex-shrink-0">
+    <span id="disclaimer-text" class="text-red-400 font-bold uppercase tracking-widest">A mérési adatok nem hitelesítettek.</span>
+    <span class="opacity-30">|</span>
+    <span id="footer-text">© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium.</span>
   </footer>
 
   <script>
-    // --- SUPABASE KONFIGURÁCIÓ ---
-    // MÁSOLD BE IDE A KULCSAIDAT!
     const SUPABASE_URL = 'https://yuamroqhxrflusxeyylp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U';
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const dataTable = document.getElementById('dataTable');
-    const lastUpdated = document.getElementById('lastUpdated');
     const sensorSelect = document.getElementById('sensorSelect');
 
+    // Teljeskörű nyelvi szótár (Kiegészítve a hiányzó menüpontokkal és a címmel)
     const translations = {
       hu: {
-        title: "Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium 7B alprojekt levegőminőség szenzor adatok",
-        navHome: "Kezdőlap",
-        navMap: "Térkép",
-        navHeatmap: "Hőtérkép",
-        navCorrelation: "Korreláció",
-        navTopo: "Napi 3D",
-        navHotspot: "3D Hotspot",
-        navAbout: "Rólunk",
-        sensorLabel: "Válassz szenzort:",
-        timestamp: "Időbélyeg",
-        pm1: "PM1",
-        pm25: "PM2.5",
-        pm4: "PM4",
-        pm10: "PM10",
-        humidity: "Páratartalom",
-        temp: "Hőmérséklet",
-        voc: "VOC",
-        nox: "NOx",
-        co2: "CO2",
-        lastUpdated: "Utolsó frissítés:",
-        disclaimer: "A mérési adatok nem hitelesítettek.",
-        footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium projekt támogatásával valósul meg."
+        title: "Levegőminőség szenzor adatok", navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", navCorrelation: "Korreláció", 
+        navTopo: "Napi 3D", navHotspot: "3D Hotspot", navAbout: "Rólunk", sensorLabel: "Válassz szenzort:",
+        pm1: "PM1.0", pm25: "PM2.5", pm4: "PM4.0", pm10: "PM10", humidity: "Páratartalom", temp: "Hőmérséklet", co2: "CO2 Szint",
+        disclaimer: "A mérési adatok nem hitelesítettek.", footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium.",
+        aqiPrefix: "Aktuális levegőminőség",
+        fogLabel: "Sűrű pára / Köd", fogAdvice: "A Bükkben sűrű köd van. A műszer a lebegő vízcseppeket tévesen szállópornak érzékelheti. A levegő valójában tiszta!",
+        aqiGood: "Kiváló", aqiGoodAdvice: "A levegő minősége kiváló. Élvezze a tiszta erdei levegőt a Bükkben!",
+        aqiFair: "Megfelelő", aqiFairAdvice: "A levegő minősége jónak tekinthető. Nincs szükség védekezésre.",
+        aqiMod: "Elfogadható", aqiModAdvice: "Nincs szükség védekezésre. Élvezd a szabadtéri tevékenységeket.",
+        aqiPoor: "Szennyezett", aqiPoorAdvice: "Fontolja meg a szabadtéri intenzív fizikai tevékenységek csökkentését.",
+        aqiBad: "Erősen Szennyezett", aqiBadAdvice: "Nem javasolt hosszú időn keresztül a szabadban tartózkodni.",
+        infoTitle: "Mi az a szálló por (PM10 / PM2.5)?",
+        infoDesc1: "Szabad szemmel láthatatlan mikroszkopikus részecskék. Főleg fűtésből/forgalomból származnak, és belélegezve a tüdőbe juthatnak.",
+        infoDesc2: "A Bükk levegője országosan is kiemelkedően tiszta, itt általában kiváló értékeket mérünk.",
+        scaleTitle: "Levegőminőségi Index (PM10 µg/m³)",
+        scGood: "JÓ", scFair: "TŰRHETŐ", scMod: "ELFOGAD.", scPoor: "SZENNYEZ.", scBad: "ERŐSEN",
+        bExc: "Kiváló", bMod: "Mérsékelt", bHigh: "Emelkedett", bFresh: "Friss erdei", bNorm: "Normál",
+        bCool: "Hűvös", bPleas: "Kellemes", bWarm: "Meleg", bDry: "Száraz", bOpt: "Optimális", bHum: "Párás/Köd",
+        lastUpdatePrefix: "Utolsó mérés:"
       },
       en: {
-        title: "Climate Change Multidisciplinary National Laboratory 7B Subproject Air Quality Sensor Data",
-        navHome: "Home",
-        navMap: "Map",
-        navHeatmap: "Heatmap",
-        navCorrelation: "Correlation",
-        navTopo: "Daily 3D",
-        navHotspot: "3D Hotspot",
-        navAbout: "About",
-        sensorLabel: "Select sensor:",
-        timestamp: "Timestamp",
-        pm1: "PM1",
-        pm25: "PM2.5",
-        pm4: "PM4",
-        pm10: "PM10",
-        humidity: "Humidity",
-        temp: "Temperature",
-        voc: "VOC",
-        nox: "NOx",
-        co2: "CO2",
-        lastUpdated: "Last updated:",
-        disclaimer: "Measurement data is not verified.",
-        footer: "© Realized with the support of the Climate Change Multidisciplinary National Laboratory project."
+        title: "Air Quality Sensor Data", navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", navCorrelation: "Correlation",
+        navTopo: "Daily 3D", navHotspot: "3D Hotspot", navAbout: "About", sensorLabel: "Select sensor:",
+        pm1: "PM1.0", pm25: "PM2.5", pm4: "PM4.0", pm10: "PM10", humidity: "Humidity", temp: "Temperature", co2: "CO2 Level",
+        disclaimer: "Measurement data is not officially verified.", footer: "© Climate Change Multidisciplinary National Laboratory.",
+        aqiPrefix: "Current Air Quality",
+        fogLabel: "Dense Fog / Mist", fogAdvice: "There is dense fog in the Bükk. The sensor may mistake water droplets for dust. The air is actually clean!",
+        aqiGood: "Excellent", aqiGoodAdvice: "Air quality is excellent. Enjoy the clean forest air in the Bükk mountains!",
+        aqiFair: "Fair", aqiFairAdvice: "Air quality is considered acceptable. No protection needed.",
+        aqiMod: "Moderate", aqiModAdvice: "Air quality is acceptable. Enjoy your outdoor activities.",
+        aqiPoor: "Polluted", aqiPoorAdvice: "Consider reducing intense outdoor physical activities.",
+        aqiBad: "Heavily Polluted", aqiBadAdvice: "It is not recommended to stay outdoors for a long time.",
+        infoTitle: "What is Particulate Matter (PM10 / PM2.5)?",
+        infoDesc1: "Microscopic particles invisible to the eye. Mainly from heating/traffic, they can reach deep into the lungs.",
+        infoDesc2: "The air in the Bükk is outstandingly clean nationally; we usually measure excellent values here.",
+        scaleTitle: "Air Quality Index (PM10 µg/m³)",
+        scGood: "GOOD", scFair: "FAIR", scMod: "MODERATE", scPoor: "POOR", scBad: "SEVERE",
+        bExc: "Excellent", bMod: "Moderate", bHigh: "Elevated", bFresh: "Fresh Forest", bNorm: "Normal",
+        bCool: "Cool", bPleas: "Pleasant", bWarm: "Warm", bDry: "Dry", bOpt: "Optimal", bHum: "Humid/Foggy",
+        lastUpdatePrefix: "Last update:"
       }
     };
+
+    function getAQIStatus(pm10, pm25, humidity, lang) {
+        const t = translations[lang];
+        if (humidity >= 85 && (pm10 > 40 || pm25 > 20)) {
+            return { label: t.fogLabel, bg: 'bg-sky-50', border: 'border-sky-300', text: 'text-sky-800', advice: t.fogAdvice };
+        }
+        if (pm10 <= 25 && pm25 <= 10) return { label: t.aqiGood, bg: 'bg-green-50', border: 'border-green-500', text: 'text-green-800', advice: t.aqiGoodAdvice };
+        if (pm10 <= 40 && pm25 <= 20) return { label: t.aqiFair, bg: 'bg-lime-50', border: 'border-lime-500', text: 'text-lime-800', advice: t.aqiFairAdvice };
+        if (pm10 <= 50 && pm25 <= 25) return { label: t.aqiMod, bg: 'bg-yellow-50', border: 'border-yellow-400', text: 'text-yellow-800', advice: t.aqiModAdvice };
+        if (pm10 <= 75 && pm25 <= 50) return { label: t.aqiPoor, bg: 'bg-orange-50', border: 'border-orange-500', text: 'text-orange-800', advice: t.aqiPoorAdvice };
+        return { label: t.aqiBad, bg: 'bg-red-50', border: 'border-red-600', text: 'text-red-800', advice: t.aqiBadAdvice };
+    }
     
-    function getColorForValue(key, value) {
+    function getCardStyleAndBadge(key, value, lang) {
+        const t = translations[lang];
         const v = parseFloat(value);
-        if (isNaN(v)) return 'text-gray-800';
+        if (isNaN(v)) return { text: 'text-gray-400', stroke: 'text-gray-200', badge: '', progress: 0 };
+        
         switch (key) {
-            case 'pm1_0':
-            case 'pm2_5':
-            case 'pm4_0':
-                if (v <= 10) return 'text-green-600';
-                if (v <= 20) return 'text-yellow-600';
-                if (v <= 25) return 'text-orange-600';
-                if (v <= 50) return 'text-red-600';
-                return 'text-purple-700';
+            case 'pm1_0': case 'pm2_5': case 'pm4_0':
+                if (v <= 10) return { text: 'text-green-600', stroke: 'text-green-500', badge: t.bExc, progress: (v/25)*100 };
+                if (v <= 20) return { text: 'text-yellow-600', stroke: 'text-yellow-400', badge: t.bMod, progress: (v/25)*100 };
+                return { text: 'text-red-600', stroke: 'text-red-500', badge: t.bHigh, progress: 100 };
             case 'pm10_0':
-                if (v <= 20) return 'text-green-600';
-                if (v <= 40) return 'text-yellow-600';
-                if (v <= 50) return 'text-orange-600';
-                if (v <= 100) return 'text-red-600';
-                return 'text-purple-700';
+                if (v <= 25) return { text: 'text-green-600', stroke: 'text-green-500', badge: t.bExc, progress: (v/50)*100 };
+                if (v <= 50) return { text: 'text-yellow-600', stroke: 'text-yellow-400', badge: t.bMod, progress: (v/50)*100 };
+                return { text: 'text-red-600', stroke: 'text-red-500', badge: t.bHigh, progress: 100 };
             case 'co2':
-                if (v <= 1000) return 'text-green-600';
-                if (v <= 2000) return 'text-yellow-600';
-                return 'text-red-600';
-            case 'voc':
-                if (v <= 150) return 'text-green-600';
-                if (v <= 250) return 'text-yellow-600';
-                return 'text-red-600';
-            case 'nox':
-                if (v <= 50) return 'text-green-600';
-                if (v <= 100) return 'text-yellow-600';
-                return 'text-red-600';
+                if (v <= 800) return { text: 'text-green-600', stroke: 'text-green-500', badge: t.bFresh, progress: (v/1500)*100 };
+                if (v <= 1200) return { text: 'text-yellow-600', stroke: 'text-yellow-400', badge: t.bNorm, progress: (v/1500)*100 };
+                return { text: 'text-red-600', stroke: 'text-red-500', badge: t.bHigh, progress: 100 };
             case 'temperature':
-                if (v < 10) return 'text-blue-600';
-                if (v >= 10 && v <= 25) return 'text-green-600';
-                return 'text-orange-600';
+                if (v < 10) return { text: 'text-blue-600', stroke: 'text-blue-400', badge: t.bCool, progress: Math.max(0, (v/35)*100) };
+                if (v <= 24) return { text: 'text-green-600', stroke: 'text-green-500', badge: t.bPleas, progress: (v/35)*100 };
+                return { text: 'text-orange-500', stroke: 'text-orange-400', badge: t.bWarm, progress: 100 };
             case 'humidity':
-                if (v < 30) return 'text-yellow-600';
-                if (v >= 30 && v <= 60) return 'text-green-600';
-                return 'text-blue-600';
+                if (v < 40) return { text: 'text-yellow-600', stroke: 'text-yellow-400', badge: t.bDry, progress: v };
+                if (v <= 75) return { text: 'text-green-600', stroke: 'text-green-500', badge: t.bOpt, progress: v };
+                return { text: 'text-blue-500', stroke: 'text-blue-400', badge: t.bHum, progress: v };
             default:
-                return 'text-gray-800';
+                return { text: 'text-gray-800', stroke: 'text-gray-300', badge: '', progress: 0 };
         }
     }
 
     function setLanguage(lang) {
       localStorage.setItem('language', lang);
       applyLanguage(lang);
+      fetchAndDisplayData(); 
     }
 
     function applyLanguage(lang) {
-      const langData = translations[lang];
-      document.title = langData.title;
-      document.getElementById('main-title').textContent = langData.title;
-      document.getElementById('nav-home').textContent = langData.navHome;
-      document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
-      document.getElementById('nav-correlation').textContent = langData.navCorrelation;
-      if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
-      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
-      document.getElementById('nav-about').textContent = langData.navAbout;
-      document.getElementById('sensor-label').textContent = langData.sensorLabel;
-      document.getElementById('footer-text').textContent = langData.footer;
-      document.getElementById('disclaimer-text').textContent = langData.disclaimer;
+      const t = translations[lang];
+      document.title = t.title;
+      document.getElementById('main-title').textContent = t.title;
+      
+      // Navigációs menüpontok frissítése
+      document.getElementById('nav-home').textContent = t.navHome;
+      document.getElementById('nav-map').textContent = t.navMap;
+      document.getElementById('nav-heatmap').textContent = t.navHeatmap;
+      document.getElementById('nav-correlation').textContent = t.navCorrelation;
+      document.getElementById('nav-topo').textContent = t.navTopo;
+      document.getElementById('nav-hotspot').textContent = t.navHotspot;
+      document.getElementById('nav-about').textContent = t.navAbout;
+      
+      document.getElementById('sensor-label').textContent = t.sensorLabel;
+      document.getElementById('disclaimer-text').textContent = t.disclaimer;
+      document.getElementById('footer-text').textContent = t.footer;
+      
+      // Statikus információs blokk frissítése
+      document.getElementById('aqi-status-prefix').textContent = t.aqiPrefix;
+      document.getElementById('info-title').textContent = t.infoTitle;
+      document.getElementById('info-desc1').textContent = t.infoDesc1;
+      document.getElementById('info-desc2').textContent = t.infoDesc2;
+      document.getElementById('scale-title').textContent = t.scaleTitle;
+      
+      // Skála feliratok frissítése
+      document.getElementById('sc-good').textContent = t.scGood;
+      document.getElementById('sc-fair').textContent = t.scFair;
+      document.getElementById('sc-mod').textContent = t.scMod;
+      document.getElementById('sc-poor').textContent = t.scPoor;
+      document.getElementById('sc-bad').textContent = t.scBad;
+
       document.documentElement.lang = lang;
       
       document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -213,9 +287,10 @@
 
     async function fetchAndDisplayData() {
       try {
+        const lang = localStorage.getItem('language') || 'hu';
+        const t = translations[lang];
         const selectedSensorId = sensorSelect.value;
-        console.log('Adatok lekérése a következőhöz:', selectedSensorId);
-
+        
         const { data, error } = await supabaseClient
             .from('fixed_measurements')
             .select('*')
@@ -226,82 +301,100 @@
         if (error) throw error;
 
         if (!data || data.length === 0) {
-            dataTable.innerHTML = '<p class="text-red-500 col-span-full">Nincs elérhető adat ehhez a szenzorhoz.</p>';
-            lastUpdated.textContent = '';
+            dataTable.innerHTML = `<p class="text-red-500 col-span-full font-bold">Nincs elérhető adat.</p>`;
             return;
         }
 
         const latestData = data[0];
         dataTable.innerHTML = '';
-        const currentLang = localStorage.getItem('language') || 'hu';
 
+        // Dátum fejléc
+        const dateStr = new Date(latestData.created_at).toLocaleString(lang === 'en' ? 'en-US' : 'hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('lastUpdated').textContent = `${t.lastUpdatePrefix} ${dateStr}`;
+
+        // KIOSZK PANEL (Felső Szemafor)
+        const pm10Val = latestData.pm10_0 || 0;
+        const pm25Val = latestData.pm2_5 || 0;
+        const humidityVal = latestData.humidity || 0;
+        const aqiStatus = getAQIStatus(pm10Val, pm25Val, humidityVal, lang);
+        
+        const banner = document.getElementById('aqi-banner');
+        banner.className = `hidden lg:col-span-5 flex flex-col justify-center items-center text-center p-4 rounded-2xl shadow-lg border-l-8 transition-colors duration-500 glass-card ${aqiStatus.bg} ${aqiStatus.border}`;
+        document.getElementById('aqi-status-title').className = `text-2xl md:text-3xl font-black uppercase tracking-tight mb-2 ${aqiStatus.text}`;
+        document.getElementById('aqi-status-title').textContent = aqiStatus.label;
+        document.getElementById('aqi-status-advice').className = `text-sm font-medium leading-snug ${aqiStatus.text}`;
+        document.getElementById('aqi-status-advice').textContent = aqiStatus.advice;
+        
+        banner.classList.remove('hidden');
+        document.getElementById('aqi-info').classList.remove('hidden');
+
+        // KÖRDIAGRAMOS KÁRTYÁK
         const fields = [
-            { key: 'created_at', label: translations[currentLang].timestamp, unit: '' },
-            { key: 'pm1_0', label: translations[currentLang].pm1, unit: 'µg/m³' },
-            { key: 'pm2_5', label: translations[currentLang].pm25, unit: 'µg/m³' },
-            { key: 'pm4_0', label: translations[currentLang].pm4, unit: 'µg/m³' },
-            { key: 'pm10_0', label: translations[currentLang].pm10, unit: 'µg/m³' },
-            { key: 'humidity', label: translations[currentLang].humidity, unit: '%' },
-            { key: 'temperature', label: translations[currentLang].temp, unit: '°C' },
-            { key: 'voc', label: translations[currentLang].voc, unit: 'index' },
-            { key: 'nox', label: translations[currentLang].nox, unit: 'index' },
-            { key: 'co2', label: translations[currentLang].co2, unit: 'ppm' }
+            { key: 'pm10_0', label: t.pm10, unit: 'µg/m³' },
+            { key: 'pm2_5', label: t.pm25, unit: 'µg/m³' },
+            { key: 'pm1_0', label: t.pm1, unit: 'µg/m³' },
+            { key: 'pm4_0', label: t.pm4, unit: 'µg/m³' },
+            { key: 'humidity', label: t.humidity, unit: '%' },
+            { key: 'temperature', label: t.temp, unit: '°C' },
+            { key: 'co2', label: t.co2, unit: 'ppm' }
         ];
 
         fields.forEach(field => {
             let value = latestData[field.key];
-            
-            if (field.key === 'created_at' && value) {
-                const date = new Date(value);
-                value = date.toLocaleString(currentLang === 'en' ? 'en-US' : 'hu-HU');
-            } else if (typeof value === 'number') {
-                value = value.toFixed(1);
-            }
+            if (typeof value === 'number') value = value.toFixed(1);
             if (value === null || value === undefined) value = 'N/A';
 
-            const valueColorClass = getColorForValue(field.key, value);
-            
+            const cardStyle = getCardStyleAndBadge(field.key, value, lang);
             const cell = document.createElement('div');
-            cell.className = `p-3 md:p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow ${
-                field.key === 'created_at' ? 'lg:col-span-3' : ''
-            }`;
             
-            let valueHtml;
-            if (field.key === 'created_at') {
-                valueHtml = `<p class="text-base md:text-lg font-bold text-gray-800 mobile-text">${value}</p>`;
-            } else {
-                valueHtml = `<p class="text-xl md:text-2xl font-bold ${valueColorClass} mobile-text">${value} <span class="text-gray-500 text-sm font-medium">${field.unit}</span></p>`;
-            }
-
+            cell.className = `bg-white p-3 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 flex flex-col items-center justify-between group`;
+            
+            const radius = 28;
+            const circumference = 2 * Math.PI * radius;
+            const fillPercent = Math.min(100, Math.max(0, cardStyle.progress));
+            const offset = circumference - (fillPercent / 100) * circumference;
+            
             cell.innerHTML = `
-                <h3 class="text-sm font-semibold text-green-700 mobile-text">${field.label}</h3>
-                ${valueHtml}
+                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 z-10">${field.label}</h3>
+                
+                <div class="relative w-20 h-20 flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 my-1">
+                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+                        <circle cx="40" cy="40" r="${radius}" fill="transparent" stroke="#f3f4f6" stroke-width="6" />
+                        <circle cx="40" cy="40" r="${radius}" fill="transparent" stroke="currentColor" stroke-width="6" 
+                            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" 
+                            class="${cardStyle.stroke} circle-progress" />
+                    </svg>
+                    
+                    <div class="absolute flex flex-col items-center justify-center">
+                        <span class="text-xl font-black ${cardStyle.text} leading-none">${value}</span>
+                        <span class="text-[9px] font-bold text-gray-400 mt-0.5">${field.unit}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-2 px-2 py-0.5 bg-gray-50 rounded-full border border-gray-100 w-full text-center">
+                    <span class="text-[10px] font-bold uppercase tracking-wider ${cardStyle.text} line-clamp-1">${cardStyle.badge}</span>
+                </div>
             `;
-            
             dataTable.appendChild(cell);
         });
 
-        lastUpdated.textContent = `${translations[currentLang].lastUpdated} ${new Date().toLocaleString(currentLang === 'en' ? 'en-US' : 'hu-HU')}`;
-
       } catch (error) {
-        dataTable.innerHTML = '<p class="text-red-500 col-span-full">Hiba az adatok lekérésekor: ' + error.message + '</p>';
-        console.error('Fetch error:', error);
+        console.error('Hiba az adatok betöltésekor:', error);
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       const savedLang = localStorage.getItem('language') || 'hu';
-      setLanguage(savedLang);
+      applyLanguage(savedLang); 
 
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           setLanguage(btn.dataset.lang);
-          fetchAndDisplayData();
         });
       });
 
       fetchAndDisplayData();
-      setInterval(fetchAndDisplayData, 15000);
+      setInterval(fetchAndDisplayData, 15000); 
       sensorSelect.addEventListener('change', fetchAndDisplayData);
     });
   </script>
