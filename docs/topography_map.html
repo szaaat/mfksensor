@@ -109,10 +109,10 @@
     <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
       <a href="index.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navHome">Kezdőlap</a>
       <a href="map.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navMap">Térkép</a>
-      <a href="heatmap.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navHeatmap">Hőtérkép</a>
       <a href="correlation.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navCorrelation">Korreláció</a>
       <a href="topography_map.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2" data-translate="navTopo">Napi 3D</a>
       <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
+      <a href="air_quality_simulator.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navSimulator">AI Szimulátor</a>
       <a href="about.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navAbout">Rólunk</a>
     </div>
   </nav>
@@ -246,8 +246,8 @@
     const translations = {
       hu: {
         title: "Topográfia és Levegőminőség (PM2.5)",
-        navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", 
-        navCorrelation: "Korreláció", navTopo: "Napi 3D", navHotspot: "3D Hotspot",navAbout: "Rólunk",
+        navHome: "Kezdőlap", navMap: "Térkép", 
+        navCorrelation: "Korreláció", navTopo: "Napi 3D", navHotspot: "3D Hotspot", navSimulator: "AI Szimulátor", navAbout: "Rólunk",
         selectDate: "Dátum kiválasztása:", selectPeriod: "Napszak:",
         morning: "Délelőtt", morningTime: "(0-12h)", afternoon: "Délután", afternoonTime: "(12-24h)",
         selectLayer: "Réteg:", layerLocal: "Lokális Többlet", layerBg: "Regionális Háttér", layerTotal: "Teljes Koncentráció",
@@ -286,8 +286,8 @@
       },
       en: {
         title: "Topography & Air Quality (PM2.5)",
-        navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", 
-        navCorrelation: "Correlation", navTopo: "Daily 3D", navHotspot: "3D Hotspot", navAbout: "About",
+        navHome: "Home", navMap: "Map", 
+        navCorrelation: "Correlation", navTopo: "Daily 3D", navHotspot: "3D Hotspot", navSimulator: "AI Simulator", navAbout: "About",
         selectDate: "Select Date:", selectPeriod: "Time of Day:",
         morning: "Morning", morningTime: "(0-12h)", afternoon: "Afternoon", afternoonTime: "(12-24h)",
         selectLayer: "Layer:", layerLocal: "Local Excess", layerBg: "Regional Background", layerTotal: "Total Concentration",

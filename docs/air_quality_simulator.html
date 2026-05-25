@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Quality Heatmap Simulator - MFK Sensor</title>
+  
+  <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; font-family: sans-serif; overflow-x: hidden; }
+    #map { height: 75vh; width: 100%; position: relative; flex-none; }
+    
+    .map-overlay {
+      position: absolute; 
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1.25rem; border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      z-index: 10;
+      width: 320px;
+      top: 1rem; left: 1rem;
+      max-height: 90%;
+      overflow-y: auto;
+    }
+
+    input[type=range] { width: 100%; accent-color: #15803d; margin-top: 0.25rem; margin-bottom: 0.25rem;}
+    
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 50; flex-direction: column;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3; border-top: 5px solid #3498db;
+      border-radius: 50%; width: 50px; height: 50px;
+      animation: spin 1s linear infinite; margin-bottom: 10px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .legend-gradient { 
+      height: 12px; width: 100%; border-radius: 6px; margin-top: 10px; 
+      background: linear-gradient(to right, #009966, #ffde33, #ff9933, #cc0033, #660099);
+    }
+
+    .lang-btn {
+      padding: 2px 10px; border: 1px solid white; border-radius: 4px;
+      background: transparent; color: white; cursor: pointer; font-size: 0.8rem;
+      transition: all 0.3s;
+    }
+    .lang-btn.active { background: white; color: green; font-weight: bold; }
+    .lang-btn:hover:not(.active) { background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <header class="bg-green-700 text-white text-center py-4 shadow-lg flex-none relative">
+    <div class="absolute top-3 right-3 flex space-x-2">
+      <button id="lang-hu" class="lang-btn active" onclick="setLang('hu')">HU</button>
+      <button id="lang-en" class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight" data-translate="title">AI Völgyi Szmog Szimulátor</h1>
+  </header>
+
+  <nav class="bg-green-600 text-white py-2 shadow-md flex-none">
+    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
+      <a href="index.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navHome">Kezdőlap</a>
+      <a href="map.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navMap">Térkép</a>
+      <a href="correlation.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navCorrelation">Korreláció</a>
+      <a href="topography_map.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navTopo">Napi 3D</a>
+      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors">3D Hotspot</a>
+      <a href="air_quality_simulator.html" class="text-sm font-semibold hover:text-green-200 transition-colors underline decoration-2" data-translate="navSimulator">AI Szimulátor</a>
+      <a href="about.html" class="text-sm font-semibold hover:text-green-200 transition-colors" data-translate="navAbout">Rólunk</a>
+    </div>
+  </nav>
+
+  <div id="map">
+    <div id="loading" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <span id="loadingText" class="text-lg font-semibold text-green-800">Szimuláció futtatása a felhőben...</span>
+    </div>
+
+    <div class="map-overlay text-gray-800">
+      <h3 class="font-bold text-base mb-1 text-gray-900 border-b pb-2" data-translate="controlTitle">Meteorológiai Paraméterek</h3>
+      
+      <p class="text-xs text-gray-600 mb-4" data-translate="introText">
+        Állítsd be az időjárást, és figyeld meg, hogyan reagál a domborzat és a beépítettség a szmoghelyzetre!
+      </p>
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold text-gray-700 flex justify-between">
+          <span data-translate="tempLabel">Hőmérséklet (°C)</span>
+          <span id="tempVal" class="text-blue-600">-5</span>
+        </label>
+        <input type="range" id="tempSlider" min="-15" max="15" step="1" value="-5" oninput="document.getElementById('tempVal').innerText=this.value">
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-sm font-bold text-gray-700 flex justify-between">
+          <span data-translate="windLabel">Szélsebesség (m/s)</span>
+          <span id="windVal" class="text-green-600">2.8</span>
+        </label>
+        <input type="range" id="windSlider" min="0" max="10" step="0.1" value="2.8" oninput="document.getElementById('windVal').innerText=this.value">
+        <p class="text-[10px] text-gray-500 italic mt-0.5" data-translate="windHint">*Tipp: 2.5 - 3.0 m/s között lép fel a keveredési csapda!</p>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-700 flex justify-between">
+          <span data-translate="dirLabel">Szélirány (fok)</span>
+          <span id="dirVal" class="text-gray-600">90 (Kelet)</span>
+        </label>
+        <input type="range" id="dirSlider" min="0" max="360" step="10" value="90" oninput="updateDirText(this.value)">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-700 mb-1" data-translate="timeLabel">Napszak (Fűtési intenzitás)</label>
+        <select id="timeSelect" class="w-full border rounded p-2 text-sm bg-white">
+          <option value="6" id="optDawn">Hajnal (06:00)</option>
+          <option value="12" id="optNoon">Dél (12:00)</option>
+          <option value="19" id="optEvening" selected>Este Csúcsidő (19:00)</option>
+        </select>
+      </div>
+
+      <button onclick="runSimulation()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors shadow-md text-sm" data-translate="btnSimulate">
+        Szimuláció Indítása
+      </button>
+
+      <div class="mt-4 border-t pt-3">
+        <h4 class="text-xs font-bold text-gray-700" data-translate="legendTitle">Várható PM2.5 (µg/m³)</h4>
+        <div class="legend-gradient"></div>
+        <div class="flex justify-between text-[10px] text-gray-600 mt-1 font-semibold">
+          <span data-translate="clean">0 (Tiszta)</span>
+          <span>50</span>
+          <span data-translate="hazardous">100+ (Veszélyes)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="container mx-auto px-4 py-8 max-w-5xl bg-white my-6 rounded-lg shadow-sm border border-gray-100">
+    <h2 class="text-xl md:text-2xl font-bold text-green-800 border-b pb-3 mb-6" data-translate="methTitle">Módszertan és Tudományos Háttér</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm leading-relaxed">
+      <div>
+        <h3 class="font-bold text-green-700 text-base mb-2 flex items-center">
+          <span class="mr-2">👁️</span> <span data-translate="methSeeTitle">Mit látunk a térképen?</span>
+        </h3>
+        <p class="text-gray-600 text-justify" data-translate="methSeeText">
+          Ez a szimulátor a Bükk-vidék téli PM2.5 légszennyezettségének mikroklimatikus eloszlását mutatja be. A színes rétegek közvetlenül a 3D domborzatra simulnak (Terrain Draping), szemléletesen demonstrálva, hogy a szennyező anyagok hogyan folynak be és rekednek meg a morfotektonikai völgyek alján a kiválasztott meteorológiai helyzetben.
+        </p>
+      </div>
+
+      <div>
+        <h3 class="font-bold text-green-700 text-base mb-2 flex items-center">
+          <span class="mr-2">🧠</span> <span data-translate="methAiTitle">Hogyan működik az AI háttér?</span>
+        </h3>
+        <p class="text-gray-600 text-justify" data-translate="methAiText">
+          A szimuláció mögött egy tér-időbeli földhasználati regressziós (ST-LUR) gépi tanulási modell (XGBoost) fut, amelyet több mint 1,1 millió soros mobil mérési adatbázison tanítottunk be. Az algoritmus önállóan térképezte fel a komplex, nem-lineáris összefüggéseket a topográfia, a meteorológia és az antropogén indikátorok (épületsűrűség, úttávolság) között.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      
+      <div class="bg-green-50/50 p-4 rounded-md border border-green-100/50 text-sm">
+        <h3 class="font-bold text-green-800 text-sm mb-2 flex items-center">
+          <span class="mr-2">🛡️</span> <span data-translate="methPhysTitle">Hibrid Modellezés & Fizikai Korlátok</span>
+        </h3>
+        <p class="text-gray-700 text-justify text-xs" data-translate="methPhysText">
+          A tiszta gépi tanulási modellek hajlamosak a túlbecslésre a lakatlan, erdei völgyekben az utazási mintavételezés jellege miatt. Ennek kiküszöbölésére az API-ba egy fizikai diszperziós korlátot építettünk be: a rendszer az AI predikcióit egy exponenciális távolsági csillapítási függvénnyel (Distance Decay) korrigálja az emissziós forrásoktól mért távolság alapján, garantálva a természetvédelmi területek reális leképezését.
+        </p>
+      </div>
+
+      <div class="bg-blue-50/50 p-4 rounded-md border border-blue-100/50 text-sm">
+        <h3 class="font-bold text-blue-800 text-sm mb-2 flex items-center">
+          <span class="mr-2">🎯</span> <span data-translate="methScopeTitle">A modell hatóköre és peremfeltételei</span>
+        </h3>
+        <p class="text-gray-700 text-justify text-xs" data-translate="methScopeText">
+          Fontos kiemelni, hogy ez a szimulátor kimondottan a <strong>téli, helyi emisszióból származó szmogtöbbletet (lokális anomáliákat)</strong> modellezi. A rendszer nem foglalkozik a nagytérségi (regionális) háttérszennyezés előrejelzésével, és nem meteorológiai prediktív modell (az időjárás változását nem számítja, hanem fix bemeneti peremfeltételként kezeli). Célja kifejezetten a megadott időjárási helyzetekre adott lokális, mikroklimatikus reakciók vizualizációja.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    const API_URL = "https://szaaat-air-quality-heatmap-simulator.hf.space/simulate"; 
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic3phYWF0IiwiYSI6ImNsODl6dnhwbjBidnQzbm81ZnZkajlpYmEifQ.5-MSbqmQxN70T9u7IOfcpg'; 
+
+    const translations = {
+      hu: {
+        title: "AI Völgyi Szmog Szimulátor",
+        navHome: "Kezdőlap", navMap: "Térkép", navCorrelation: "Korreláció", navTopo: "Napi 3D", navSimulator: "AI Szimulátor", navAbout: "Rólunk",
+        controlTitle: "Meteorológiai Paraméterek",
+        introText: "Állítsd be az időjárást, és figyeld meg, hogyan reagál a domborzat és a beépítettség a szmoghelyzetre!",
+        tempLabel: "Hőmérséklet (°C)", windLabel: "Szélsebesség (m/s)", windHint: "*Tipp: 2.5 - 3.0 m/s között lép fel a keveredési csapda!",
+        dirLabel: "Szélirány (fok)", timeLabel: "Napszak (Fűtési intenzitás)",
+        optDawn: "Hajnal (06:00)", optNoon: "Dél (12:00)", optEvening: "Este Csúcsidő (19:00)",
+        btnSimulate: "Szimuláció Indítása", legendTitle: "Várható PM2.5 (µg/m³)", clean: "0 (Tiszta)", hazardous: "100+ (Veszélyes)",
+        loadingText: "Szimuláció futtatása a felhőben...", dirNorth: "Észak", dirEast: "Kelet", dirSouth: "Dél", dirWest: "Nyugat",
+        
+        // MÓDSZERTAN
+        methTitle: "Módszertan és Tudományos Háttér",
+        methSeeTitle: "Mit látunk a térképen?",
+        methSeeText: "Ez a szimulátor a Bükk-vidék téli PM2.5 légszennyezettségének mikroklimatikus eloszlását mutatja be. A színes rétegek közvetlenül a 3D domborzatra simulnak (Terrain Draping), szemléletesen demonstrálva, hogy a szennyező anyagok hogyan folynak be és rekednek meg a morfotektonikai völgyek alján a kiválasztott meteorológiai helyzetben.",
+        methAiTitle: "Hogyan működik az AI háttér?",
+        methAiText: "A szimuláció mögött egy tér-időbeli földhasználati regressziós (ST-LUR) gépi tanulási modell (XGBoost) fut, amelyet több mint 1,1 millió soros mobil mérési adatbázison tanítottunk be. Az algoritmus önállóan térképezte fel a komplex, nem-lineáris összefüggéseket a topográfia, a meteorológia és az antropogén indikátorok (épületsűrűség, úttávolság) között.",
+        methPhysTitle: "Hibrid Modellezés & Fizikai Korlátok",
+        methPhysText: "A tiszta gépi tanulási modellek hajlamosak a túlbecslésre a lakatlan, erdei völgyekben az utazási mintavételezés jellege miatt. Ennek kiküszöbölésére az API-ba egy fizikai diszperziós korlátot építettünk be: a rendszer az AI predikcióit egy exponenciális távolsági csillapítási függvénnyel (Distance Decay) korrigálja az emissziós forrásoktól mért távolság alapján, garantálva a természetvédelmi területek reális leképezését.",
+        methScopeTitle: "A modell hatóköre és peremfeltételei",
+        methScopeText: "Fontos kiemelni, hogy ez a szimulátor kimondottan a <strong>téli, helyi emisszióból származó szmogtöbbletet (lokális anomáliákat)</strong> modellezi. A rendszer nem foglalkozik a nagytérségi (regionális) háttérszennyezés előrejelzésével, és nem meteorológiai prediktív modell (az időjárás változását nem számítja, hanem fix bemeneti peremfeltételként kezeli). Célja kifejezetten a megadott időjárási helyzetekre adott lokális, mikroklimatikus reakciók vizualizációja."
+      },
+      en: {
+        title: "AI Valley Smog Simulator",
+        navHome: "Home", navMap: "Map", navCorrelation: "Correlation", navTopo: "Daily 3D", navSimulator: "AI Simulator", navAbout: "About",
+        controlTitle: "Meteorological Parameters",
+        introText: "Adjust the weather sliders to see how terrain and urban density interact with microclimate air pollution!",
+        tempLabel: "Temperature (°C)", windLabel: "Wind Speed (m/s)", windHint: "*Hint: Mixing trap occurs between 2.5 - 3.0 m/s!",
+        dirLabel: "Wind Direction (deg)", timeLabel: "Time of Day (Heating Intensity)",
+        optDawn: "Dawn (06:00)", optNoon: "Noon (12:00)", optEvening: "Evening Peak (19:00)",
+        btnSimulate: "Run AI Simulation", legendTitle: "Expected PM2.5 (µg/m³)", clean: "0 (Clean)", hazardous: "100+ (Hazardous)",
+        loadingText: "Running AI simulation in cloud...", dirNorth: "North", dirEast: "East", dirSouth: "South", dirWest: "West",
+        
+        // METHODOLOGY
+        methTitle: "Methodology & Scientific Background",
+        methSeeTitle: "What do we see on the map?",
+        methSeeText: "This simulator displays the microclimatic distribution of winter PM2.5 air pollution in the Bükk region. The color-coded layers conform directly to the 3D terrain (Terrain Draping), visually demonstrating how pollutants drain into and stagnate at the bottom of morphotectonic valleys under the selected meteorological conditions.",
+        methAiTitle: "How does the AI backend work?",
+        methAiText: "The simulation is driven by an ST-LUR (Spatiotemporal Land Use Regression) machine learning model (XGBoost), trained on a mobile measurement database exceeding 1.1 million rows. The algorithm autonomously mapped the complex non-linear relationships between topography, meteorology, and anthropogenic indicators (building density, road distance).",
+        methPhysTitle: "Hybrid Modeling & Physical Constraints",
+        methPhysText: "Pure machine learning models are prone to overestimation in uninhabited forest valleys due to the nature of transit sampling. To eliminate this, a physical dispersion constraint was integrated into the API: the system corrects AI predictions using an exponential distance-decay function relative to actual emission sources, guaranteeing a realistic representation of protected nature reserves.",
+        methScopeTitle: "Model Scope & Boundary Conditions",
+        methScopeText: "It is important to emphasize that this simulator specifically models the <strong>wintertime smog excess (local anomalies)</strong> originating from local emissions. The system does not forecast large-scale (regional) background pollution and is not a predictive meteorological model (weather changes are not calculated but treated as fixed input boundary conditions). Its explicit purpose is to visualize the local, microclimatic responses to specific meteorological conditions."
+      }
+    };
+
+    let currentLang = 'hu';
+
+    function setLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('language', lang);
+      document.getElementById('lang-hu').classList.toggle('active', lang === 'hu');
+      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+      
+      document.querySelectorAll('[data-translate]').forEach(el => {
+        const key = el.getAttribute('data-translate');
+        if(translations[lang][key]) el.innerHTML = translations[lang][key]; 
+      });
+
+      document.getElementById('optDawn').text = translations[lang].optDawn;
+      document.getElementById('optNoon').text = translations[lang].optNoon;
+      document.getElementById('optEvening').text = translations[lang].optEvening;
+      updateDirText(document.getElementById('dirSlider').value);
+    }
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11', 
+      center: [20.79, 48.10], 
+      zoom: 11,
+      pitch: 45,
+      bearing: -10,
+      antialias: true
+    });
+
+    function createSquare(lat, lng, radiusInMeters) {
+        const earthRadius = 6378137; 
+        const rLat = (radiusInMeters / earthRadius) * (180 / Math.PI);
+        const rLng = (radiusInMeters / earthRadius) * (180 / Math.PI) / Math.cos(lat * Math.PI / 180);
+        return [[
+            [lng - rLng, lat - rLat],
+            [lng + rLng, lat - rLat],
+            [lng + rLng, lat + rLat],
+            [lng - rLng, lat + rLat],
+            [lng - rLng, lat - rLat]
+        ]];
+    }
+
+    map.on('load', () => {
+      map.addSource('mapbox-dem', {
+        'type': 'raster-dem',
+        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        'tileSize': 512, 'maxzoom': 14
+      });
+      map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.4 });
+      
+      map.addSource('szimulacio-source', {
+        type: 'geojson', data: { type: 'FeatureCollection', features: [] }
+      });
+
+      const layers = map.getStyle().layers;
+      let firstLabelId;
+      for (const layer of layers) {
+        if (layer.type === 'symbol' && layer.layout['text-field']) {
+          firstLabelId = layer.id;
+          break;
+        }
+      }
+
+      map.addLayer({
+        'id': 'draped-szimulacio-layer',
+        'type': 'fill', 
+        'source': 'szimulacio-source',
+        'paint': {
+          'fill-color': [
+            'interpolate', ['linear'], ['get', 'pm25'],
+            0, '#009966', 25, '#ffde33', 50, '#ff9933', 75, '#cc0033', 100, '#660099'
+          ],
+          'fill-opacity': 0.60, 
+          'fill-outline-color': 'rgba(0,0,0,0)' 
+        }
+      }, firstLabelId); 
+    });
+
+    function updateDirText(val) {
+      const t = translations[currentLang];
+      let text = t.dirNorth;
+      if (val > 45 && val <= 135) text = t.dirEast;
+      else if (val > 135 && val <= 225) text = t.dirSouth;
+      else if (val > 225 && val <= 315) text = t.dirWest;
+      document.getElementById('dirVal').innerText = `${val} (${text})`;
+    }
+
+    async function runSimulation() {
+      const temp = document.getElementById('tempSlider').value;
+      const wind = document.getElementById('windSlider').value;
+      const dir = document.getElementById('dirSlider').value;
+      const hour = document.getElementById('timeSelect').value;
+
+      document.getElementById('loadingText').innerText = translations[currentLang].loadingText;
+      document.getElementById('loading').classList.remove('hidden');
+
+      try {
+        const response = await fetch(`${API_URL}?temp=${temp}&wind_speed=${wind}&wind_dir=${dir}&hour=${hour}`);
+        if (!response.ok) throw new Error("API error");
+        const geojsonData = await response.json();
+
+        const squareFeatures = geojsonData.features.map(f => {
+            const lng = f.geometry.coordinates[0];
+            const lat = f.geometry.coordinates[1];
+            const val = f.properties.pm25;
+            
+            return {
+                type: 'Feature',
+                geometry: { type: 'Polygon', coordinates: createSquare(lat, lng, 90) }, 
+                properties: { pm25: val }
+            };
+        });
+
+        map.getSource('szimulacio-source').setData({
+            type: 'FeatureCollection', features: squareFeatures
+        });
+        
+      } catch (error) {
+        console.error(error);
+        alert("Szerver hiba történt!");
+      } finally {
+        document.getElementById('loading').classList.add('hidden');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedLang = localStorage.getItem('language') || 'hu';
+        setLang(savedLang);
+    });
+  </script>
+</body>
+</html>
