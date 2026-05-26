@@ -103,7 +103,7 @@
       <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Korreláció</a>
       <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
       <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
-      <a href="air_quality_simulator.html" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text" data-translate="navSimulator">AI Szimulátor</a>
+      <a href="air_quality_simulator.html" id="nav-simulator" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">AI Szimulátor</a>
       <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
     </div>
   </nav>
@@ -138,7 +138,6 @@
     
     <div id="map" class="rounded-lg shadow-lg border border-gray-300"></div>
 
-    <!-- JELMAGYARÁZAT -->
     <div id="legend" class="legend bg-white bg-opacity-90 p-2 rounded-lg shadow-md">
       <h3 id="legend-title" class="font-bold mb-1 text-sm mobile-text">Jelmagyarázat</h3>
       <div id="legend-content"></div>
@@ -385,10 +384,10 @@
       document.getElementById('map-footer').textContent = langData.footer;
       document.getElementById('nav-home').textContent = langData.navHome;
       document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-heatmap').textContent = langData.navHeatmap;
       document.getElementById('nav-correlation').textContent = langData.navCorrelation;
       if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
       if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
+      if(document.getElementById('nav-simulator')) document.getElementById('nav-simulator').textContent = langData.navSimulator;
       document.getElementById('nav-about').textContent = langData.navAbout;
       
       // Jelmagyarázat cím fordítása
@@ -778,7 +777,8 @@
 
       } catch (err) {
         console.error('Hiba:', err);
-        if (loadingText) loadingText.textContent = "Hiba történt az oldal betöltésekor.";
+        const loadingEl = document.getElementById('loading-text');
+        if (loadingEl) loadingEl.textContent = "Hiba történt az oldal betöltésekor.";
       }
     });
   </script>

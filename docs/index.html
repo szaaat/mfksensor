@@ -50,7 +50,7 @@
           <a href="correlation.html" id="nav-correlation" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Korreláció</a>
           <a href="topography_map.html" id="nav-topo" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Napi 3D</a>
           <a href="topography_hotspot.html" id="nav-hotspot" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">3D Hotspot</a>
-          <a href="air_quality_simulator.html" class="text-xs font-semibold text-green-200 hover:text-white transition-colors" data-translate="navSimulator">AI Szimulátor</a>
+          <a href="air_quality_simulator.html" id="nav-simulator" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">AI Szimulátor</a>
           <a href="about.html" id="nav-about" class="text-xs font-semibold text-green-200 hover:text-white transition-colors">Rólunk</a>
         </nav>
     </div>
@@ -151,10 +151,9 @@
     const dataTable = document.getElementById('dataTable');
     const sensorSelect = document.getElementById('sensorSelect');
 
-    // Teljeskörű nyelvi szótár (Kiegészítve a hiányzó menüpontokkal és a címmel)
     const translations = {
       hu: {
-        title: "Levegőminőség szenzor adatok", navHome: "Kezdőlap", navMap: "Térkép", navHeatmap: "Hőtérkép", navCorrelation: "Korreláció", 
+        title: "Levegőminőség szenzor adatok", navHome: "Kezdőlap", navMap: "Térkép", navCorrelation: "Korreláció", 
         navTopo: "Napi 3D", navHotspot: "3D Hotspot", navSimulator: "AI Szimulátor", navAbout: "Rólunk", sensorLabel: "Válassz szenzort:",
         pm1: "PM1.0", pm25: "PM2.5", pm4: "PM4.0", pm10: "PM10", humidity: "Páratartalom", temp: "Hőmérséklet", co2: "CO2 Szint",
         disclaimer: "A mérési adatok nem hitelesítettek.", footer: "© Éghajlatváltozás Multidiszciplináris Nemzeti Laboratórium.",
@@ -175,7 +174,7 @@
         lastUpdatePrefix: "Utolsó mérés:"
       },
       en: {
-        title: "Air Quality Sensor Data", navHome: "Home", navMap: "Map", navHeatmap: "Heatmap", navCorrelation: "Correlation",
+        title: "Air Quality Sensor Data", navHome: "Home", navMap: "Map", navCorrelation: "Correlation",
         navTopo: "Daily 3D", navHotspot: "3D Hotspot", navSimulator: "AI Simulator", navAbout: "About", sensorLabel: "Select sensor:",
         pm1: "PM1.0", pm25: "PM2.5", pm4: "PM4.0", pm10: "PM10", humidity: "Humidity", temp: "Temperature", co2: "CO2 Level",
         disclaimer: "Measurement data is not officially verified.", footer: "© Climate Change Multidisciplinary National Laboratory.",
@@ -254,10 +253,10 @@
       // Navigációs menüpontok frissítése
       document.getElementById('nav-home').textContent = t.navHome;
       document.getElementById('nav-map').textContent = t.navMap;
-      document.getElementById('nav-heatmap').textContent = t.navHeatmap;
       document.getElementById('nav-correlation').textContent = t.navCorrelation;
-      document.getElementById('nav-topo').textContent = t.navTopo;
-      document.getElementById('nav-hotspot').textContent = t.navHotspot;
+      if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = t.navTopo;
+      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = t.navHotspot;
+      if(document.getElementById('nav-simulator')) document.getElementById('nav-simulator').textContent = t.navSimulator;
       document.getElementById('nav-about').textContent = t.navAbout;
       
       document.getElementById('sensor-label').textContent = t.sensorLabel;
