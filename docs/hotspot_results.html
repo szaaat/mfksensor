@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#166534">
+  <title>Hotspot-eredmények | MFK Sensor</title>
+  <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin:0; width:100%; height:100%; font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1f2937; }
+    body { display:flex; flex-direction:column; background:linear-gradient(135deg,#f0fdf4,#eff6ff); }
+    header { background:#166534; color:white; text-align:center; padding:15px 130px 15px 16px; position:relative; flex:none; }
+    header h1 { font-weight:800; font-size:clamp(1.1rem,2.3vw,1.55rem); letter-spacing:-.02em; margin:0; }
+    .lang { position:absolute; right:14px; top:13px; display:flex; gap:6px; }
+    .lang button { border:1px solid #bbf7d0; border-radius:5px; padding:3px 10px; color:white; background:transparent; font-size:.8rem; cursor:pointer; }
+    .lang button.active { background:white; color:#166534; font-weight:800; }
+    nav { background:#15803d; color:white; display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; padding:9px 12px; box-shadow:0 2px 5px #0002; flex:none; }
+    nav a { color:white; text-decoration:none; font-size:.83rem; font-weight:650; }
+    nav a:hover, nav a.current { text-decoration:underline; text-underline-offset:4px; }
+    #map-wrap { position:relative; z-index:1; flex:none; height:auto; min-height:0; padding:18px clamp(12px,2vw,28px) 24px; background:#f8faf9; }
+    .dashboard-layout { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:18px; max-width:1840px; margin:0 auto; align-items:start; }
+    .map-column { min-width:0; position:relative; }
+    .panel { position:sticky; top:14px; z-index:2; width:100%; max-height:calc(100vh - 28px); overflow:auto; padding:17px 18px; margin:0; border-radius:12px; background:#fff; box-shadow:0 3px 14px #0f172a12; border:1px solid #e5e7eb; }
+    .filter-grid { display:grid; grid-template-columns:1fr; gap:5px; align-items:end; }
+    .filter-grid label { margin-top:9px; }
+    .filter-grid .field { margin-top:4px; }
+    .map-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; width:100%; margin:0; }
+    .map-card { min-width:0; background:#fff; border:1px solid #e1e9e3; border-radius:13px; overflow:hidden; box-shadow:0 3px 12px #0f172a0c; }
+    .map-card h3 { min-height:58px; display:flex; align-items:center; margin:0; padding:11px 14px; color:#173b29; font-size:.92rem; line-height:1.35; font-weight:850; border-bottom:1px solid #e5ebe7; }
+    .map-canvas { height:clamp(500px,68vh,790px); min-height:440px; background:#dbeafe; }
+    .panel-heading { color:#173b29; font-weight:850; font-size:1.05rem; line-height:1.25; }
+    .panel-intro { color:#58675e; font-size:.82rem; line-height:1.5; margin:7px 0 12px; }
+    .map-help { margin:0 0 12px; padding:10px 12px; border:1px solid #dcebe0; border-radius:9px; background:#f0f7f2; color:#40574a; font-size:.78rem; line-height:1.5; }
+    @media(max-width:1100px){.dashboard-layout{grid-template-columns:1fr}.panel{position:relative;top:auto;max-height:none;overflow:visible;grid-row:1}.map-column{grid-row:2}.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.map-canvas{height:560px;}}
+    @media(max-width:700px){.map-pair{grid-template-columns:1fr}.map-canvas{height:460px;min-height:400px}.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+    .field { display:block; width:100%; margin-top:5px; border:1px solid #d1d5db; border-radius:7px; padding:8px 9px; background:white; color:#374151; font-size:.9rem; }
+    label { display:block; font-size:.82rem; font-weight:750; color:#374151; margin-top:11px; }
+    .eyebrow { color:#15803d; text-transform:uppercase; letter-spacing:.08em; font-size:.7rem; font-weight:850; }
+    .muted { color:#6b7280; font-size:.78rem; line-height:1.45; }
+    .legend { height:13px; border-radius:8px; margin-top:8px; background:linear-gradient(90deg,#166534,#65a30d,#facc15,#f97316,#b91c1c,#6b21a8); }
+    .legend-labels { display:flex; justify-content:space-between; gap:6px; font-size:.7rem; color:#4b5563; margin-top:4px; }
+    .notice { border-radius:8px; padding:9px 10px; font-size:.78rem; line-height:1.45; background:#f0fdf4; border:1px solid #bbf7d0; }
+    .notice.warn { background:#fffbeb; border-color:#fde68a; }
+    .status { margin-top:10px; padding:9px 10px; border-radius:7px; background:#f3f4f6; font-size:.78rem; line-height:1.4; overflow-wrap:anywhere; }
+    .status.error { background:#fef2f2; color:#991b1b; }
+    .status.ok { background:#f0fdf4; color:#166534; }
+    .button { border:0; background:#15803d; color:white; border-radius:7px; padding:8px 11px; font-weight:750; cursor:pointer; font-size:.82rem; }
+    .button:disabled { opacity:.55; cursor:wait; }
+    .rule { border:0; border-top:1px solid #e5e7eb; margin:13px 0; }
+    #loading { display:none; position:absolute; inset:0; z-index:1300; align-items:center; justify-content:center; flex-direction:column; background:#ffffffb8; font-weight:750; color:#166534; }
+    #loading.show { display:flex; }
+    .spinner { width:38px; height:38px; border:4px solid #d1fae5; border-top-color:#15803d; border-radius:50%; animation:spin .8s linear infinite; margin-bottom:10px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .leaflet-popup-content-wrapper { border-radius:10px; box-shadow:0 4px 18px #0002; }
+    .leaflet-popup-content { margin:13px 15px; line-height:1.5; min-width:210px; }
+    .leaflet-container { font:inherit; }
+    .leaflet-control-attribution { font-size:10px; }
+    .leaflet-top, .leaflet-bottom { z-index:800; }
+    .analysis-below { background:#f8faf9; border-top:1px solid #dce7df; padding:clamp(22px,4vw,42px) clamp(14px,5vw,56px); }
+    .analysis-inner { max-width:1180px; margin:0 auto; }
+    .analysis-heading { margin:0 0 5px; color:#173b29; font-size:clamp(1.25rem,2.4vw,1.7rem); font-weight:850; letter-spacing:-.025em; }
+    .analysis-sub { margin:0 0 18px; color:#647469; font-size:.84rem; line-height:1.5; }
+    .analysis-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .analysis-card { background:#fff; border:1px solid #e1e9e3; border-radius:12px; padding:15px 16px; min-width:0; }
+    .analysis-card span { display:block; color:#647469; font-size:.74rem; }
+    .analysis-card strong { display:block; color:#166534; font-size:1.55rem; font-weight:850; margin-top:3px; }
+    .histogram { width:100%; height:116px; display:block; margin-top:8px; }
+    .histogram rect { fill:#23834a; }
+    .histogram line { stroke:#dbe5de; stroke-width:1; }
+    .histogram text { fill:#647469; font-size:9px; }
+    @media(max-width:700px){.analysis-grid{grid-template-columns:1fr;} }
+    footer { background:white; border-top:1px solid #e5e7eb; padding:8px 14px; font-size:.72rem; color:#6b7280; flex:none; }
+
+    .science-summary { flex:none; background:#fff; border-top:1px solid #dbe5df; padding:clamp(24px,4vw,48px) clamp(16px,5vw,64px); }
+    .science-inner { max-width:1180px; margin:0 auto; }
+    .science-kicker { display:flex; align-items:center; gap:9px; color:#15803d; font-size:.72rem; font-weight:850; letter-spacing:.13em; text-transform:uppercase; }
+    .science-kicker:before { content:""; width:23px; height:2px; background:#16a34a; display:inline-block; }
+    .science-heading { margin:9px 0 8px; color:#10251b; font-size:clamp(1.45rem,3vw,2.15rem); line-height:1.12; letter-spacing:-.035em; font-weight:850; }
+    .science-lead { max-width:850px; color:#52645a; font-size:1rem; line-height:1.65; margin:0; }
+    .science-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:23px 0 25px; }
+    .science-stat { padding:15px 16px; border:1px solid #e1eae4; border-radius:11px; background:linear-gradient(145deg,#fbfefc,#f3f8f4); }
+    .science-stat strong { display:block; color:#166534; font-size:clamp(1.25rem,2.5vw,1.75rem); font-weight:850; letter-spacing:-.035em; }
+    .science-stat span { display:block; color:#647469; font-size:.75rem; line-height:1.4; margin-top:3px; }
+    .science-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+    .science-card { border:1px solid #e5ebe7; border-radius:13px; padding:19px 20px; background:#fff; }
+    .science-card h3 { margin:0 0 11px; color:#183a28; font-size:1rem; font-weight:800; }
+    .science-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .science-step { border-left:2px solid #86b99a; padding:2px 0 2px 11px; }
+    .science-step b { display:block; color:#1f5135; font-size:.8rem; margin-bottom:4px; }
+    .science-step p,.science-card p { color:#58675e; font-size:.82rem; line-height:1.55; margin:0; }
+    .science-note { margin-top:15px; padding:12px 14px; border-radius:9px; background:#f0f7f2; color:#40574a; font-size:.79rem; line-height:1.55; border:1px solid #dcebe0; }
+    .science-note strong { color:#245b38; }
+    .science-meta { display:flex; flex-wrap:wrap; gap:7px; margin-top:13px; }
+    .science-meta span { border:1px solid #e2e9e4; background:#f8faf8; color:#5d6b62; border-radius:999px; padding:5px 9px; font-size:.7rem; }
+    @media(max-width:800px) { .science-stats{grid-template-columns:repeat(2,minmax(0,1fr));} .science-grid{grid-template-columns:1fr;} }
+    @media(max-width:560px) { .science-steps{grid-template-columns:1fr; gap:13px;} .science-card{padding:16px;} .science-summary{padding:24px 15px;} }
+
+    @media(max-width:767px) {
+      header { padding:15px 90px 15px 10px; }
+      .lang { right:8px; top:11px; }
+      nav { gap:6px 12px; }
+      nav a { font-size:.76rem; }
+      #map-wrap { padding:12px; }
+      .panel { padding:13px; }
+      .filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .map-canvas { height:460px; min-height:400px; }
+      footer { font-size:.68rem; }
+    }
+  </style>
+<style>
+/* MFK Sensor shared navigation */
+.mfk-shared-nav {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .45rem .9rem;
+  padding: .65rem .8rem; background: #16a34a; color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,.12); position: relative; z-index: 20;
+}
+.mfk-shared-nav a {
+  color: #fff; font-size: .875rem; font-weight: 600; text-decoration: none;
+  white-space: nowrap; transition: color .15s ease;
+}
+.mfk-shared-nav a:hover { color: #bbf7d0; }
+.mfk-shared-nav a[aria-current="page"] {
+  text-decoration: underline; text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+@media (max-width: 520px) {
+  .mfk-shared-nav { gap: .35rem .65rem; padding: .55rem .45rem; }
+  .mfk-shared-nav a { font-size: .78rem; }
+}
+</style>
+</head>
+<body>
+  <header>
+    <div class="lang"><button id="lang-hu" class="active" type="button">HU</button><button id="lang-en" type="button">EN</button></div>
+    <h1 id="page-title">Hotspot-eredmények – interaktív térkép</h1>
+  </header>
+  <nav class="mfk-shared-nav" aria-label="Fő navigáció">
+  <a href="index.html" data-hu="Kezdőlap" data-en="Home">Kezdőlap</a>
+  <a href="map.html" data-hu="Térkép" data-en="Map">Térkép</a>
+  <a href="correlation.html" data-hu="Korreláció" data-en="Correlation">Korreláció</a>
+  <a href="topography_map.html" data-hu="Napi 3D" data-en="Daily 3D">Napi 3D</a>
+  <a href="topography_hotspot.html" data-hu="3D Hotspot" data-en="3D Hotspot">3D Hotspot</a>
+  <a href="air_quality_simulator.html" data-hu="AI Szimulátor" data-en="AI Simulator">AI Szimulátor</a>
+  <a href="hotspot_results.html" data-hu="Hotspot-eredmények" data-en="Hotspot results" aria-current="page">Hotspot-eredmények</a>
+  <a href="about.html" data-hu="Rólunk" data-en="About">Rólunk</a>
+</nav>
+
+  <main id="map-wrap">
+    <div class="dashboard-layout">
+      <div class="map-column">
+        <div class="map-help" data-hu="A két térkép ugyanazt a kiválasztott időszakot és területet mutatja. A bal oldali térkép azt jelzi, milyen gyakran került egy terület a magasabb PM2.5-értékű cellák közé az ismételt vizsgálatokban. A jobb oldali térkép a cellák jellemző értékét mutatja. A térképek nagyítása és mozgatása együtt történik."
+             data-en="Both maps show the same selected period and area. The left map shows how often an area ranked among cells with higher PM2.5 values across repeated analyses. The right map shows the typical value in each cell. Zooming and panning are synchronised.">
+          A két térkép ugyanazt a kiválasztott időszakot és területet mutatja. A bal oldali térkép azt jelzi, milyen gyakran került egy terület a magasabb PM2.5-értékű cellák közé az ismételt vizsgálatokban. A jobb oldali térkép a cellák jellemző értékét mutatja. A térképek nagyítása és mozgatása együtt történik.
+        </div>
+        <div class="map-pair">
+          <section class="map-card">
+            <h3 data-hu="Milyen gyakran kerül ez a terület a magasabb értékűek közé?"
+                data-en="How often does this area rank among those with higher values?">
+              Milyen gyakran kerül ez a terület a magasabb értékűek közé?
+            </h3>
+            <div id="map-stability" class="map-canvas" aria-label="A magasabb értékű cellák közé kerülés gyakoriságának térképe"></div>
+          </section>
+          <section class="map-card">
+            <h3 data-hu="Mekkora a cellában mért jellemző érték?"
+                data-en="What is the typical measured value in this cell?">
+              Mekkora a cellában mért jellemző érték?
+            </h3>
+            <div id="map-median" class="map-canvas" aria-label="A cellák jellemző mediánértékének térképe"></div>
+          </section>
+        </div>
+        <div id="loading"><div class="spinner"></div><span id="loading-text">A térképi adatok betöltése…</span></div>
+      </div>
+
+      <aside class="panel" aria-label="A térképek beállításai">
+        <div class="eyebrow" id="run-eyebrow">Publikált elemzési futás</div>
+        <h2 class="panel-heading" id="panel-title">Mit szeretne megvizsgálni?</h2>
+        <p class="panel-intro" id="intro">Válassza ki az évszakot, napszakot és a megjeleníteni kívánt adatokat. A két térkép mindig ugyanazokat a beállításokat használja.</p>
+
+        <div class="filter-grid">
+          <div>
+            <label for="season" id="season-label">Melyik évszak?</label>
+            <select class="field" id="season">
+              <option value="winter" selected>Tél</option><option value="spring">Tavasz</option>
+              <option value="summer">Nyár</option><option value="autumn">Ősz</option>
+            </select>
+          </div>
+          <div>
+            <label for="time" id="time-label">Melyik napszak?</label>
+            <select class="field" id="time">
+              <option value="morning" selected>Reggel</option><option value="afternoon">Délután</option>
+            </select>
+          </div>
+          <div>
+            <label for="grid" id="grid-label">Mekkora területeket mutassunk?</label>
+            <select class="field" id="grid"><option value="250" selected>250 méteres cellák</option><option value="500">500 méteres cellák</option></select>
+          </div>
+          <div>
+            <label for="metric" id="metric-label">Melyik adatot mutassuk?</label>
+            <select class="field" id="metric"><option value="pm2_5" selected>PM2.5-koncentráció</option><option value="pm25_diff">PM2.5-különbség (értelmezése ellenőrzés alatt)</option></select>
+          </div>
+          <div>
+            <label for="variant" id="variant-label">Mi alapján hasonlítsuk össze a méréseket?</label>
+            <select class="field" id="variant">
+              <option value="trip_bootstrap_top10pct" selected>Különálló mérési menetek szerint</option>
+              <option value="day_bootstrap_top10pct">Mérési napok szerint</option>
+            </select>
+          </div>
+          <div class="mt-3">
+            <div class="flex justify-between items-center gap-2"><span class="text-xs font-bold" id="legend-title">Színek jelentése</span><span class="text-xs text-gray-500" id="legend-unit">%</span></div>
+            <div class="legend" id="legend-gradient"></div>
+            <div class="legend-labels"><span id="legend-min">Ritkábban</span><span id="legend-mid">Közepesen</span><span id="legend-max">Gyakrabban</span></div>
+          </div>
+        </div>
+
+        <hr class="rule">
+        <div class="notice" id="method-note"><strong>Hogyan olvassam a bal oldali térképet?</strong> A százalék azt mutatja, hogy az 1000 ismételt vizsgálatból milyen gyakran került az adott cella a legmagasabb értékű cellák felső 10%-ába. Ez az ismétlődés gyakorisága, nem statisztikai szignifikanciateszt.</div>
+        <p class="muted mt-2" id="metric-note">A PM2.5-koncentráció mértékegysége µg/m³. A PM2.5-különbség pontos értelmezése és mértékegysége még ellenőrzendő.</p>
+        <p class="muted mt-2" id="source-note">Az oldal egy korábban elkészült, rögzített elemzési futás eredményeit mutatja be.</p>
+        <div id="status" class="status" role="status" aria-live="polite">Kapcsolódásra vár…</div>
+        <div class="mt-3 flex justify-end"><button class="button" id="reload" type="button">Adatok újratöltése</button></div>
+      </aside>
+    </div>
+  </main>
+
+  <section class="science-summary" aria-labelledby="science-title">
+    <div class="science-inner">
+      <div class="science-kicker" data-hu="Közérthető útmutató" data-en="A simple guide">Közérthető útmutató</div>
+      <h2 class="science-heading" id="science-title"
+          data-hu="Mit mutatnak a térképek?"
+          data-en="What do the maps show?">Mit mutatnak a térképek?</h2>
+      <p class="science-lead"
+         data-hu="A térképek azt segítenek megérteni, hogy az ingázó útvonalak mentén mely területeken fordultak elő visszatérően magasabb PM2.5-értékek. A színek nem egyetlen mérés eredményét, hanem több mérési menet vagy mérési nap összehasonlítását foglalják össze."
+         data-en="The maps help show where higher PM2.5 values repeatedly occurred along commuting routes. The colours summarise comparisons across multiple measurement trips or days, rather than a single measurement.">
+        A térképek azt segítenek megérteni, hogy az ingázó útvonalak mentén mely területeken fordultak elő visszatérően magasabb PM2.5-értékek. A színek nem egyetlen mérés eredményét, hanem több mérési menet vagy mérési nap összehasonlítását foglalják össze.
+      </p>
+
+      <div class="science-grid" style="margin-top:18px">
+        <article class="science-card">
+          <h3 data-hu="Miért érdemes a mediánt nézni?" data-en="Why look at the median?">Miért érdemes a mediánt nézni?</h3>
+          <p data-hu="A PM2.5-koncentráció egy adott útszakaszon mérésről mérésre változhat. Egy-egy rövid idejű kiugró érték erősen befolyásolhatja az átlagot. A medián ezzel szemben a rendezett értékek középső értékét mutatja, ezért kevésbé érzékeny a szélsőséges mérésekre. Segít megérteni, milyen PM2.5-szint volt jellemző az adott térképi cellában a vizsgált mérések során."
+             data-en="PM2.5 concentrations can vary from one measurement to another along a route. A brief high reading can strongly affect the average. The median is the middle value of the ordered measurements and is less sensitive to extreme readings. It helps describe the PM2.5 level that was typical for the mapped cell across the measurements analysed.">
+            A PM2.5-koncentráció egy adott útszakaszon mérésről mérésre változhat. Egy-egy rövid idejű kiugró érték erősen befolyásolhatja az átlagot. A medián ezzel szemben a rendezett értékek középső értékét mutatja, ezért kevésbé érzékeny a szélsőséges mérésekre. Segít megérteni, milyen PM2.5-szint volt jellemző az adott térképi cellában a vizsgált mérések során.
+          </p>
+        </article>
+        <article class="science-card">
+          <h3 data-hu="Miért vizsgáljuk az ismétlődés gyakoriságát?" data-en="Why examine how often a pattern recurs?">Miért vizsgáljuk az ismétlődés gyakoriságát?</h3>
+          <p data-hu="Egyetlen magas mérés még nem jelenti azt, hogy egy helyen rendszeresen magasabb a PM2.5-szint. Ezért az elemzés különböző mérési meneteket vagy napokat hasonlít össze ismételten. Azt vizsgálja, hogy ugyanaz a cella milyen gyakran kerül a magasabb értékeket mutató területek közé. Így elkülöníthetők az egyszeri kiugrások és a több mérésben visszatérő térbeli mintázatok."
+             data-en="One high reading does not mean that PM2.5 levels are regularly higher at a location. The analysis therefore repeatedly compares different measurement trips or days. It examines how often the same cell ranks among the areas with higher values. This helps distinguish isolated peaks from spatial patterns that recur across multiple measurements.">
+            Egyetlen magas mérés még nem jelenti azt, hogy egy helyen rendszeresen magasabb a PM2.5-szint. Ezért az elemzés különböző mérési meneteket vagy napokat hasonlít össze ismételten. Azt vizsgálja, hogy ugyanaz a cella milyen gyakran kerül a magasabb értékeket mutató területek közé. Így elkülöníthetők az egyszeri kiugrások és a több mérésben visszatérő térbeli mintázatok.
+          </p>
+        </article>
+      </div>
+
+      <div class="science-note" style="margin-top:14px">
+        <strong data-hu="Miért hasznos együtt a két mutató?" data-en="Why are the two indicators useful together?">Miért hasznos együtt a két mutató?</strong><br>
+        <span data-hu="A medián azt mutatja meg, mekkora érték volt jellemző egy cellában; az ismétlődés gyakorisága pedig azt, hogy a cella mennyire rendszeresen került a magas értékű területek közé az ismételt vizsgálatokban. A két térkép együtt ezért árnyaltabb képet ad: megmutatja a jellemző PM2.5-szintet és azt is, mennyire következetesen jelent meg a cella a magasabb értékűek között."
+              data-en="The median describes the typical value in a cell; the recurrence frequency shows how regularly the cell ranked among higher-value areas across repeated analyses. Together, the maps provide a more informative picture: they show both the typical PM2.5 level and how consistently the cell appeared among the higher-value areas.">
+          A medián azt mutatja meg, mekkora érték volt jellemző egy cellában; az ismétlődés gyakorisága pedig azt, hogy a cella mennyire rendszeresen került a magas értékű területek közé az ismételt vizsgálatokban. A két térkép együtt ezért árnyaltabb képet ad: megmutatja a jellemző PM2.5-szintet és azt is, mennyire következetesen jelent meg a cella a magasabb értékűek között.
+        </span>
+      </div>
+
+      <div class="science-grid" style="margin-top:22px">
+        <article class="science-card">
+          <h3 data-hu="Hogyan készült a térkép?" data-en="How were the maps created?">Hogyan készült a térkép?</h3>
+          <div class="science-steps">
+            <div class="science-step">
+              <b data-hu="1. Mérés útközben" data-en="1. Measurements on the move">1. Mérés útközben</b>
+              <p data-hu="A mobil mérőrendszer légszennyezettségi adatokat, helykoordinátákat és időpontokat rögzít az útvonalakon." data-en="The mobile monitoring system records air-quality measurements, geographic coordinates and timestamps along the routes.">A mobil mérőrendszer légszennyezettségi adatokat, helykoordinátákat és időpontokat rögzít az útvonalakon.</p>
+            </div>
+            <div class="science-step">
+              <b data-hu="2. Adatok rendezése" data-en="2. Preparing the data">2. Adatok rendezése</b>
+              <p data-hu="Az adatokat időpont és hely szerint összekapcsoljuk, ellenőrizzük, majd 250 vagy 500 méteres térképi cellákba rendezzük." data-en="Measurements are linked by time and location, checked, and grouped into 250 m or 500 m map cells.">Az adatokat időpont és hely szerint összekapcsoljuk, ellenőrizzük, majd 250 vagy 500 méteres térképi cellákba rendezzük.</p>
+            </div>
+            <div class="science-step">
+              <b data-hu="3. Ismételt összehasonlítás" data-en="3. Repeated comparisons">3. Ismételt összehasonlítás</b>
+              <p data-hu="A számítógépes elemzés 1000 alkalommal újra összeállítja a mérési menetek vagy napok mintáját, és megvizsgálja, mely cellák kerülnek gyakran a magasabb értékűek közé." data-en="The computer repeats the sampling of trips or days 1,000 times and checks which cells often rank among those with higher values.">A számítógépes elemzés 1000 alkalommal újra összeállítja a mérési menetek vagy napok mintáját, és megvizsgálja, mely cellák kerülnek gyakran a magasabb értékűek közé.</p>
+            </div>
+          </div>
+        </article>
+
+        <aside class="science-card">
+          <h3 data-hu="Mit jelent a százalék a bal oldali térképen?" data-en="What does the percentage on the left map mean?">Mit jelent a százalék a bal oldali térképen?</h3>
+          <p data-hu="Például a 60% azt jelenti, hogy az érvényes ismételt vizsgálatok 60%-ában az adott cella a legmagasabb értékű cellák felső 10%-ába került. Minél nagyobb ez az arány, annál gyakrabban szerepelt a cella a magas értékű területek között."
+             data-en="For example, 60% means that in 60% of valid repeated analyses, the cell ranked within the top 10% of cells with the highest values. A higher percentage means the cell appeared more often among the higher-value areas.">
+            Például a 60% azt jelenti, hogy az érvényes ismételt vizsgálatok 60%-ában az adott cella a legmagasabb értékű cellák felső 10%-ába került. Minél nagyobb ez az arány, annál gyakrabban szerepelt a cella a magas értékű területek között.
+          </p>
+          <div class="science-note">
+            <strong data-hu="Fontos tudni" data-en="Please note">Fontos tudni</strong><br>
+            <span data-hu="Ez az eredmény az ismételt vizsgálatokban megfigyelt gyakoriságot mutatja. Nem bizonyítja önmagában, hogy egy terület statisztikailag szignifikáns légszennyezettségi gócpont, és nem minősíti a mérőeszköz pontosságát."
+                  data-en="This result shows how often an area appeared in the repeated analyses. By itself, it does not prove that the area is a statistically significant pollution hotspot, and it does not assess sensor accuracy.">
+              Ez az eredmény az ismételt vizsgálatokban megfigyelt gyakoriságot mutatja. Nem bizonyítja önmagában, hogy egy terület statisztikailag szignifikáns légszennyezettségi gócpont, és nem minősíti a mérőeszköz pontosságát.
+            </span>
+          </div>
+          <p style="margin-top:12px" data-hu="A térképek eredményeit előzetesen, a szerveren végeztük el. Ez az oldal a már kiszámított adatokat jeleníti meg; a térképen végzett nagyítás és szűrés nem indít új tudományos elemzést."
+             data-en="The analysis was completed in advance on the server. This page displays the calculated results; zooming and filtering the map do not run a new scientific analysis.">
+            A térképek eredményeit előzetesen, a szerveren végeztük el. Ez az oldal a már kiszámított adatokat jeleníti meg; a térképen végzett nagyítás és szűrés nem indít új tudományos elemzést.
+          </p>
+        </aside>
+      </div>
+
+      <div class="science-stats" aria-label="Az elemzés fő adatai">
+        <div class="science-stat"><strong>1 191 612</strong><span data-hu="A feldolgozásba beolvasott mérési rekord" data-en="Measurement records read for processing">A feldolgozásba beolvasott mérési rekord</span></div>
+        <div class="science-stat"><strong>803 357</strong><span data-hu="A futási leírás szerint az elemzésre jogosult rekord" data-en="Records marked eligible in the run description">A futási leírás szerint az elemzésre jogosult rekord</span></div>
+        <div class="science-stat"><strong>2023–2026</strong><span data-hu="A vizsgált időszak: 2023. szeptember 11. – 2026. október 20." data-en="Study period: 11 September 2023 – 20 October 2026">A vizsgált időszak: 2023. szeptember 11. – 2026. október 20.</span></div>
+        <div class="science-stat"><strong>250 / 500 m</strong><span data-hu="A térképen használt cellaméretek" data-en="Map cell sizes used">A térképen használt cellaméretek</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="footer">MFK Sensor · Előre kiszámított eredmények böngészőbeli megjelenítése; alaptérkép: © OpenStreetMap közreműködők.</footer>
+
+<script>
+(() => {
+  "use strict";
+  const SUPABASE_URL = "https://yuamroqhxrflusxeyylp.supabase.co";
+  const SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1YW1yb3FoeHJmbHVzeGV5eWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NjA2ODgsImV4cCI6MjA2MTQzNjY4OH0.GOzgzWLxQnT6YzS8z2D4OKrsHkBnS55L7oRTMsEKs8U";
+  const RUN_ID = "4a787bfe-179a-40e2-b7e4-9618b203baad";
+  const VIEW = "hotspot_cells_webgis", PAGE_SIZE = 1000;
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
+  const $ = id => document.getElementById(id);
+  let lang = "hu", maps = [], layers = [], rows = [], features = [];
+  const T = {
+    hu: {
+      title:"Hotspot-eredmények – interaktív térkép", panel:"Hotspot-cellák",
+      intro:"Előre kiszámított hotspot-eredmények megjelenítése.", season:"Évszak",time:"Napszak",grid:"Rácsméret",
+      metric:"Vizsgált mutató",variant:"Bootstrap-változat",legend:"Jelmagyarázat",
+      seasons:{winter:"Tél",spring:"Tavasz",summer:"Nyár",autumn:"Ősz"},times:{morning:"Reggel",afternoon:"Délután"},
+      metrics:{pm2_5:"PM2.5",pm25_diff:"PM2.5-különbség"},
+      variants:{trip_bootstrap_top10pct:"Utazásalapú bootstrap",day_bootstrap_top10pct:"Napalapú bootstrap"},
+      method:"<strong>Értelmezés:</strong> a rangstabilitás azt jelzi, hogy a cella a bootstrap-ismétlések mekkora hányadában került a legfelső 10%-ba. Ez önmagában nem bizonyít statisztikailag szignifikáns hotspotot.",
+      metricNote:"PM2.5: a pm2_5 rekordok median_value mezője, µg/m³. A pm25_diff jelentését és mértékegységét a számítási kód alapján még ellenőrizni kell.",
+      source:"Adatforrás: Supabase, public.hotspot_cells_webgis; rögzített run_id.",
+      waiting:"Kapcsolódásra vár…",loading:"A térképi adatok betöltése…",reload:"Adatok újratöltése",
+      loaded:n=>`${n.toLocaleString("hu-HU")} rekord betöltve.`,noData:"Nincs adat a kiválasztott szűréshez.",
+      error:"Sikertelen Supabase-lekérés: ",low:"Ritkábban",mid:"Közepesen",high:"Gyakrabban",
+      footer:"MFK Sensor · Előre kiszámított eredmények böngészőbeli megjelenítése; a böngésző nem futtatja újra a bootstrap-elemzést.",
+      popupRepeat:"Rangstabilitás",popupMedian:"Mediánérték",popupGrid:"Rácsméret",popupSeason:"Évszak",
+      popupTime:"Napszak",popupVariant:"Bootstrap-változat",popupRecords:"Rekordok",popupDays:"Napok",popupTrips:"Utazások"
+    },
+    en: {
+      title:"Hotspot results – interactive map",panel:"Hotspot cells",intro:"Display of precomputed hotspot results.",
+      season:"Season",time:"Time of day",grid:"Grid size",metric:"Variable",variant:"Bootstrap variant",legend:"Legend",
+      seasons:{winter:"Winter",spring:"Spring",summer:"Summer",autumn:"Autumn"},times:{morning:"Morning",afternoon:"Afternoon"},
+      metrics:{pm2_5:"PM2.5",pm25_diff:"PM2.5 difference"},
+      variants:{trip_bootstrap_top10pct:"Trip-based bootstrap",day_bootstrap_top10pct:"Day-based bootstrap"},
+      method:"<strong>Interpretation:</strong> rank stability is the proportion of bootstrap repetitions in which a cell fell in the top 10%. This alone does not establish a statistically significant hotspot.",
+      metricNote:"PM2.5: median_value for pm2_5 records, in µg/m³. The meaning and unit of pm25_diff must still be checked against the analysis code.",
+      source:"Source: Supabase, public.hotspot_cells_webgis; fixed run_id.",
+      waiting:"Waiting for connection…",loading:"Loading map data…",reload:"Reload data",
+      loaded:n=>`${n.toLocaleString("en-US")} records loaded.`,noData:"No data matches these filters.",
+      error:"Supabase request failed: ",low:"Less often",mid:"Sometimes",high:"More often",
+      footer:"MFK Sensor · Browser display of precomputed results; basemap: © OpenStreetMap contributors.",
+      popupRepeat:"Rank stability",popupMedian:"Median value",popupGrid:"Grid size",popupSeason:"Season",
+      popupTime:"Time of day",popupVariant:"Bootstrap variant",popupRecords:"Records",popupDays:"Days",popupTrips:"Trips"
+    }
+  };
+  const status = (msg,kind="") => { $("status").textContent=msg; $("status").className="status "+kind; };
+  const fmt = v => v===null || v===undefined || v==="" || !Number.isFinite(Number(v)) ? "—" :
+    Number(v).toLocaleString(lang==="hu"?"hu-HU":"en-US",{maximumFractionDigits:3});
+  const geometry = r => {
+    let g=r.geometry;
+    if(typeof g==="string"){try{g=JSON.parse(g)}catch(_){return null}}
+    return g && g.type && g.coordinates ? g : null;
+  };
+  function setLanguage(next) {
+    lang=next; const t=T[lang];
+    $("lang-hu").classList.toggle("active",lang==="hu"); $("lang-en").classList.toggle("active",lang==="en");
+    document.documentElement.lang=lang; $("page-title").textContent=t.title; $("panel-title").textContent=t.panel;
+    $("intro").textContent=t.intro; $("season-label").textContent=t.season; $("time-label").textContent=t.time;
+    $("grid-label").textContent=t.grid; $("metric-label").textContent=t.metric; $("variant-label").textContent=t.variant;
+    $("legend-title").textContent=t.legend; $("method-note").innerHTML=t.method;
+    $("metric-note").textContent=t.metricNote; $("source-note").textContent=t.source; $("loading-text").textContent=t.loading;
+    $("reload").textContent=t.reload; $("footer").textContent=t.footer;
+    $("legend-min").textContent=t.low; $("legend-mid").textContent=t.mid; $("legend-max").textContent=t.high;
+    for(const o of $("season").options)o.textContent=t.seasons[o.value]||o.textContent;
+    for(const o of $("time").options)o.textContent=t.times[o.value]||o.textContent;
+    for(const o of $("metric").options)o.textContent=t.metrics[o.value]||o.textContent;
+    for(const o of $("variant").options)o.textContent=t.variants[o.value]||o.textContent;
+    document.querySelectorAll("nav a[data-hu]").forEach(a=>a.textContent=a.dataset[lang]);
+    document.querySelectorAll(".science-summary [data-hu][data-en], .analysis-below [data-hu][data-en], .map-card h3[data-hu][data-en], .map-help[data-hu][data-en]").forEach(el=>el.textContent=el.dataset[lang]);
+    if(rows.length)render();
+  }
+  function color(v,min,max){
+    const c=[[22,101,52],[101,163,13],[250,204,21],[249,115,22],[185,28,28],[107,33,168]];
+    const p=max===min?.5:Math.max(0,Math.min(1,(v-min)/(max-min)))*(c.length-1),i=Math.min(c.length-2,Math.floor(p)),f=p-i;
+    return "rgb("+c[i].map((x,j)=>Math.round(x+(c[i+1][j]-x)*f)).join(",")+")";
+  }
+  function unit(metric,display){return display==="repeatability_pct"?"%":metric==="pm2_5"?"µg/m³":(lang==="hu"?"ELLENŐRIZENDŐ":"TO VERIFY")}
+
+  const median = values => {
+    if(!values.length)return null;
+    const a=[...values].sort((x,y)=>x-y),m=Math.floor(a.length/2);
+    return a.length%2?a[m]:(a[m-1]+a[m])/2;
+  };
+  function updateAnalysis(filtered, display, metric){
+    const values=filtered.map(r=>Number(display==="repeatability_pct"?r.repeatability_pct:r.median_value))
+      .filter(Number.isFinite);
+    $("summary-cell-count").textContent=values.length.toLocaleString(lang==="hu"?"hu-HU":"en-US");
+    const med=median(values), lo=values.length?Math.min(...values):null, hi=values.length?Math.max(...values):null;
+    const suffix=unit(metric,display);
+    $("summary-value-median").textContent=med===null?"—":fmt(med)+" "+suffix;
+    $("summary-value-range").textContent=lo===null?"—":fmt(lo)+"–"+fmt(hi)+" "+suffix;
+    const svg=$("cell-histogram");
+    if(!values.length){
+      svg.innerHTML='<line x1="28" y1="91" x2="620" y2="91"></line><text x="320" y="55" text-anchor="middle">'+(lang==="hu"?"Nincs megjeleníthető adat":"No data to display")+'</text>';
+      return;
+    }
+    const bins=12, min=Math.min(...values), max=Math.max(...values), counts=Array(bins).fill(0);
+    values.forEach(v=>{
+      const i=max===min?Math.floor(bins/2):Math.min(bins-1,Math.floor((v-min)/(max-min)*bins));
+      counts[i]++;
+    });
+    const peak=Math.max(...counts,1), gap=4, w=592/bins, barW=w-gap;
+    let out='<line x1="28" y1="91" x2="620" y2="91"></line>';
+    counts.forEach((n,i)=>{
+      const h=78*n/peak, x=28+i*w;
+      out+=`<rect x="${x.toFixed(1)}" y="${(91-h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2"><title>${n} ${lang==="hu"?"cella":"cells"}</title></rect>`;
+    });
+    out+=`<text x="28" y="108">${fmt(min)}</text><text x="620" y="108" text-anchor="end">${fmt(max)} ${suffix}</text>`;
+    svg.innerHTML=out;
+  }
+
+  function render(){
+    if(!maps.length||!layers.length)return;
+    const season=$("season").value,time=$("time").value,grid=Number($("grid").value),
+      metric=$("metric").value,variant=$("variant").value;
+    const base=rows.filter(r=>Number(r.grid_size_m)===grid&&r.season===season&&r.time_of_day===time&&
+      r.metric===metric&&r.analysis_variant===variant&&geometry(r));
+    const specs=[
+      {display:"repeatability_pct",layer:layers[0]},
+      {display:"median_value",layer:layers[1]}
+    ];
+    specs.forEach(({display,layer})=>{
+      const filtered=base.filter(r=>Number.isFinite(Number(display==="repeatability_pct"?r.repeatability_pct:r.median_value)));
+      const vals=filtered.map(r=>Number(display==="repeatability_pct"?r.repeatability_pct:r.median_value));
+      const min=vals.length?Math.min(...vals):0,max=vals.length?Math.max(...vals):1;
+      const fs=filtered.map(r=>({type:"Feature",geometry:geometry(r),properties:{
+        value:Number(display==="repeatability_pct"?r.repeatability_pct:r.median_value),metric:r.metric,display,
+        repeatability_pct:r.repeatability_pct,median_value:r.median_value,grid_size_m:r.grid_size_m,
+        season:r.season,time_of_day:r.time_of_day,analysis_variant:r.analysis_variant,
+        n_records:r.n_records,n_days:r.n_days,n_trips:r.n_trips,cell_key:r.cell_key
+      }}));
+      layer.clearLayers();
+      layer.addData({type:"FeatureCollection",features:fs});
+      // Leaflet GeoJSON style callbacks receive the GeoJSON feature itself,
+      // whereas eachLayer callbacks receive the Leaflet layer. Keep these APIs separate.
+      layer.setStyle(feature=>{
+        const v=Number(feature && feature.properties ? feature.properties.value : NaN);
+        return {color:"#334155",weight:.7,opacity:.8,
+          fillColor:Number.isFinite(v)?color(v,min,max):"#94a3b8",fillOpacity:.72};
+      });
+      const prefix=display==="repeatability_pct"?(lang==="hu"?"Rangstabilitás":"Rank stability"):(lang==="hu"?"Mediánérték":"Median value");
+      if(display==="repeatability_pct"){
+        $("legend-unit").textContent="%";
+        $("legend-min").textContent=vals.length?fmt(min):"—";
+        $("legend-mid").textContent=vals.length?fmt((min+max)/2):"—";
+        $("legend-max").textContent=vals.length?fmt(max):"—";
+      }
+      layer.eachLayer(l=>{
+        const p=l.feature && l.feature.properties;
+        if(!p)return;
+        const t=T[lang];
+        const variable=p.metric==="pm2_5"?"PM2.5":(lang==="hu"?"PM2.5-különbség":"PM2.5 difference");
+        const html=`<div style="font-weight:800;font-size:1rem">${p.display==="repeatability_pct"?prefix:variable}</div>
+          <div style="font-size:1.3rem;font-weight:800;color:#166534">${fmt(p.value)} <span style="font-size:.8rem;font-weight:500">${unit(p.metric,p.display)}</span></div>
+          <hr style="margin:7px 0;border:0;border-top:1px solid #e5e7eb">
+          <div>${t.popupRepeat}: ${fmt(p.repeatability_pct)}%</div>
+          <div>${t.popupMedian}: ${fmt(p.median_value)} ${p.metric==="pm2_5"?"µg/m³":""}</div>
+          <div>${t.popupGrid}: ${p.grid_size_m} m</div>
+          <div>${t.popupSeason}: ${t.seasons[p.season]}</div>
+          <div>${t.popupTime}: ${t.times[p.time_of_day]}</div>
+          <div>${t.popupVariant}: ${t.variants[p.analysis_variant]}</div>
+          <div>${t.popupRecords}: ${fmt(p.n_records)} · ${t.popupDays}: ${fmt(p.n_days)} · ${t.popupTrips}: ${fmt(p.n_trips)}</div>
+          <div style="margin-top:6px;font-size:.72rem;color:#6b7280">cell_id: ${p.cell_key}</div>`;
+        l.bindPopup(html,{maxWidth:320});
+      });
+    });
+    const n=base.length;
+    status(n?T[lang].loaded(n):T[lang].noData,n?"ok":"warn");
+  }
+  async function load(){
+    $("loading").classList.add("show");$("reload").disabled=true;status(T[lang].waiting);
+    try{
+      let result=[],from=0,more=true;
+      const cols="id,run_id,grid_size_m,season,time_of_day,metric,analysis_variant,cell_key,geometry,repeatability_pct,median_value,n_records,n_days,n_trips,created_at";
+      while(more){
+        const {data,error}=await db.from(VIEW).select(cols).eq("run_id",RUN_ID).range(from,from+PAGE_SIZE-1);
+        if(error)throw error;
+        const batch=data||[];result=result.concat(batch);more=batch.length===PAGE_SIZE;from+=PAGE_SIZE;
+        if(result.length>50000)throw new Error("Safety stop: result set unexpectedly large");
+      }
+      rows=result;
+      if(!rows.length){status(T[lang].noData,"warn");return}
+      const missing=["geometry","grid_size_m","season","time_of_day","metric","analysis_variant","repeatability_pct","median_value"].filter(k=>!(k in rows[0]));
+      if(missing.length)throw new Error("Hiányzó mezők / missing columns: "+missing.join(", "));
+      render();
+      const bounds=layers[0].getBounds();
+      if(bounds.isValid())maps.forEach(m=>m.fitBounds(bounds,{padding:[24,24],maxZoom:13}));
+    }catch(e){console.error(e);status(T[lang].error+(e.message||e.code||""),"error")}
+    finally{$("loading").classList.remove("show");$("reload").disabled=false}
+  }
+  function initMap(){
+    const ids=["map-stability","map-median"];
+    maps=ids.map(id=>L.map(id,{scrollWheelZoom:true}).setView([48.10,20.79],10));
+    maps.forEach(m=>{
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        maxZoom:19,
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+      }).addTo(m);
+    });
+    // The two maps share the same view: pan or zoom either map to move the other.
+    let syncing=false;
+    maps.forEach((source,index)=>{
+      source.on("moveend",()=>{
+        if(syncing)return;
+        const target=maps[1-index], c=source.getCenter(), z=source.getZoom(), tc=target.getCenter();
+        if(Math.abs(z-target.getZoom())<0.001 &&
+           Math.abs(c.lat-tc.lat)<0.000001 && Math.abs(c.lng-tc.lng)<0.000001)return;
+        syncing=true;
+        target.setView(c,z,{animate:false});
+        syncing=false;
+      });
+    });
+    layers=maps.map((m,index)=>L.geoJSON(null,{
+      style:{color:"#334155",weight:.7,opacity:.8,fillColor:"#23834a",fillOpacity:.72},
+      onEachFeature:(feature,layer)=>{}
+    }).addTo(m));
+    load();
+  }
+  ["season","time","grid","metric","variant"].forEach(id=>$(id).addEventListener("change",render));
+  $("reload").addEventListener("click",load);$("lang-hu").addEventListener("click",()=>setLanguage("hu"));
+  $("lang-en").addEventListener("click",()=>setLanguage("en"));setLanguage("hu");initMap();
+})();
+</script>
+<script>
+/* HU/EN feliratok a közös navigációban; a lap saját fordításait nem írja felül. */
+(function () {
+  function updateMfkNav(lang) {
+    var selected = (lang || document.documentElement.lang || "hu").toLowerCase();
+    selected = selected.indexOf("en") === 0 ? "en" : "hu";
+    document.querySelectorAll(".mfk-shared-nav a[data-hu][data-en]").forEach(function (a) {
+      a.textContent = a.getAttribute("data-" + selected);
+    });
+    document.documentElement.lang = selected;
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    updateMfkNav(document.documentElement.lang);
+    document.querySelectorAll("#lang-hu, #lang-en, [data-lang='hu'], [data-lang='en']").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var lang = btn.id === "lang-en" || btn.getAttribute("data-lang") === "en" ? "en" : "hu";
+        updateMfkNav(lang);
+      });
+    });
+
+    /* Egyes oldalak onclick="setLang(...)" függvényt használnak.
+       A wrapper a nav frissítését hozzáfűzi, a meglévő fordítást megtartva. */
+    if (typeof window.setLang === "function" && !window.setLang.__mfkWrapped) {
+      var original = window.setLang;
+      var wrapped = function (lang) {
+        var result = original.apply(this, arguments);
+        updateMfkNav(lang);
+        return result;
+      };
+      wrapped.__mfkWrapped = true;
+      window.setLang = wrapped;
+    }
+  });
+})();
+</script>
+</body>
+</html>

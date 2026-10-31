@@ -50,6 +50,27 @@
         .mode-btn:hover:not(.active) { background-color: #f0f0f0; }
         
     </style>
+<style>
+/* MFK Sensor shared navigation */
+.mfk-shared-nav {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .45rem .9rem;
+  padding: .65rem .8rem; background: #16a34a; color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,.12); position: relative; z-index: 20;
+}
+.mfk-shared-nav a {
+  color: #fff; font-size: .875rem; font-weight: 600; text-decoration: none;
+  white-space: nowrap; transition: color .15s ease;
+}
+.mfk-shared-nav a:hover { color: #bbf7d0; }
+.mfk-shared-nav a[aria-current="page"] {
+  text-decoration: underline; text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+@media (max-width: 520px) {
+  .mfk-shared-nav { gap: .35rem .65rem; padding: .55rem .45rem; }
+  .mfk-shared-nav a { font-size: .78rem; }
+}
+</style>
 </head>
 <body class="bg-gradient-to-br from-green-50 to-blue-50 font-sans min-h-screen flex flex-col">
 
@@ -61,16 +82,15 @@
     <h1 id="main-title" class="text-lg md:text-2xl font-extrabold tracking-tight mobile-title">Korreláció Elemzés</h1>
 </header>
 
-<nav class="bg-green-600 text-white py-2 shadow-md mobile-nav">
-    <div class="container mx-auto px-3 flex flex-wrap justify-center gap-x-3 gap-y-1 mobile-nav">
-      <a href="index.html" id="nav-home" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Kezdőlap</a>
-      <a href="map.html" id="nav-map" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Térkép</a>
-      <a href="correlation.html" id="nav-correlation" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text underline decoration-2">Korreláció</a>
-      <a href="topography_map.html" id="nav-topo" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Napi 3D</a>
-      <a href="topography_hotspot.html" id="nav-hotspot" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">3D Hotspot</a>
-      <a href="air_quality_simulator.html" id="nav-simulator" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">AI Szimulátor</a>
-      <a href="about.html" id="nav-about" class="text-sm font-semibold hover:text-green-200 transition-colors mobile-text">Rólunk</a>
-    </div>
+<nav class="mfk-shared-nav" aria-label="Fő navigáció">
+  <a href="index.html" data-hu="Kezdőlap" data-en="Home">Kezdőlap</a>
+  <a href="map.html" data-hu="Térkép" data-en="Map">Térkép</a>
+  <a href="correlation.html" data-hu="Korreláció" data-en="Correlation" aria-current="page" id="nav-correlation">Korreláció</a>
+  <a href="topography_map.html" data-hu="Napi 3D" data-en="Daily 3D">Napi 3D</a>
+  <a href="topography_hotspot.html" data-hu="3D Hotspot" data-en="3D Hotspot">3D Hotspot</a>
+  <a href="air_quality_simulator.html" data-hu="AI Szimulátor" data-en="AI Simulator">AI Szimulátor</a>
+  <a href="hotspot_results.html" data-hu="Hotspot-eredmények" data-en="Hotspot results">Hotspot-eredmények</a>
+  <a href="about.html" data-hu="Rólunk" data-en="About">Rólunk</a>
 </nav>
 
 <div class="controls space-y-2">
@@ -430,13 +450,13 @@
       const langData = translations[lang];
       document.title = langData.title;
       document.getElementById('main-title').textContent = langData.mainTitle;
-      document.getElementById('nav-home').textContent = langData.navHome;
-      document.getElementById('nav-map').textContent = langData.navMap;
-      document.getElementById('nav-correlation').textContent = langData.navCorrelation;
-      if(document.getElementById('nav-topo')) document.getElementById('nav-topo').textContent = langData.navTopo;
-      if(document.getElementById('nav-hotspot')) document.getElementById('nav-hotspot').textContent = langData.navHotspot;
-      if(document.getElementById('nav-simulator')) document.getElementById('nav-simulator').textContent = langData.navSimulator;
-      document.getElementById('nav-about').textContent = langData.navAbout;
+      var _mfkNavEl = document.getElementById('nav-home'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navHome;
+      var _mfkNavEl = document.getElementById('nav-map'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navMap;
+      var _mfkNavEl = document.getElementById('nav-correlation'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navCorrelation;
+      if(document.getElementById('nav-topo')) var _mfkNavEl = document.getElementById('nav-topo'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navTopo;
+      if(document.getElementById('nav-hotspot')) var _mfkNavEl = document.getElementById('nav-hotspot'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navHotspot;
+      if(document.getElementById('nav-simulator')) var _mfkNavEl = document.getElementById('nav-simulator'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navSimulator;
+      var _mfkNavEl = document.getElementById('nav-about'); if (_mfkNavEl) _mfkNavEl.textContent = langData.navAbout;
       
       document.getElementById('period-all').textContent = langData.periodAll;
       document.getElementById('period-winter').textContent = langData.periodWinter;
@@ -506,5 +526,41 @@
     });
 </script>
 
+<script>
+/* HU/EN feliratok a közös navigációban; a lap saját fordításait nem írja felül. */
+(function () {
+  function updateMfkNav(lang) {
+    var selected = (lang || document.documentElement.lang || "hu").toLowerCase();
+    selected = selected.indexOf("en") === 0 ? "en" : "hu";
+    document.querySelectorAll(".mfk-shared-nav a[data-hu][data-en]").forEach(function (a) {
+      a.textContent = a.getAttribute("data-" + selected);
+    });
+    document.documentElement.lang = selected;
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    updateMfkNav(document.documentElement.lang);
+    document.querySelectorAll("#lang-hu, #lang-en, [data-lang='hu'], [data-lang='en']").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var lang = btn.id === "lang-en" || btn.getAttribute("data-lang") === "en" ? "en" : "hu";
+        updateMfkNav(lang);
+      });
+    });
+
+    /* Egyes oldalak onclick="setLang(...)" függvényt használnak.
+       A wrapper a nav frissítését hozzáfűzi, a meglévő fordítást megtartva. */
+    if (typeof window.setLang === "function" && !window.setLang.__mfkWrapped) {
+      var original = window.setLang;
+      var wrapped = function (lang) {
+        var result = original.apply(this, arguments);
+        updateMfkNav(lang);
+        return result;
+      };
+      wrapped.__mfkWrapped = true;
+      window.setLang = wrapped;
+    }
+  });
+})();
+</script>
 </body>
 </html>
